@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { type Card, DECK, shuffle } from './cards'
-import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId } from './players'
-import { applyPlayed, currentPlayer, isDealOver, newPlay, playableFor } from './play'
-import type { BotView } from './bot'
-import { chooseBid, chooseCard, isMaster, trickMaster } from './bot'
+import { type Card, DECK, shuffle } from '../cards'
+import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId } from '../players'
+import { applyPlayed, currentPlayer, isDealOver, newPlay, playableFor } from '../play'
+import type { BotView } from '../bot'
+import { chooseBid, chooseCard, isMaster, trickMaster } from '../bot'
 
 /** Sièges : romain(0) · benel(1) · viv(2) · roux(3). Équipes : 0+2 contre 1+3. */
 const vue = (p: Partial<BotView> & Pick<BotView, 'me' | 'hand'>): BotView => ({

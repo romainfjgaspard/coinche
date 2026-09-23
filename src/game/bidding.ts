@@ -1,5 +1,5 @@
 /**
- * Machine à états des enchères (REGLES.md § 3 et § 4). Pure : aucune dépendance
+ * Machine à états des enchères (docs/REGLES.md § 3 et § 4). Pure : aucune dépendance
  * à Firestore, tout se déduit de la liste ordonnée des prises de parole.
  *
  * Chez nous, « annonce » = enchère.

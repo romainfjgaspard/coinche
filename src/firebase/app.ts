@@ -5,14 +5,24 @@
  * et sur les émulateurs : l'app tourne alors en local, sans compte ni clé.
  * Avec les clés renseignées, on parle au vrai projet.
  */
-import { initializeApp } from 'firebase/app'
-import { connectAuthEmulator, getAuth } from 'firebase/auth'
-import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
+import { type FirebaseApp, initializeApp } from 'firebase/app'
+import {
+  type Auth, connectAuthEmulator, getAuth, inMemoryPersistence, setPersistence,
+} from 'firebase/auth'
+import { type Firestore, connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
 
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID
 
-/** Vrai tant que les clés du projet Firebase ne sont pas renseignées. */
-export const useEmulators = !projectId
+/**
+ * Vrai si l'app doit parler aux émulateurs plutôt qu'au vrai projet.
+ *
+ * Par défaut c'est l'absence de clés qui décide. Mais une fois `.env.local` rempli,
+ * `npm run dev` parle au **vrai** projet — et les tests, qui jouent des dizaines de
+ * parties, y écriraient pour de bon. D'où `npm run dev:emu`, qui force les
+ * émulateurs quelles que soient les clés présentes.
+ */
+export const useEmulators =
+  import.meta.env.VITE_USE_EMULATORS === '1' || !projectId
 
 const config = useEmulators
   ? { projectId: 'demo-coinche', apiKey: 'demo', authDomain: 'demo-coinche.firebaseapp.com' }
@@ -32,4 +42,35 @@ export const db = getFirestore(app)
 if (useEmulators) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
   connectFirestoreEmulator(db, '127.0.0.1', 8080)
+}
+
+/** Un client Firebase complet : une application, une session, une base. */
+export interface Client {
+  app: FirebaseApp
+  auth: Auth
+  db: Firestore
+}
+
+/** Le client de l'onglet : c'est celui du joueur humain. */
+export const mainClient: Client = { app, auth, db }
+
+/**
+ * Un client indépendant, avec sa **propre** session anonyme.
+ *
+ * C'est ce qui permet à un bot de tenir un siège sans emprunter l'identité de
+ * l'onglet : il obtient son propre uid, donc les règles Firestore lui interdisent
+ * de lire la main des autres — exactement comme à nous. La persistance est en
+ * mémoire, sinon Firebase lui rendrait la session déjà stockée pour cette origine
+ * et le bot se retrouverait à être le joueur humain.
+ */
+export async function makeClient(nom: string): Promise<Client> {
+  const a = initializeApp(config, nom)
+  const au = getAuth(a)
+  await setPersistence(au, inMemoryPersistence)
+  const d = getFirestore(a)
+  if (useEmulators) {
+    connectAuthEmulator(au, 'http://127.0.0.1:9099', { disableWarnings: true })
+    connectFirestoreEmulator(d, '127.0.0.1', 8080)
+  }
+  return { app: a, auth: au, db: d }
 }

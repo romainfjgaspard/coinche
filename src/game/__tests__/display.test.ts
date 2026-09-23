@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { DECK } from './cards'
-import { RANK_LABEL, cardLabel, courtImage, isCourt, isRed, pipLayout } from './display'
+import { DECK } from '../cards'
+import { RANK_LABEL, cardLabel, courtImage, isCourt, isRed, pipLayout } from '../display'
 
 describe('index à la française', () => {
   it('l\'as porte un 1, les figures V, D et R', () => {

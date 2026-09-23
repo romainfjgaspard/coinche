@@ -3,7 +3,7 @@
  * Le `playerId` est mémorisé dans le navigateur pour qu'un rafraîchissement
  * ne fasse pas perdre son siège.
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { getDoc } from 'firebase/firestore'
 import type { Card } from '../game/cards'
@@ -22,6 +22,9 @@ import { biddingFromEvents, currentDeal, playFromEvents, starsInGame } from '../
 import { type DealSummary, type Tally, deals, momentum, runningScores, tallies } from '../game/stats'
 import { DEFAULT_SEATING, type Seating, teamOfPlayer } from '../game/players'
 import { type Impasse, impasseTallies, impassesOfGame } from '../game/impasses'
+import type { BotLevel } from '../game/bot'
+import { type BotHandle, type PublicFeed, startBot } from '../firebase/botRunner'
+import { type Client, makeClient } from '../firebase/app'
 
 const STORE_KEY = 'coinche.session'
 
@@ -200,6 +203,41 @@ export const useSession = defineStore('session', () => {
     })
   }
 
+  /** Les bots lancés depuis cet onglet : on les arrête en quittant. */
+  const bots = ref<BotHandle[]>([])
+  /** Un seul client Firebase pour tous les bots de l'onglet, créé à la demande. */
+  let botClient: Client | null = null
+
+  /**
+   * Installe un bot sur un siège libre.
+   *
+   * Il obtient sa **propre** session anonyme, donc les règles Firestore lui
+   * interdisent de lire la main des autres — au même titre qu'un humain.
+   */
+  async function addBot(player: PlayerId, level: BotLevel = 'simple'): Promise<void> {
+    if (!code.value) return
+    await run(async () => {
+      // `?botDelay=` permet aux tests d'accélérer la table sans toucher au jeu.
+      const delayMs = Number(new URLSearchParams(location.search).get('botDelay')) || undefined
+      // L'onglet écoute déjà la partie et le journal : les bots s'y branchent au
+      // lieu de rouvrir des connexions, que le navigateur finirait par étrangler.
+      const feed: PublicFeed = (cb) => {
+        cb(game.value, events.value)
+        return watch([game, events], () => cb(game.value, events.value), { deep: false })
+      }
+      botClient ??= await makeClient(`bots-${code.value}`)
+      bots.value.push(
+        await startBot(code.value!, player, { level, delayMs, feed, client: botClient }),
+      )
+    })
+  }
+
+  function stopBots(): void {
+    for (const b of bots.value) b.stop()
+    bots.value = []
+    botClient = null
+  }
+
   async function startDeal(): Promise<void> {
     if (!code.value) return
     await run(() => deal(code.value!))
@@ -230,6 +268,7 @@ export const useSession = defineStore('session', () => {
   }
 
   function leave(): void {
+    stopBots()
     stopGame?.()
     stopHand?.()
     stopEvents?.()
@@ -258,5 +297,6 @@ export const useSession = defineStore('session', () => {
     lastTrick, trickCounts, stars, shame, lastStar,
     dealSummaries, scoreCurve, momentumBars, playerTallies, impasses, impasseCounts,
     peek, create, join, chooseSeating, startDeal, bid, playTheCard, leave, resume, loadArchives,
+    bots, addBot, stopBots,
   }
 })

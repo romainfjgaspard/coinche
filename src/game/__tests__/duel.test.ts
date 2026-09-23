@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { type Card, DECK, shuffle, value } from './cards'
-import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId, teamOfPlayer } from './players'
-import { applyPlayed, currentPlayer, newPlay, playableFor } from './play'
-import { chooseCard, type BotLevel } from './bot'
-import { forceMain } from './force'
-import { SUITS, type Suit } from './cards'
+import { type Card, DECK, shuffle, value } from '../cards'
+import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId, teamOfPlayer } from '../players'
+import { applyPlayed, currentPlayer, newPlay, playableFor } from '../play'
+import { chooseCard, type BotLevel } from '../bot'
+import { forceMain } from '../force'
+import { SUITS, type Suit } from '../cards'
 
 type Strategie = (etat: ReturnType<typeof newPlay>, joueur: PlayerId, main: Card[],
                   jouables: Card[], atout: Suit, preneur: PlayerId) => Card

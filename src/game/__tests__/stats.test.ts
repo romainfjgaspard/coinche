@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { GameEvent } from './events'
-import { DEFAULT_SEATING } from './players'
+import type { GameEvent } from '../events'
+import { DEFAULT_SEATING } from '../players'
 import {
   bilan, deals, dealsPlayed, enchereMoyenne, momentum, runningScores, tallies,
-} from './stats'
+} from '../stats'
 
 const ev = (type: string, extra: Record<string, unknown> = {}): GameEvent =>
   ({ type, seq: 0, at: 0, ...extra }) as GameEvent

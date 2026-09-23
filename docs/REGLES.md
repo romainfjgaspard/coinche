@@ -3,7 +3,7 @@
 > ✅ = validé · **24 règles, toutes tranchées le 23 septembre 2026**
 > Le flag entre parenthèses est le nom du réglage dans `src/game/rules.ts`.
 >
-> Ce fichier et la copie du dépôt (`~/projects/coinche/REGLES.md`) sont désormais
+> Ce fichier et la copie du dépôt (`~/projects/coinche/docs/REGLES.md`) sont désormais
 > identiques.
 
 ---

@@ -57,7 +57,7 @@ function label(e: (typeof history.value)[number]): string {
 </script>
 
 <template>
-  <div class="absolute inset-x-0 bottom-0 rounded-t-3xl bg-felt-dark px-5 pb-7 pt-5 shadow-[0_-8px_32px_rgba(0,0,0,.45)]">
+  <div class="absolute inset-x-0 bottom-0 rounded-t-3xl bg-felt-dark px-5 pb-7 pt-5 shadow-[0_-8px_32px_rgba(0,0,0,.45)] lg:inset-x-auto lg:bottom-auto lg:left-1/2 lg:top-1/2 lg:w-[460px] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl lg:border lg:border-white/10">
     <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20"></div>
 
     <!-- On enchérit en regardant son jeu : la main reste sous les yeux. -->

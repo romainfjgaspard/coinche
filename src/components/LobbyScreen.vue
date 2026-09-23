@@ -26,6 +26,9 @@ const duos = computed(() =>
     actif: seating.value !== null && pairingKey(s) === pairingKey(seating.value),
   })),
 )
+/** Un siège tenu par un bot : les parties concernées sortent des stats par défaut. */
+const estUnBot = (p: PlayerId): boolean => Boolean(session.game?.seats[p]?.bot)
+
 const monPartenaire = computed(() =>
   session.playerId && seating.value ? partnerOf(session.playerId, seating.value) : null,
 )
@@ -90,8 +93,25 @@ const monPartenaire = computed(() =>
           {{ PLAYER_NAMES[p] }}
           <span v-if="p === session.playerId" class="text-xs text-sage">— toi</span>
         </span>
+        <span v-if="estUnBot(p)" class="text-xs text-sage">bot</span>
         <span v-if="p === dealer" class="text-xs text-gold">donneur</span>
-        <span v-else-if="!session.takenBy[p]" class="text-xs text-dusk">en attente</span>
+        <!-- Indépendant du donneur : son siège peut très bien être encore libre -->
+        <template v-if="!session.takenBy[p]">
+          <button
+            type="button"
+            :disabled="session.busy"
+            class="rounded-lg border border-white/20 px-2.5 py-1 text-xs font-semibold text-mist disabled:opacity-40"
+            title="Un bot qui ne voit que sa propre main"
+            @click="session.addBot(p, 'simple')"
+          >+ bot</button>
+          <button
+            type="button"
+            :disabled="session.busy"
+            class="rounded-lg border border-white/20 px-2.5 py-1 text-xs font-semibold text-mist disabled:opacity-40"
+            title="Le même, mais il retient les cartes déjà tombées"
+            @click="session.addBot(p, 'compteur')"
+          >+ bot ★</button>
+        </template>
       </li>
     </ul>
 

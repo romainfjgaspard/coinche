@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SEATING } from './players'
-import { DECK, type Card, gatherAndCut, sortHand, strength, value } from './cards'
-import { type PlayedCard, playableCards, trickWinner } from './trick'
-import { RULES, isGameOver } from './rules'
-import { dealHands, dealingOrder } from './deal'
+import { DEFAULT_SEATING } from '../players'
+import { DECK, type Card, gatherAndCut, sortHand, strength, value } from '../cards'
+import { type PlayedCard, playableCards, trickWinner } from '../trick'
+import { RULES, isGameOver } from '../rules'
+import { dealHands, dealingOrder } from '../deal'
 import {
   TOTAL_CARD_POINTS, hasBelote, isContractMade, scoreDeal, unannouncedCapot, type Contract,
-} from './scoring'
+} from '../scoring'
 
 const play = (seat: number, card: Card): PlayedCard => ({ seat, card })
 

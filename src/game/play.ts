@@ -1,5 +1,5 @@
 /**
- * Jeu de la carte (REGLES.md § 5). Pur, sans réseau.
+ * Jeu de la carte (docs/REGLES.md § 5). Pur, sans réseau.
  *
  * L'état complet d'une donne se déduit de la suite des cartes posées : c'est ce qui
  * permet de le rejouer depuis le journal, et d'analyser les parties après coup.

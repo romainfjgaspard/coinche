@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { DECK, type Card, shuffle } from './cards'
-import { DEFAULT_SEATING, PLAYER_IDS } from './players'
-import type { GameEvent } from './events'
-import { applyPlayed, currentPlayer, newPlay, playableFor } from './play'
-import { deals, momentum, runningScores, tallies } from './stats'
-import { impassesOfGame } from './impasses'
-import { playFromEvents } from './replay'
+import { DECK, type Card, shuffle } from '../cards'
+import { DEFAULT_SEATING, PLAYER_IDS } from '../players'
+import type { GameEvent } from '../events'
+import { applyPlayed, currentPlayer, newPlay, playableFor } from '../play'
+import { deals, momentum, runningScores, tallies } from '../stats'
+import { impassesOfGame } from '../impasses'
+import { playFromEvents } from '../replay'
 
 /** Journal synthétique : 16 donnes complètes, la taille d'une vraie partie. */
 function journal(donnes: number): GameEvent[] {

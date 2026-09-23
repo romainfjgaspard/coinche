@@ -23,6 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
+# Résidus Windows : WSL expose les flux alternatifs NTFS comme des fichiers
+*:Zone.Identifier
+*Zone.Identifier
+
 # Firebase
 .env.local
 service-account.json

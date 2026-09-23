@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_SEATING, PAIRINGS, PLAYER_IDS, type Seating, pairingKey, partnerOf, playerAtSeat,
   randomSeating, seatingFromTeam, teamOfPlayer,
-} from './players'
+} from '../players'
 
 describe('placement autour de la table', () => {
   it('les sièges 0 et 2 font équipe, 1 et 3 aussi', () => {

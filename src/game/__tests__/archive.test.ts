@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { Card } from './cards'
-import type { GameEvent } from './events'
-import { DEFAULT_SEATING } from './players'
-import { buildArchive } from './archive'
+import type { Card } from '../cards'
+import type { GameEvent } from '../events'
+import { DEFAULT_SEATING } from '../players'
+import { buildArchive } from '../archive'
 
 const ev = (type: string, extra: Record<string, unknown> = {}): GameEvent =>
   ({ type, seq: 0, at: 0, ...extra }) as GameEvent

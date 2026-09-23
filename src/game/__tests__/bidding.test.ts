@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SEATING } from './players'
+import { DEFAULT_SEATING } from '../players'
 import {
   type BiddingEntry, IllegalBid, apply, canCoinche, canSurcoinche, currentBidder,
   firstLeader, legalValues, multiplier, newBidding, outcome, taker,
-} from './bidding'
+} from '../bidding'
 
 // Sièges dans le sens du jeu : romain(0) · benel(1) · viv(2) · roux(3).
 // Donneur Benel → Viv parle en premier, puis Roux, Romain, Benel.

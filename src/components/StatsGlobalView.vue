@@ -16,9 +16,22 @@ const MAUVAIS = '#cc6b4a'
 /* Le panache n'est pas une réussite : il ne porte donc ni le vert ni l'orange du statut */
 const TEMPERAMENT = '#a98ada'
 
-const duos = computed(() => duoStats(session.archives))
-const joueurs = computed(() => joueurStats(session.archives))
-const total = computed(() => session.archives.length)
+/**
+ * Les parties où un bot a tenu un siège sont écartées par défaut : un score
+ * d'équipe obtenu avec un partenaire artificiel n'a pas sa place dans les
+ * classements. Elles restent consultables d'un clic.
+ */
+const avecBots = ref(false)
+const archives = computed(() =>
+  avecBots.value ? session.archives : session.archives.filter((a) => (a.bots ?? []).length === 0),
+)
+const partiesAvecBot = computed(
+  () => session.archives.filter((a) => (a.bots ?? []).length > 0).length,
+)
+
+const duos = computed(() => duoStats(archives.value))
+const joueurs = computed(() => joueurStats(archives.value))
+const total = computed(() => archives.value.length)
 
 const taux = (a: number, b: number): number => (b === 0 ? 0 : Math.round((a / b) * 100))
 const nom = (p: PlayerId): string => PLAYER_NAMES[p]
@@ -62,7 +75,7 @@ const filtres = computed(() => [
 ])
 
 const paliers = computed(() => {
-  const lignes = parPalier(session.archives, filtre.value.joueurs)
+  const lignes = parPalier(archives.value, filtre.value.joueurs)
   const max = Math.max(1, ...lignes.map((l) => l.reussis + l.chutes))
   return lignes.map((l) => {
     const t = l.reussis + l.chutes
@@ -108,7 +121,20 @@ const panaches = computed(() => {
       <div>
       <section>
 
-      <p class="mt-3 text-xs text-dusk">{{ total }} partie{{ total > 1 ? 's' : '' }} terminée{{ total > 1 ? 's' : '' }}</p>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <p class="text-xs text-dusk">
+          {{ total }} partie{{ total > 1 ? 's' : '' }} terminée{{ total > 1 ? 's' : '' }}
+        </p>
+        <button
+          v-if="partiesAvecBot > 0"
+          type="button"
+          class="rounded-full border px-2.5 py-0.5 text-[11px]"
+          :class="avecBots ? 'border-gold bg-gold/20 text-gold' : 'border-white/15 text-sage'"
+          @click="avecBots = !avecBots"
+        >
+          {{ avecBots ? 'avec' : 'sans' }} les {{ partiesAvecBot }} partie{{ partiesAvecBot > 1 ? 's' : '' }} à bot
+        </button>
+      </div>
 
       <div class="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
         <div

@@ -1,1 +1,6 @@
-{ "projects": { "default": "demo-coinche" } }
+{
+  "projects": {
+    "default": "demo-coinche",
+    "prod": "coinche-e708b"
+  }
+}

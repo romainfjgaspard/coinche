@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { Archive, PlayerArchive } from './archive'
-import type { Seating } from './players'
-import { PAIRES, clePaire, duoStats, joueurStats, parPalier, prisesDe } from './statsGlobal'
+import type { Archive, PlayerArchive } from '../archive'
+import type { Seating } from '../players'
+import { PAIRES, clePaire, duoStats, joueurStats, parPalier, prisesDe } from '../statsGlobal'
 
 const vide = (): PlayerArchive => ({
   prises: 0, reussies: 0, chutes: 0, marques: 0, offerts: 0, coinches: 0,
@@ -24,7 +24,7 @@ function partie(opts: {
   }
   return {
     code: opts.code, finishedAt: 0, seating: opts.seating, scores: opts.scores,
-    winner: opts.scores[0] > opts.scores[1] ? 0 : 1, deals: opts.deals ?? 10, players,
+    winner: opts.scores[0] > opts.scores[1] ? 0 : 1, deals: opts.deals ?? 10, bots: [], players,
   }
 }
 

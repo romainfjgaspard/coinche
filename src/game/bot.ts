@@ -182,21 +182,36 @@ export interface BotBid {
 }
 
 /**
+ * De combien le dernier à parler abaisse son seuil quand personne n'a pris.
+ *
+ * Sans ça le bot passait 74 % du temps, donc près d'une donne sur trois partait
+ * à la poubelle — une partie prenait quarante donnes. Tout joueur de coinche se
+ * lance à 80 dans cette situation plutôt que de laisser redistribuer.
+ */
+export const REMISE_DERNIER = 3
+
+/**
  * Enchère : un seuil sur la force de main, puis un palier tous les deux points.
  *
- * Volontairement prudent et lisible — une seule constante à bouger. Les vraies
- * habitudes du groupe se liront plus tard dans le panache.
+ * Volontairement lisible — deux constantes à bouger. Les vraies habitudes du
+ * groupe se liront plus tard dans le panache.
  */
-export function chooseBid(hand: Card[], highest: number, partnerHolds: boolean): BotBid | null {
+export function chooseBid(
+  hand: Card[],
+  highest: number,
+  partnerHolds: boolean,
+  dernierAParler = false,
+): BotBid | null {
   if (partnerHolds) return null
 
   const meilleure = SUITS.map((trump) => ({ trump, force: forceMain(hand, trump) })).sort(
     (a, b) => b.force - a.force,
   )[0]
 
-  if (meilleure.force < SEUIL_ENCHERE) return null
+  const seuil = dernierAParler && highest === 0 ? SEUIL_ENCHERE - REMISE_DERNIER : SEUIL_ENCHERE
+  if (meilleure.force < seuil) return null
 
-  const palier = 80 + 10 * Math.floor((meilleure.force - SEUIL_ENCHERE) / 2)
+  const palier = 80 + 10 * Math.floor(Math.max(0, meilleure.force - SEUIL_ENCHERE) / 2)
   const value = Math.min(160, palier)
   if (value <= highest) return null
 

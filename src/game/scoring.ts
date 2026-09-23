@@ -1,5 +1,5 @@
 /**
- * Décompte d'une donne — on ne compte que les enchères (REGLES.md § 8).
+ * Décompte d'une donne — on ne compte que les enchères (docs/REGLES.md § 8).
  *
  * Le preneur réussit son contrat s'il atteint la valeur annoncée ET s'il totalise
  * strictement plus de points que la défense (DEC-3). La belote entre dans cette

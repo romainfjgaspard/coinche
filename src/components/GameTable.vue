@@ -9,6 +9,7 @@ import CardBack from './CardBack.vue'
 import PlayerChip from './PlayerChip.vue'
 import type { Card } from '../game/cards'
 import { SUIT_GLYPH } from '../game/display'
+import { useLargeScreen } from '../composables/useLargeScreen'
 import { PLAYER_NAMES, type PlayerId, playerAtSeat, seatOf } from '../game/players'
 import { HAND_SIZE } from '../game/deal'
 import { useSession } from '../stores/session'
@@ -64,28 +65,49 @@ const canPlay = (card: Card): boolean =>
   session.myPlayTurn && session.playable.includes(card)
 
 const starsOf = (p: PlayerId): number => session.stars.get(p) ?? 0
+
+/** Tailles de cartes : la table double de largeur sur un écran d'ordinateur. */
+const grand = useLargeScreen()
+const largeurCarte = computed(() => (grand.value ? 78 : 54))
+const largeurDos = computed(() => (grand.value ? 34 : 26))
+const largeurPli = computed(() => (grand.value ? 44 : 30))
+
+/**
+ * Le tapis. Sur téléphone il déborde largement pour donner l'illusion d'une table
+ * plus grande que l'écran ; en plein écran il devient un vrai ovale posé au centre,
+ * et la main a de la place en dessous.
+ */
+const tapis = computed(() =>
+  grand.value
+    ? 'top: 8%; left: 2%; right: 2%; bottom: 23%;'
+    : 'top: 11%; left: 2%; right: 2%; bottom: 19%;',
+)
+const liseré = computed(() =>
+  grand.value
+    ? 'top: 10.5%; left: 4%; right: 4%; bottom: 25.5%;'
+    : 'top: 14%; left: 5%; right: 5%; bottom: 22%;',
+)
 </script>
 
 <template>
   <div class="relative h-full overflow-hidden bg-[#071d15] text-ivory">
     <!-- Tapis : feutre tissé, rebord de bois, liseré cousu -->
     <div
-      class="absolute rounded-[50%] border-[13px] border-[#33241a] shadow-[inset_0_0_0_3px_rgba(217,164,65,.22),inset_0_26px_64px_rgba(0,0,0,.3),0_22px_54px_rgba(0,0,0,.55)]"
-      style="
-        top: 12%; left: -16%; right: -16%; bottom: 20%;
+      class="absolute rounded-[28px] border-[13px] border-[#33241a] shadow-[inset_0_0_0_3px_rgba(217,164,65,.22),inset_0_26px_64px_rgba(0,0,0,.3),0_22px_54px_rgba(0,0,0,.55)] lg:rounded-[40px] lg:border-[16px]"
+      :style="tapis + `
         background-color: #15583f;
         background-image:
           repeating-linear-gradient(45deg, rgba(255,255,255,.028) 0 2px, transparent 2px 5px),
           repeating-linear-gradient(-45deg, rgba(0,0,0,.055) 0 2px, transparent 2px 5px);
-      "
+      `"
     ></div>
     <div
-      class="absolute rounded-[50%] border border-dashed border-gold/30"
-      style="top: 15%; left: -12%; right: -12%; bottom: 23%;"
+      class="absolute rounded-[18px] border border-dashed border-gold/30 lg:rounded-[26px]"
+      :style="liseré"
     ></div>
 
     <!-- Bandeau : donne, scores -->
-    <header class="absolute inset-x-0 top-0 flex h-14 items-center gap-3 bg-felt-dark px-4">
+    <header class="absolute inset-x-0 top-0 flex h-14 items-center gap-3 bg-felt-dark px-4 lg:h-16 lg:px-8">
       <span class="text-xs font-medium tracking-wider text-sage">
         DONNE {{ session.game?.dealNumber ?? 0 }}
       </span>
@@ -119,9 +141,9 @@ const starsOf = (p: PlayerId): number => session.stars.get(p) ?? 0
     </div>
 
     <!-- Partenaire, en face -->
-    <div class="absolute inset-x-0 top-28 flex flex-col items-center gap-1.5">
+    <div class="absolute inset-x-0 top-28 flex flex-col items-center gap-1.5 lg:top-36 lg:gap-3">
       <div class="flex">
-        <CardBack v-for="i in remaining(around.top)" :key="i" :width="26" class="-ml-2.5" />
+        <CardBack v-for="i in remaining(around.top)" :key="i" :width="largeurDos" class="-ml-2.5" />
       </div>
       <PlayerChip
         :player="around.top" :dealer="session.game?.dealer === around.top"
@@ -131,9 +153,9 @@ const starsOf = (p: PlayerId): number => session.stars.get(p) ?? 0
     </div>
 
     <!-- Adversaires, sur les côtés -->
-    <div class="absolute left-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1.5">
+    <div class="absolute left-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1.5 lg:left-[5%] lg:gap-3">
       <div class="flex flex-col">
-        <CardBack v-for="i in remaining(around.left)" :key="i" :width="26" rotated class="-mt-2.5" />
+        <CardBack v-for="i in remaining(around.left)" :key="i" :width="largeurDos" rotated class="-mt-2.5" />
       </div>
       <PlayerChip
         :player="around.left" :dealer="session.game?.dealer === around.left"
@@ -141,9 +163,9 @@ const starsOf = (p: PlayerId): number => session.stars.get(p) ?? 0
         :stars="starsOf(around.left)"
       />
     </div>
-    <div class="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1.5">
+    <div class="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1.5 lg:right-[5%] lg:gap-3">
       <div class="flex flex-col">
-        <CardBack v-for="i in remaining(around.right)" :key="i" :width="26" rotated class="-mt-2.5" />
+        <CardBack v-for="i in remaining(around.right)" :key="i" :width="largeurDos" rotated class="-mt-2.5" />
       </div>
       <PlayerChip
         :player="around.right" :dealer="session.game?.dealer === around.right"
@@ -153,27 +175,28 @@ const starsOf = (p: PlayerId): number => session.stars.get(p) ?? 0
     </div>
 
     <!-- Le pli en cours -->
-    <div class="absolute left-1/2 top-1/2 size-52 -translate-x-1/2 -translate-y-1/2">
+    <div class="absolute left-1/2 top-1/2 size-52 -translate-x-1/2 -translate-y-1/2 lg:size-[22rem]">
       <div class="absolute left-1/2 top-0 -translate-x-1/2">
-        <PlayingCard v-if="trickAt.top" :card="trickAt.top" :width="54" />
+        <PlayingCard v-if="trickAt.top" :card="trickAt.top" :width="largeurCarte" />
       </div>
       <div class="absolute left-0 top-1/2 -translate-y-1/2">
-        <PlayingCard v-if="trickAt.left" :card="trickAt.left" :width="54" />
+        <PlayingCard v-if="trickAt.left" :card="trickAt.left" :width="largeurCarte" />
       </div>
       <div class="absolute right-0 top-1/2 -translate-y-1/2">
-        <PlayingCard v-if="trickAt.right" :card="trickAt.right" :width="54" />
+        <PlayingCard v-if="trickAt.right" :card="trickAt.right" :width="largeurCarte" />
       </div>
       <div class="absolute bottom-0 left-1/2 -translate-x-1/2">
-        <PlayingCard v-if="trickAt.me" :card="trickAt.me" :width="54" />
+        <PlayingCard v-if="trickAt.me" :card="trickAt.me" :width="largeurCarte" />
         <span
           v-else-if="session.myPlayTurn"
-          class="block h-[78px] w-[54px] rounded-lg border-2 border-dashed border-gold/50 bg-black/10"
+          class="block rounded-lg border-2 border-dashed border-gold/50 bg-black/10"
+          :style="{ width: `${largeurCarte}px`, height: `${Math.round(largeurCarte * 1.44)}px` }"
         ></span>
       </div>
     </div>
 
     <!-- Moi -->
-    <div class="absolute inset-x-0 bottom-[184px] flex items-center justify-center gap-2">
+    <div class="absolute inset-x-0 bottom-[184px] flex items-center justify-center gap-2 lg:bottom-[290px] lg:gap-3">
       <PlayerChip
         :player="me" :dealer="session.game?.dealer === me" :active="session.myPlayTurn"
         :stars="starsOf(me)" me
@@ -181,11 +204,11 @@ const starsOf = (p: PlayerId): number => session.stars.get(p) ?? 0
       <span v-if="session.myPlayTurn" class="text-[13px] font-semibold text-gold">à toi de jouer</span>
     </div>
 
-    <div data-testid="main" class="absolute inset-x-0 bottom-[92px] flex h-32 items-end justify-center px-2">
-      <div v-for="card in session.hand" :key="card" class="relative -ml-2.5 first:ml-0">
+    <div data-testid="main" class="absolute inset-x-0 bottom-[92px] flex h-32 items-end justify-center px-2 lg:bottom-[128px] lg:h-48">
+      <div v-for="card in session.hand" :key="card" class="relative -ml-2.5 first:ml-0 lg:-ml-1">
         <PlayingCard
           :card="card"
-          :width="54"
+          :width="largeurCarte"
           :dimmed="session.myPlayTurn && !canPlay(card)"
           :trump="isTrump(card)"
           :clickable="canPlay(card)"
@@ -204,7 +227,7 @@ const starsOf = (p: PlayerId): number => session.stars.get(p) ?? 0
     </div>
 
     <!-- Bande d'information : dernier pli et plis gagnés -->
-    <footer class="absolute inset-x-0 bottom-0 flex h-[84px] items-center gap-3.5 bg-felt-dark px-3.5 py-2.5">
+    <footer class="absolute inset-x-0 bottom-0 flex h-[84px] items-center gap-3.5 bg-felt-dark px-3.5 py-2.5 lg:h-[96px] lg:gap-8 lg:px-10">
       <div class="flex flex-col gap-1.5">
         <span class="text-[9px] tracking-widest text-dusk">DERNIER PLI</span>
         <div v-if="session.lastTrick" class="flex items-end">
@@ -212,7 +235,7 @@ const starsOf = (p: PlayerId): number => session.stars.get(p) ?? 0
             v-for="p in session.lastTrick.plays"
             :key="p.card"
             :card="p.card"
-            :width="30"
+            :width="largeurPli"
             class="-ml-1.5"
             :winner="p.player === session.lastTrick.winner"
           />

@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { DECK, type Card } from './cards'
-import { DEFAULT_SEATING, type PlayerId, PLAYER_IDS } from './players'
-import { dealHands } from './deal'
+import { DECK, type Card } from '../cards'
+import { DEFAULT_SEATING, type PlayerId, PLAYER_IDS } from '../players'
+import { dealHands } from '../deal'
 import {
   IllegalPlay, TRICKS_PER_DEAL, applyPlayed, beloteHeld, canDeclareBelote, currentPlayer,
   handAt, isDealOver, leader,
   newPlay, play, playableFor, tricksForScoring, trickFlags,
-} from './play'
-import { scoreDeal, type Contract } from './scoring'
-import { RULES } from './rules'
-import { SHAME_THRESHOLD, currentDeal, dealerOf, declaredBelote, starsInGame } from './replay'
-import type { GameEvent } from './events'
+} from '../play'
+import { scoreDeal, type Contract } from '../scoring'
+import { RULES } from '../rules'
+import { SHAME_THRESHOLD, currentDeal, dealerOf, declaredBelote, starsInGame } from '../replay'
+import type { GameEvent } from '../events'
 
 // Sièges dans le sens du jeu : romain(0) · benel(1) · viv(2) · roux(3)
 const hands: Record<PlayerId, Card[]> = {

@@ -17,7 +17,7 @@ import { deals } from './stats'
 export interface PriseDetail {
   deal: number
   value: number
-  /** Force de la main au moment de l'enchère, barème de REGLES.md */
+  /** Force de la main au moment de l'enchère, barème de docs/REGLES.md */
   force: number | null
   reussi: boolean
   capot: boolean
@@ -46,6 +46,8 @@ export interface Archive {
   scores: [number, number]
   winner: 0 | 1
   deals: number
+  /** Sièges tenus par un bot. Vide pour une partie entre humains. */
+  bots: PlayerId[]
   players: Record<PlayerId, PlayerArchive>
 }
 
@@ -64,6 +66,7 @@ export function buildArchive(
   events: GameEvent[],
   seating: Seating,
   mains: Record<number, Record<string, Card[]>>,
+  bots: PlayerId[] = [],
 ): Archive {
   const list = deals(events).filter((d) => d.status !== null)
   const players = Object.fromEntries(
@@ -116,6 +119,7 @@ export function buildArchive(
     scores,
     winner: scores[0] > scores[1] ? 0 : 1,
     deals: list.length,
+    bots,
     players,
   }
 }

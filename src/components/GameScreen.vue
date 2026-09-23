@@ -13,11 +13,12 @@ const vue = ref<'table' | 'stats'>('table')
 </script>
 
 <template>
-  <!-- La table reste une colonne confortable ; les stats prennent toute la largeur -->
-  <div
-    class="relative mx-auto h-full w-full"
-    :class="vue === 'table' ? 'max-w-md lg:max-w-[880px]' : 'max-w-none'"
-  >
+  <!-- Sur téléphone la table reste une colonne ; sur grand écran elle occupe tout. -->
+  <div class="h-full">
+    <div
+      class="relative mx-auto h-full w-full"
+      :class="vue === 'table' ? 'max-w-md lg:max-w-none' : 'max-w-none'"
+    >
     <template v-if="vue === 'table'">
       <GameTable @stats="vue = 'stats'" />
       <BiddingPanel v-if="phase === 'encheres'" />
@@ -31,5 +32,6 @@ const vue = ref<'table' | 'stats'>('table')
       v-if="session.error"
       class="absolute inset-x-4 top-20 rounded-xl bg-red-card px-4 py-2.5 text-center text-sm text-ivory"
     >{{ session.error }}</p>
+    </div>
   </div>
 </template>

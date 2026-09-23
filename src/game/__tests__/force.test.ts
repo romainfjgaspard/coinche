@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Card } from './cards'
-import { BAREME, bandeDe, forceMain, habitudeDuGroupe, panacheDe } from './force'
+import type { Card } from '../cards'
+import { BAREME, bandeDe, forceMain, habitudeDuGroupe, panacheDe } from '../force'
 
 describe('force de main', () => {
   // Les mains font huit cartes : une main courte inventerait des chicanes.

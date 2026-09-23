@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { type Card, rankOf } from './cards'
-import type { CompletedTrick, Play } from './play'
-import { impassesOfGame, impassesOfTricks, impasseTallies } from './impasses'
-import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId } from './players'
-import { applyPlayed, currentPlayer, newPlay, playableFor } from './play'
-import type { GameEvent } from './events'
+import { type Card, rankOf } from '../cards'
+import type { CompletedTrick, Play } from '../play'
+import { impassesOfGame, impassesOfTricks, impasseTallies } from '../impasses'
+import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId } from '../players'
+import { applyPlayed, currentPlayer, newPlay, playableFor } from '../play'
+import type { GameEvent } from '../events'
 
 /** Construit un pli terminé à la main : on teste la lecture, pas le moteur. */
 function pli(cartes: Array<[PlayerId, Card]>, winner: PlayerId): CompletedTrick {

@@ -13,8 +13,8 @@ automatiquement sur les émulateurs et le projet bidon `demo-coinche`.
 
 | Brique | État |
 |--------|------|
-| Spec des règles (`REGLES.md`) | ✅ 24 règles validées le 23/09/2026 |
-| Modèle de données (`MODELE-DONNEES.md`) | ✅ arrêté |
+| Spec des règles (`docs/REGLES.md`) | ✅ 24 règles validées le 23/09/2026 |
+| Modèle de données (`docs/MODELE-DONNEES.md`) | ✅ arrêté |
 | Moteur de règles (`src/game/`) | ✅ 145 tests hors réseau |
 | Sécurité Firestore + partie complète | ✅ 29 tests sur émulateur |
 | Couche Firebase (`src/firebase/`) | ✅ auth anonyme, journal, distribution |
@@ -27,12 +27,13 @@ automatiquement sur les émulateurs et le projet bidon `demo-coinche`.
 | Stats de la partie en cours | ✅ score, momentum, prises, impasses, faits |
 | Stats de toutes les parties | ✅ archives, duos, joueurs, paliers, panache |
 | Mise en page PC (≥ 1024 px) | 🟡 écrans de stats faits, table encore en portrait |
-| Projet Firebase réel | ⬜ à créer dans la console |
+| Projet Firebase réel | ⬜ à créer dans la console — voir `docs/FIREBASE.md` |
 
 ## Documents
 
-- **`REGLES.md`** — nos règles, à valider. Chaque point porte un identifiant (`ENC-5`…)
-- **`MODELE-DONNEES.md`** — journal d'événements, roster, conservation intégrale pour les stats
+- **`docs/REGLES.md`** — nos règles, à valider. Chaque point porte un identifiant (`ENC-5`…)
+- **`docs/MODELE-DONNEES.md`** — journal d'événements, roster, conservation intégrale pour les stats
+- **`docs/FIREBASE.md`** — passer du projet bidon au vrai projet, pas à pas
 
 ## Cartes
 

@@ -1,6 +1,6 @@
 /**
  * Nos règles, validées le 23/09/2026. Un seul endroit à modifier.
- * Chaque champ renvoie à un identifiant de REGLES.md.
+ * Chaque champ renvoie à un identifiant de docs/REGLES.md.
  * Toute partie embarque une copie de cet objet dans son événement `partie_creee`,
  * pour que les statistiques restent interprétables après un changement de règle.
  */

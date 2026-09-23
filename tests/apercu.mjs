@@ -49,6 +49,7 @@ for (const taille of TAILLES) {
     if (await b.count()) { await b.click(); break }
   }
   await benel.waitForTimeout(1500)
+  await benel.screenshot({ path: `${SP}/table-${taille.nom}.png` })
   await benel.getByRole('button', { name: 'Stats' }).click()
   await benel.waitForTimeout(800)
 

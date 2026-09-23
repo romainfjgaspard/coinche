@@ -1,5 +1,5 @@
 /**
- * Journal d'événements — la source de vérité (MODELE-DONNEES.md).
+ * Journal d'événements — la source de vérité (docs/MODELE-DONNEES.md).
  *
  * Append-only : un événement écrit n'est jamais modifié ni supprimé, les règles
  * Firestore l'interdisent. L'état de la partie n'est qu'une vue matérialisée
