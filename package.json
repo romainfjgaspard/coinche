@@ -1,0 +1,36 @@
+{
+  "name": "coinche",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run src",
+    "test:watch": "vitest",
+    "emu": "firebase emulators:start --only firestore,auth",
+    "test:rules": "firebase emulators:exec --only firestore,auth 'vitest run tests'",
+    "test:e2e": "LD_LIBRARY_PATH=$HOME/.local/chromedeps/usr/lib/x86_64-linux-gnu node tests/e2e.mjs",
+    "test:apercu": "LD_LIBRARY_PATH=$HOME/.local/chromedeps/usr/lib/x86_64-linux-gnu node tests/apercu.mjs"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "firebase": "^12.19.0",
+    "pinia": "^4.0.3",
+    "tailwindcss": "^4.3.3",
+    "vue": "^3.5.42"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@types/node": "^24.13.3",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/tsconfig": "^0.9.1",
+    "firebase-tools": "^15.30.2",
+    "playwright": "^1.63.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1",
+    "vue-tsc": "^3.3.11"
+  }
+}

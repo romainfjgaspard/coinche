@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function game(code) {
+      return get(/databases/$(database)/documents/parties/$(code)).data;
+    }
+    // Un joueur = un identifiant stable du roster ('benel', 'roux', 'viv', 'romain').
+    // `seats` associe cet identifiant au compte anonyme qui l'occupe pour cette partie.
+    function holdsSeat(code, playerId) {
+      return request.auth != null
+             && playerId in game(code).seats
+             && game(code).seats[playerId].uid == request.auth.uid;
+    }
+    function isPlayer(code) {
+      return request.auth != null && request.auth.uid in game(code).seatedUids;
+    }
+    // Un joueur qui rejoint n'est pas encore assis : il doit pouvoir prendre un siège,
+    // mais seulement le sien, et sans jamais déloger les autres.
+    function claimsSeat() {
+      return request.auth != null
+             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seats', 'seatedUids'])
+             && request.auth.uid in request.resource.data.seatedUids
+             && request.resource.data.seatedUids.toSet().hasAll(resource.data.seatedUids.toSet());
+    }
+
+    // Roster figé : lisible par tous, jamais modifié depuis l'app.
+    match /joueurs/{playerId} {
+      allow read:  if request.auth != null;
+      allow write: if false;
+    }
+
+    match /parties/{code} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if isPlayer(code) || claimsSeat();
+      allow delete: if false;
+
+      // La règle qui compte : chacun ne lit que la main du siège qu'il occupe.
+      match /mains/{playerId} {
+        allow read:  if holdsSeat(code, playerId);
+        allow write: if holdsSeat(code, playerId)
+                     || (isPlayer(code) && request.auth.uid == game(code).seats[game(code).dealer].uid);
+      }
+
+      // Donne distribuée : scellée jusqu'à la fin de la partie, puis ouverte pour l'analyse.
+      match /donne/{numero} {
+        allow read:   if request.auth != null && game(code).phase == 'terminee';
+        allow create: if isPlayer(code) && request.auth.uid == game(code).seats[game(code).dealer].uid;
+        allow update, delete: if false;
+      }
+
+      // Journal : append-only, jamais réécrit.
+      match /evenements/{seq} {
+        allow read:   if isPlayer(code);
+        allow create: if isPlayer(code);
+        allow update, delete: if false;
+      }
+    }
+
+    // Le condensé de fin de partie, écrit une fois et jamais retouché.
+    match /archives/{code} {
+      allow read:   if request.auth != null;
+      allow create: if isPlayer(code);
+      allow update, delete: if false;
+    }
+  }
+}

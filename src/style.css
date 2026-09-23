@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-felt: #0f3d2e;
+  --color-felt-dark: #0a2a1f;
+  --color-felt-light: #14503b;
+  --color-gold: #d9a441;
+  --color-gold-dim: #b9863a;
+  --color-ivory: #faf9f5;
+  --color-mist: #cfe0d8;
+  --color-sage: #8fb3a4;
+  --color-dusk: #6f8f82;
+  --color-them: #7fa8c9;
+  --color-red-card: #c0392b;
+  /* Réussite / échec : jamais les couleurs d'équipe, et toujours doublé par le mot */
+  --color-good: #52a884;
+  --color-bad: #cc6b4a;
+
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-sans: 'Outfit', system-ui, sans-serif;
+}
+
+html, body, #app { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-felt);
+  color: var(--color-ivory);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
