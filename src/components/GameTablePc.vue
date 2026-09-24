@@ -24,7 +24,7 @@ import type { Card } from '../game/cards'
 import { type Place, useTableState } from '../composables/useTableState'
 import { useTableLayout } from '../composables/useTableLayout'
 
-const emit = defineEmits<{ stats: [] }>()
+const emit = defineEmits<{ stats: []; regles: [] }>()
 
 const {
   session, me, around, remaining, contract, contractLabel, trickAt, trickOrder,
@@ -92,6 +92,11 @@ const teams = computed(() => [
         </div>
         <div class="flex w-40 justify-end gap-2">
           <QuitGame grand />
+          <button
+            type="button"
+            class="cursor-pointer rounded-lg border border-white/20 px-3.5 py-1.5 text-sm font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
+            @click="emit('regles')"
+          >Règles</button>
           <button
             type="button"
             class="cursor-pointer rounded-lg border border-white/20 px-3.5 py-1.5 text-sm font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"

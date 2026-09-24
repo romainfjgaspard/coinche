@@ -16,7 +16,7 @@ import { useTableState } from '../composables/useTableState'
 import { useTableLayout } from '../composables/useTableLayout'
 import { nomDe } from '../stores/roster'
 
-const emit = defineEmits<{ stats: [] }>()
+const emit = defineEmits<{ stats: []; regles: [] }>()
 /** Toucher le contrat rouvre l'historique complet des enchères de la donne. */
 const encheresVisibles = ref(false)
 
@@ -95,6 +95,14 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
         <span class="text-[13px] font-semibold text-them">Eux</span>
       </div>
       </div>
+      <!-- Les règles en « ? » : à 360 px, un bouton de plus en toutes lettres ne tenait pas -->
+      <button
+        type="button"
+        class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/15 text-sm font-bold text-mist"
+        aria-label="Les règles"
+        title="Les règles"
+        @click="emit('regles')"
+      >?</button>
       <button
         type="button"
         class="shrink-0 cursor-pointer rounded-lg border border-white/15 px-2.5 py-1 text-xs font-semibold text-mist"

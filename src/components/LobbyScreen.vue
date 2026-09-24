@@ -91,17 +91,16 @@ const monPartenaire = computed(() =>
 
 <template>
   <!--
-    Sur PC, deux colonnes comme sur la maquette : à gauche le code, les équipes et les
-    règles, à droite la table. En une seule colonne, le salon devenait plus haut que
-    l'écran, l'échelle se réduisait pour tout faire tenir, et il avait l'air d'un téléphone.
+    Une seule colonne, mise à l'échelle et centrée sur PC. Elle reste compacte : plus
+    haute que l'écran, son échelle se réduisait pour tout faire tenir, et elle avait
+    l'air d'un téléphone au milieu de l'écran.
   -->
   <div class="flex min-h-full">
   <div
-    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 [@media(max-height:820px)]:pt-8 max-lg:min-h-full lg:my-auto lg:grid lg:max-w-[980px] lg:grid-cols-2 lg:items-start lg:gap-x-20 lg:py-10"
+    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 [@media(max-height:820px)]:pt-8 max-lg:min-h-full lg:my-auto lg:py-10"
     ref="contenu"
     :style="grand ? { zoom } : undefined"
   >
-    <section class="flex flex-col">
     <p class="text-[13px] text-sage">Code de la partie</p>
     <div class="mt-1 flex items-baseline gap-3">
       <span class="font-display text-5xl tracking-[0.18em] leading-none">{{ session.code }}</span>
@@ -111,36 +110,33 @@ const monPartenaire = computed(() =>
         @click="session.leave()"
       >quitter</button>
     </div>
-    <p class="mt-3 text-sm text-mist">
-      Donne-le aux trois autres pour qu'ils rejoignent.
-    </p>
 
-    <h2 class="mt-8 mb-3 text-[13px] font-semibold tracking-wider text-sage uppercase">Les équipes</h2>
-    <p v-if="monPartenaire" class="mb-3 text-sm text-mist">
+    <h2 class="mt-7 mb-2 text-[13px] font-semibold tracking-wider text-sage uppercase">Les équipes</h2>
+    <p v-if="monPartenaire" class="mb-2 text-xs text-mist">
       Tu joues avec <span class="font-semibold text-gold">{{ nomDe(monPartenaire) }}</span>.
     </p>
-    <p v-if="!seating" class="text-sm text-sage">
-      Tirées au sort dès que la table est complète. Tu pourras ensuite les choisir.
+    <p v-if="!seating" class="text-xs text-sage">
+      Tirées au sort dès que la table est complète.
     </p>
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-1.5">
       <button
         v-for="duo in duos"
         :key="duo.label"
         type="button"
-        class="flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition"
+        class="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-1.5 text-left transition"
         :class="duo.actif ? 'border-gold bg-gold/15' : 'border-white/15 hover:border-white/35 hover:bg-white/5'"
         @click="session.chooseSeating(duo.seating)"
       >
-        <span class="grow text-sm font-semibold" :class="duo.actif ? 'text-gold' : 'text-mist'">
+        <span class="grow text-xs font-semibold" :class="duo.actif ? 'text-gold' : 'text-mist'">
           {{ duo.label }}
         </span>
-        <span class="text-xs text-sage">contre {{ duo.contre }}</span>
+        <span class="text-[11px] text-sage">contre {{ duo.contre }}</span>
       </button>
     </div>
     <button
       v-if="seating"
       type="button"
-      class="mt-2 h-10 w-full cursor-pointer rounded-xl border border-white/15 text-[13px] text-mist transition hover:border-white/35 hover:bg-white/5"
+      class="mt-1.5 h-8 w-full cursor-pointer rounded-lg border border-white/15 text-xs text-mist transition hover:border-white/35 hover:bg-white/5"
       @click="seating && session.chooseSeating(randomSeating(Math.random, seating))"
     >Retirer au sort</button>
 
@@ -171,14 +167,12 @@ const monPartenaire = computed(() =>
       <span>
         <span class="block text-sm font-semibold">Blitz</span>
         <span class="block text-xs text-sage">
-          Une donne non coinchée n'est pas jouée : le contrat est réputé réussi, le preneur marque sa valeur.
+          Donne non coinchée : pas jouée, le contrat compte.
         </span>
       </span>
     </label>
-    </section>
 
-    <section class="flex grow flex-col">
-    <h2 class="mt-8 mb-3 text-[13px] font-semibold tracking-wider text-sage uppercase lg:mt-0">
+    <h2 class="mt-8 mb-3 text-[13px] font-semibold tracking-wider text-sage uppercase">
       Autour de la table — {{ seatedCount }} sur 4
     </h2>
 
@@ -274,7 +268,6 @@ const monPartenaire = computed(() =>
     </p>
 
     <p v-if="session.error" class="mt-4 text-center text-sm text-red-card">{{ session.error }}</p>
-    </section>
   </div>
   </div>
 </template>

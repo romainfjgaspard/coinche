@@ -27,6 +27,7 @@
 | ORD-2 | **Hors atout** : As (11) > 10 (10) > Roi (4) > Dame (3) > Valet (2) > 9 (0) > 8 (0) > 7 (0) | ✅ |
 | ORD-3 | Total d'une donne : **152 aux cartes + 10 de der = 162** | ✅ |
 | ORD-4 | Le « 10 de der » va à l'équipe qui remporte le dernier pli | ✅ |
+| ORD-5 | **Tout-atout** : chaque couleur suit l'ordre de l'atout (V, 9, A, 10, R, D, 8, 7) ; aucune couleur n'en coupe une autre, et on doit monter dans la couleur demandée | ✅ |
 
 ## 3. Enchères
 
@@ -41,7 +42,7 @@
 | ENC-7 | 4 passes d'emblée → on redonne (cf. DIS-3) | ✅ |
 | ENC-8 | **Capot** : annonce des 8 plis. Vaut **250** | ✅ |
 | ENC-9 | **Générale** : tous les plis **sans son partenaire**. Vaut **250**. Le joueur qui annonce la générale **prend la main** et entame | ✅ |
-| ENC-10 | **Sans-Atout et Tout-Atout n'existent qu'en capot et en générale.** Pas de contrat chiffré (80–160) à SA ou TA | ✅ |
+| ENC-10 | **Sans-Atout et Tout-Atout n'existent qu'en capot et en générale.** Pas de contrat chiffré (80–170) à SA ou TA | ✅ |
 
 ## 4. Coinche et surcoinche
 
@@ -103,9 +104,10 @@
 
 | Id | Règle | État |
 |----|-------|------|
-| FIN-1 | La partie s'arrête dès qu'une équipe **dépasse 1000** — il faut donc 1010 au minimum. Le nombre de donnes varie | ✅ |
+| FIN-1 | La partie s'arrête dès qu'une équipe **dépasse l'objectif** — 1000 par défaut (il faut donc 1010), ou 500, 1500, 2000 choisis au salon. Le nombre de donnes varie | ✅ |
 | FIN-2 | ~~Deux équipes dépassant l'objectif sur la même donne~~ — **impossible** : une seule équipe marque par donne | ✅ sans objet |
 | FIN-3 | ~~Égalité parfaite en fin de partie~~ — **impossible**, pour la même raison | ✅ sans objet |
+| FIN-4 | **Blitz** (option du salon) : une donne non coinchée n'est pas jouée ; le contrat est réputé réussi, le preneur marque sa valeur (250 en capot ou générale). La belote n'est pas marquée (BEL-5) | ✅ |
 
 ---
 

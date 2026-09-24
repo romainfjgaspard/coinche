@@ -7,11 +7,12 @@ import { useLargeScreen } from '../composables/useLargeScreen'
 import BiddingPanel from './BiddingPanel.vue'
 import DealResult from './DealResult.vue'
 import StatsScreen from './StatsScreen.vue'
+import RulesScreen from './RulesScreen.vue'
 import { useSession } from '../stores/session'
 
 const session = useSession()
 const phase = computed(() => session.game?.phase ?? 'lobby')
-const vue = ref<'table' | 'stats'>('table')
+const vue = ref<'table' | 'stats' | 'regles'>('table')
 const grand = useLargeScreen()
 </script>
 
@@ -23,8 +24,8 @@ const grand = useLargeScreen()
       :class="vue === 'table' ? 'max-w-md lg:max-w-none' : 'max-w-none'"
     >
     <template v-if="vue === 'table'">
-      <GameTablePc v-if="grand" @stats="vue = 'stats'" />
-      <GameTable v-else @stats="vue = 'stats'" />
+      <GameTablePc v-if="grand" @stats="vue = 'stats'" @regles="vue = 'regles'" />
+      <GameTable v-else @stats="vue = 'stats'" @regles="vue = 'regles'" />
       <BiddingPanel v-if="phase === 'encheres'" />
       <!-- Le décompte attend que le dernier pli ait été vu sur le tapis -->
       <DealResult
@@ -32,6 +33,7 @@ const grand = useLargeScreen()
         @stats="vue = 'stats'"
       />
     </template>
+    <RulesScreen v-else-if="vue === 'regles'" retour="Table" @fermer="vue = 'table'" />
     <StatsScreen v-else @fermer="vue = 'table'" />
     <p
       v-if="session.error"

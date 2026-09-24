@@ -12,7 +12,7 @@ import { useFitZoom } from '../composables/useFitZoom'
 const session = useSession()
 const roster = useRoster()
 onMounted(() => void roster.charger())
-const emit = defineEmits<{ stats: [] }>()
+const emit = defineEmits<{ stats: []; regles: [] }>()
 const grand = useLargeScreen()
 const L = useTableLayout()
 /** À l'échelle de l'écran, sans jamais dépasser sa hauteur. */
@@ -59,11 +59,6 @@ function isTaken(p: PlayerId): boolean {
 function horsTable(p: PlayerId): boolean {
   return regardee.value && !session.takenBy[p] && session.present.length >= 4
 }
-const sousTitre = computed(() => {
-  const noms = roster.joueurs.map(nomDe)
-  return `Entre ${noms.slice(0, -1).join(', ')} et ${noms.at(-1)}`
-})
-
 // --- Ajouter un joueur : un nom, et il rejoint la liste pour de bon.
 const ajout = ref(false)
 const nouveauNom = ref('')
@@ -94,7 +89,6 @@ async function ajouter(): Promise<void> {
     <div class="flex flex-col items-center">
       <SuitRow />
       <h1 class="mt-4 font-display text-4xl leading-none">Coinche</h1>
-      <p class="mt-1 text-center text-sm text-sage">{{ sousTitre }}</p>
     </div>
 
     <p
@@ -191,11 +185,18 @@ async function ajouter(): Promise<void> {
       @click="creer"
     >{{ enCours === 'creer' ? 'Création de la partie…' : 'Créer une nouvelle partie' }}</button>
 
-    <button
-      type="button"
-      class="mt-5 cursor-pointer self-center text-[13px] text-sage underline-offset-4 transition hover:text-mist hover:underline"
-      @click="emit('stats')"
-    >Voir les statistiques de toutes les parties</button>
+    <div class="mt-5 flex justify-center gap-5">
+      <button
+        type="button"
+        class="cursor-pointer text-[13px] text-sage underline-offset-4 transition hover:text-mist hover:underline"
+        @click="emit('stats')"
+      >Statistiques de toutes les parties</button>
+      <button
+        type="button"
+        class="cursor-pointer text-[13px] text-sage underline-offset-4 transition hover:text-mist hover:underline"
+        @click="emit('regles')"
+      >Les règles</button>
+    </div>
 
     <p v-if="session.error" class="mt-4 text-center text-sm text-red-card">{{ session.error }}</p>
   </div>
