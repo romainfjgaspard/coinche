@@ -27,7 +27,6 @@ const {
 
 /** Tailles de cartes : la table double de largeur sur un écran d'ordinateur. */
 const grand = useLargeScreen()
-const largeurCarte = computed(() => (grand.value ? 78 : 66))
 const largeurDos = computed(() => (grand.value ? 34 : 26))
 const largeurPli = computed(() => (grand.value ? 44 : 46))
 
@@ -63,18 +62,32 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
  */
 const plisBas = computed(() => basTapis.value + 30)
 const hauteurDernierPli = computed(() => 2 * Math.round(largeurPli.value * 1.44) + 5 + 44)
+const basPli = computed(() => plisBas.value + hauteurDernierPli.value + 14)
+/** Le bas de mon partenaire (cartes retournées et nom, sous l'en-tête), plus une marge. */
+const HAUT_PLI = 200
+
+/**
+ * Les cartes du pli en cours, sur téléphone : aussi grandes que le permet la place
+ * entre mon partenaire et le dernier pli, et entre les deux adversaires. À taille
+ * fixe, elles restaient petites au milieu du tapis sur un grand téléphone.
+ */
+const largeurCarte = computed(() => {
+  if (grand.value) return 78
+  const parHauteur = (L.value.height - HAUT_PLI - basPli.value - 12) / 2.88
+  const parLargeur = (Math.min(L.value.width, 448) - 136) / 3 // 448 : la colonne max-w-md
+  return Math.round(Math.max(54, Math.min(100, parHauteur, parLargeur)))
+})
 const hauteurPli = computed(() => 2 * Math.round(largeurCarte.value * 1.44) + 12)
-const basPli = computed(() => plisBas.value + hauteurDernierPli.value + 6)
 const pliCourant = computed(() => ({
   width: `${3 * largeurCarte.value + 12}px`,
   height: `${hauteurPli.value}px`,
-  bottom: `${basPli.value + 24}px`, // remonté : il frôlait le nom du joueur de droite
+  bottom: `${basPli.value}px`,
 }))
 /**
- * Les adversaires à peu près à hauteur du pli en cours (à mi-écran, ils tombaient sur
- * le dernier pli), mais nettement sous son milieu : leur nom frôlait la carte de droite.
+ * Les adversaires, nom juste au-dessus du dernier pli : à mi-écran ils tombaient
+ * dessus, et à hauteur du pli en cours leur nom mordait sur la carte de côté.
  */
-const cote = computed(() => ({ bottom: `${basPli.value + hauteurPli.value / 2 - 14}px`, transform: 'translateY(50%)' }))
+const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.value + 2}px` }))
 </script>
 
 <template>
