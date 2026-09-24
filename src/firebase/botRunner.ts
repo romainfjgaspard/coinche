@@ -14,6 +14,7 @@ import { type BiddingEntry, currentBidder, highestBid, rankOf } from '../game/bi
 import { biddingFromEvents, playFromEvents } from '../game/replay'
 import { canDeclareBelote, currentPlayer, playableFor } from '../game/play'
 import { type BotLevel, chooseBid, chooseCard } from '../game/bot'
+import { PLI_VISIBLE_MS } from '../game/display'
 import { type Client, makeClient } from './app'
 import {
   type GameDoc, allSeatsTaken, deal, moveCount, placeBid, playCard, signIn, takeSeat,
@@ -64,6 +65,12 @@ export interface BotOptions {
    * `catch` muet.
    */
   onError?: (quoi: string, erreur: unknown) => void
+  /**
+   * Feu vert pour distribuer la donne suivante. Sans lui, un bot donneur relançait
+   * la donne en moins d'une seconde et personne n'avait le temps de lire le décompte.
+   * L'onglet hôte ne le donne que lorsqu'un humain a cliqué pour continuer.
+   */
+  mayDealNext?: (dealNumber: number) => boolean
 }
 
 export async function startBot(
@@ -72,8 +79,10 @@ export async function startBot(
   options: BotOptions = {},
 ): Promise<BotHandle> {
   const {
-    level = 'simple', delayMs = REFLEXION_MS, feed, client, onError = defaultOnError,
+    level = 'simple', delayMs = REFLEXION_MS, feed, client, onError = defaultOnError, mayDealNext,
   } = options
+  /** La pause après un pli suit le rythme du bot : les tests accélérés ne l'attendent pas. */
+  const pausePli = Math.round((PLI_VISIBLE_MS * delayMs) / REFLEXION_MS)
   const c: Client = client ?? (await makeClient(`bot-${code}-${Date.now()}`))
   await signIn(c)
   await takeSeat(code, player, c, true)
@@ -104,7 +113,11 @@ export async function startBot(
     if (cle === dernierActe || g.phase === 'terminee') return null
 
     if (g.phase === 'lobby' || g.phase === 'decompte') {
-      return g.dealer === player && allSeatsTaken(g) && g.dealNumber !== derniereDonne
+      // La toute première donne part seule ; après une donne jouée — ou blanche, qui
+      // ramène la partie en « lobby » — on attend qu'un humain ait lu ce qui s'est passé.
+      const premiere = g.phase === 'lobby' && g.dealNumber === 0
+      const feuVert = premiere || !mayDealNext || mayDealNext(g.dealNumber)
+      return g.dealer === player && allSeatsTaken(g) && g.dealNumber !== derniereDonne && feuVert
         ? { quoi: 'distribuer', cle }
         : null
     }
@@ -129,7 +142,10 @@ export async function startBot(
 
     occupe = true
     try {
-      await attendre(delayMs)
+      // Entamer juste après un pli : on laisse d'abord le pli complet sur le tapis.
+      const etat = quoi === 'poser' ? playFromEvents(events, game!.dealer, game!.seating) : null
+      const entame = etat !== null && etat.current.length === 0 && etat.completed.length > 0
+      await attendre(entame ? delayMs + pausePli : delayMs)
       const apres = aFaire(game!)?.cle
       if (!vivant || !game || apres !== cle) {
         console.warn('[p]', player, 'abandon', quoi, cle, '->', apres)
@@ -229,7 +245,9 @@ async function parler(
   // Dernier à parler après trois passes : on se lance plutôt que de redistribuer.
   const dernierAParler = etat.entries.length === 3 && meilleure === null
 
-  const choix = chooseBid(hand, plancher, partenaireTient, dernierAParler)
+  // CO-5 — coinché, le preneur ne peut plus surenchérir : il laisse jouer.
+  const coinche = etat.entries.some((e) => e.kind === 'coinche')
+  const choix = coinche ? null : chooseBid(hand, plancher, partenaireTient, dernierAParler)
   const entry: BiddingEntry = choix
     ? { kind: 'contrat', player, value: choix.value, suit: choix.trump }
     : { kind: 'passe', player }

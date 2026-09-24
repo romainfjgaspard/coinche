@@ -47,9 +47,25 @@ export function value(card: Card, trump: Suit | null): number {
 export const isTrump = (card: Card, trump: Suit | null): boolean =>
   trump !== null && suitOf(card) === trump
 
-/** Tri d'affichage : atout d'abord, puis couleurs, chaque couleur de la plus forte à la plus faible. */
+const RED: Suit[] = ['h', 'd']
+
+/**
+ * Tri d'affichage : atout d'abord, puis les autres couleurs en **alternant rouge et
+ * noir** chaque fois que la main le permet — deux couleurs de même teinte côte à côte
+ * se confondent d'un coup d'œil. Chaque couleur va de la plus forte à la plus faible.
+ */
 export function sortHand(hand: Card[], trump: Suit | null): Card[] {
-  const suitRank = (s: Suit) => (s === trump ? -1 : SUITS.indexOf(s))
+  const present = SUITS.filter((s) => hand.some((c) => suitOf(c) === s))
+  const order: Suit[] = trump !== null && present.includes(trump) ? [trump] : []
+  let rest = present.filter((s) => s !== trump)
+  while (rest.length > 0) {
+    const last = order.at(-1)
+    const lastRed = last !== undefined && RED.includes(last)
+    const next = rest.find((s) => last === undefined || RED.includes(s) !== lastRed) ?? rest[0]
+    order.push(next)
+    rest = rest.filter((s) => s !== next)
+  }
+  const suitRank = (s: Suit) => order.indexOf(s)
   return [...hand].sort((a, b) => {
     const da = suitRank(suitOf(a)) - suitRank(suitOf(b))
     return da !== 0 ? da : strength(b, trump) - strength(a, trump)

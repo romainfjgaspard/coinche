@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   PAIRINGS, PLAYER_IDS, PLAYER_NAMES, type PlayerId, type Seating, pairingKey,
   partnerOf, randomSeating, teamOfPlayer,
 } from '../game/players'
 import { useSession } from '../stores/session'
+import { useLargeScreen } from '../composables/useLargeScreen'
+import { useTableLayout } from '../composables/useTableLayout'
+import { useFitZoom } from '../composables/useFitZoom'
 
 const session = useSession()
+const grand = useLargeScreen()
+const L = useTableLayout()
+/** À l'échelle de l'écran, sans jamais dépasser sa hauteur. */
+const contenu = ref<HTMLElement | null>(null)
+const zoom = useFitZoom(contenu, computed(() => L.value.t * 1.3), computed(() => L.value.height - 24))
 
 const seatedCount = computed(
   () => PLAYER_IDS.filter((p) => session.takenBy[p]).length,
@@ -28,6 +36,8 @@ const duos = computed(() =>
 )
 /** Un siège tenu par un bot : les parties concernées sortent des stats par défaut. */
 const estUnBot = (p: PlayerId): boolean => Boolean(session.game?.seats[p]?.bot)
+/** Le niveau n'est connu que de l'onglet qui fait tourner le bot. */
+const niveauBot = (p: PlayerId) => session.bots.find((b) => b.player === p)?.level ?? null
 
 const monPartenaire = computed(() =>
   session.playerId && seating.value ? partnerOf(session.playerId, seating.value) : null,
@@ -35,7 +45,13 @@ const monPartenaire = computed(() =>
 </script>
 
 <template>
-  <div class="mx-auto flex min-h-full w-full max-w-md flex-col px-6 pt-14 pb-8">
+  <!-- Sur PC la colonne est mise à l'échelle et centrée : à 2560 px elle faisait un sixième de l'écran -->
+  <div class="flex min-h-full">
+  <div
+    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 max-lg:min-h-full lg:my-auto lg:py-10"
+    ref="contenu"
+    :style="grand ? { zoom } : undefined"
+  >
     <p class="text-[13px] text-sage">Code de la partie</p>
     <div class="mt-1 flex items-baseline gap-3">
       <span class="font-display text-5xl tracking-[0.18em] leading-none">{{ session.code }}</span>
@@ -58,8 +74,8 @@ const monPartenaire = computed(() =>
         v-for="duo in duos"
         :key="duo.label"
         type="button"
-        class="flex items-center gap-3 rounded-xl border px-4 py-2.5 text-left"
-        :class="duo.actif ? 'border-gold bg-gold/15' : 'border-white/15'"
+        class="flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition"
+        :class="duo.actif ? 'border-gold bg-gold/15' : 'border-white/15 hover:border-white/35 hover:bg-white/5'"
         @click="session.chooseSeating(duo.seating)"
       >
         <span class="grow text-sm font-semibold" :class="duo.actif ? 'text-gold' : 'text-mist'">
@@ -70,7 +86,7 @@ const monPartenaire = computed(() =>
     </div>
     <button
       type="button"
-      class="mt-2 h-10 w-full rounded-xl border border-white/15 text-[13px] text-mist"
+      class="mt-2 h-10 w-full cursor-pointer rounded-xl border border-white/15 text-[13px] text-mist transition hover:border-white/35 hover:bg-white/5"
       @click="session.chooseSeating(randomSeating())"
     >Retirer au sort</button>
 
@@ -93,36 +109,40 @@ const monPartenaire = computed(() =>
           {{ PLAYER_NAMES[p] }}
           <span v-if="p === session.playerId" class="text-xs text-sage">— toi</span>
         </span>
-        <span v-if="estUnBot(p)" class="text-xs text-sage">bot</span>
+        <span v-if="estUnBot(p)" class="text-xs text-sage">{{ niveauBot(p) === 'compteur' ? 'bot ★' : 'bot' }}</span>
         <span v-if="p === dealer" class="text-xs text-gold">donneur</span>
         <!-- Indépendant du donneur : son siège peut très bien être encore libre -->
         <template v-if="!session.takenBy[p]">
           <button
             type="button"
             :disabled="session.busy"
-            class="rounded-lg border border-white/20 px-2.5 py-1 text-xs font-semibold text-mist disabled:opacity-40"
+            class="cursor-pointer rounded-lg border border-white/20 px-2.5 py-1 text-xs font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
             title="Un bot qui ne voit que sa propre main"
             @click="session.addBot(p, 'simple')"
           >+ bot</button>
           <button
             type="button"
             :disabled="session.busy"
-            class="rounded-lg border border-white/20 px-2.5 py-1 text-xs font-semibold text-mist disabled:opacity-40"
+            class="cursor-pointer rounded-lg border border-white/20 px-2.5 py-1 text-xs font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
             title="Le même, mais il retient les cartes déjà tombées"
             @click="session.addBot(p, 'compteur')"
           >+ bot ★</button>
         </template>
       </li>
     </ul>
+    <p v-if="PLAYER_IDS.some((p) => !session.takenBy[p])" class="mt-2.5 text-xs text-sage">
+      <span class="font-semibold text-mist">bot</span> : ne voit que sa main ·
+      <span class="font-semibold text-mist">bot ★</span> : retient aussi les cartes tombées
+    </p>
 
-    <div class="grow"></div>
+    <div class="grow lg:hidden"></div>
 
     <template v-if="session.ready">
       <button
         v-if="iAmDealer"
         type="button"
         :disabled="session.busy"
-        class="mt-8 h-14 rounded-xl bg-gold text-base font-bold text-felt disabled:opacity-40"
+        class="mt-8 h-14 cursor-pointer rounded-xl bg-gold text-base font-bold text-felt transition enabled:hover:brightness-110 disabled:opacity-40"
         @click="session.startDeal()"
       >Distribuer</button>
       <p v-else class="mt-8 text-center text-sm text-mist">
@@ -134,5 +154,6 @@ const monPartenaire = computed(() =>
     </p>
 
     <p v-if="session.error" class="mt-4 text-center text-sm text-red-card">{{ session.error }}</p>
+  </div>
   </div>
 </template>

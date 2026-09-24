@@ -7,64 +7,17 @@ import { computed } from 'vue'
 import PlayingCard from './PlayingCard.vue'
 import CardBack from './CardBack.vue'
 import PlayerChip from './PlayerChip.vue'
-import type { Card } from '../game/cards'
 import { SUIT_GLYPH } from '../game/display'
 import { useLargeScreen } from '../composables/useLargeScreen'
-import { PLAYER_NAMES, type PlayerId, playerAtSeat, seatOf } from '../game/players'
-import { HAND_SIZE } from '../game/deal'
-import { useSession } from '../stores/session'
+import { useTableState } from '../composables/useTableState'
+import { PLAYER_NAMES } from '../game/players'
 
-const session = useSession()
 const emit = defineEmits<{ stats: [] }>()
 
-const me = computed<PlayerId>(() => session.playerId ?? 'romain')
-const around = computed(() => {
-  const places = session.seating
-  const moi = seatOf(me.value, places)
-  return {
-    left: playerAtSeat(moi + 1, places),
-    top: playerAtSeat(moi + 2, places),
-    right: playerAtSeat(moi + 3, places),
-  }
-})
-
-/** Cartes restantes d'un adversaire : ce qu'il n'a pas encore posé. */
-function remaining(player: PlayerId): number {
-  const st = session.play
-  if (!st) return HAND_SIZE
-  const played = [...st.completed.flatMap((t) => t.plays), ...st.current]
-    .filter((p) => p.player === player).length
-  return HAND_SIZE - played
-}
-
-const contract = computed(() => {
-  const r = session.biddingResult
-  return r && r.status === 'contrat' ? r : null
-})
-
-/** Le pli en cours, rangé par position autour de la table. */
-const trickAt = computed(() => {
-  const map: Partial<Record<'me' | 'left' | 'top' | 'right', Card>> = {}
-  for (const p of session.play?.current ?? []) {
-    if (p.player === me.value) map.me = p.card
-    else if (p.player === around.value.left) map.left = p.card
-    else if (p.player === around.value.top) map.top = p.card
-    else if (p.player === around.value.right) map.right = p.card
-  }
-  return map
-})
-
-const isTrump = (card: Card): boolean => {
-  // Pendant les enchères il n'y a pas d'atout : sans cette garde, `endsWith('')`
-  // marquerait toute la main.
-  const trump = contract.value?.trump
-  return trump != null && card.endsWith(trump)
-}
-
-const canPlay = (card: Card): boolean =>
-  session.myPlayTurn && session.playable.includes(card)
-
-const starsOf = (p: PlayerId): number => session.stars.get(p) ?? 0
+const {
+  session, me, around, remaining, contract, contractLabel, trickAt, trickWinnerCard,
+  isTrump, canPlay, starsOf,
+} = useTableState()
 
 /** Tailles de cartes : la table double de largeur sur un écran d'ordinateur. */
 const grand = useLargeScreen()
@@ -131,12 +84,18 @@ const liseré = computed(() =>
 
     <!-- Contrat en cours -->
     <div v-if="contract" class="absolute inset-x-0 top-16 flex justify-center">
-      <div class="flex items-center gap-2 rounded-full border border-gold/50 bg-gold/15 px-3.5 py-1">
-        <span class="text-sm font-bold text-gold">{{ contract.value }}</span>
-        <span class="text-base" :class="contract.trump === 'h' || contract.trump === 'd' ? 'text-red-card' : 'text-felt-dark'">
-          {{ contract.trump ? SUIT_GLYPH[contract.trump] : (contract.declaration === 'sa' ? 'SA' : 'TA') }}
-        </span>
+      <div class="flex items-center gap-2 rounded-full border border-gold/50 bg-gold/15 py-1 pl-1.5 pr-3.5">
+        <!-- Le symbole sur fond ivoire, comme sur une carte : noir sur le tapis, il disparaissait -->
+        <span
+          class="flex h-6 min-w-6 items-center justify-center rounded-full bg-ivory px-1 text-base leading-none font-bold"
+          :class="contract.trump === 'h' || contract.trump === 'd' ? 'text-red-card' : 'text-felt-dark'"
+        >{{ contract.trump ? SUIT_GLYPH[contract.trump] : (contract.declaration === 'sa' ? 'SA' : 'TA') }}</span>
+        <span class="text-sm font-bold text-gold">{{ contractLabel }}</span>
         <span class="text-xs text-mist">par {{ PLAYER_NAMES[contract.taker] }}</span>
+        <span
+          v-if="contract.multiplier > 1"
+          class="rounded-full bg-red-card px-2 py-0.5 text-[11px] font-bold tracking-wide text-ivory"
+        >{{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}</span>
       </div>
     </div>
 
@@ -177,16 +136,16 @@ const liseré = computed(() =>
     <!-- Le pli en cours -->
     <div class="absolute left-1/2 top-1/2 size-52 -translate-x-1/2 -translate-y-1/2 lg:size-[22rem]">
       <div class="absolute left-1/2 top-0 -translate-x-1/2">
-        <PlayingCard v-if="trickAt.top" :card="trickAt.top" :width="largeurCarte" />
+        <PlayingCard v-if="trickAt.top" :card="trickAt.top" :width="largeurCarte" :winner="trickAt.top === trickWinnerCard" />
       </div>
       <div class="absolute left-0 top-1/2 -translate-y-1/2">
-        <PlayingCard v-if="trickAt.left" :card="trickAt.left" :width="largeurCarte" />
+        <PlayingCard v-if="trickAt.left" :card="trickAt.left" :width="largeurCarte" :winner="trickAt.left === trickWinnerCard" />
       </div>
       <div class="absolute right-0 top-1/2 -translate-y-1/2">
-        <PlayingCard v-if="trickAt.right" :card="trickAt.right" :width="largeurCarte" />
+        <PlayingCard v-if="trickAt.right" :card="trickAt.right" :width="largeurCarte" :winner="trickAt.right === trickWinnerCard" />
       </div>
       <div class="absolute bottom-0 left-1/2 -translate-x-1/2">
-        <PlayingCard v-if="trickAt.me" :card="trickAt.me" :width="largeurCarte" />
+        <PlayingCard v-if="trickAt.me" :card="trickAt.me" :width="largeurCarte" :winner="trickAt.me === trickWinnerCard" />
         <span
           v-else-if="session.myPlayTurn"
           class="block rounded-lg border-2 border-dashed border-gold/50 bg-black/10"
@@ -205,7 +164,7 @@ const liseré = computed(() =>
     </div>
 
     <div data-testid="main" class="absolute inset-x-0 bottom-[92px] flex h-32 items-end justify-center px-2 lg:bottom-[128px] lg:h-48">
-      <div v-for="card in session.hand" :key="card" class="relative -ml-2.5 first:ml-0 lg:-ml-1">
+      <div v-for="card in session.sortedHand" :key="card" class="relative -ml-2.5 first:ml-0 lg:-ml-1">
         <PlayingCard
           :card="card"
           :width="largeurCarte"

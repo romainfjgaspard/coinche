@@ -11,6 +11,13 @@ export const RANK_LABEL: Record<Rank, string> = {
 
 export const SUIT_GLYPH: Record<Suit, string> = { s: '♠', h: '♥', d: '♦', c: '♣' }
 
+/**
+ * Durée pendant laquelle un pli complet reste sur le tapis avant d'être ramassé.
+ * Sans elle, la quatrième carte n'apparaissait jamais : le pli se vidait à l'instant
+ * où elle était posée.
+ */
+export const PLI_VISIBLE_MS = 1600
+
 /** Deux couleurs seulement, rouge et noir (décision du 23/09). */
 export const isRed = (suit: Suit): boolean => suit === 'h' || suit === 'd'
 
@@ -39,15 +46,17 @@ export interface Pip {
 }
 
 /**
- * Disposition classique des pointes : colonnes à 26 % / 50 % / 74 %,
- * rangées de 17 % à 83 %.
+ * Disposition classique des pointes : colonnes à 15 % / 50 % / 85 %, rangées de
+ * 15 % à 85 % de la zone centrale. Les colonnes sont écartées au maximum : avec des
+ * pointes assez grosses pour dominer l'index, la pointe du milieu touchait ses
+ * voisines sur le 9 et le 10.
  */
 const LAYOUTS: Partial<Record<Rank, [number, number][]>> = {
   A: [[50, 50]],
-  '7': [[26, 17], [74, 17], [26, 50], [74, 50], [26, 83], [74, 83], [50, 33]],
-  '8': [[26, 17], [74, 17], [26, 50], [74, 50], [26, 83], [74, 83], [50, 33], [50, 67]],
-  '9': [[26, 17], [74, 17], [26, 39], [74, 39], [26, 61], [74, 61], [26, 83], [74, 83], [50, 50]],
-  '10': [[26, 17], [74, 17], [26, 39], [74, 39], [26, 61], [74, 61], [26, 83], [74, 83], [50, 28], [50, 72]],
+  '7': [[15, 15], [85, 15], [15, 50], [85, 50], [15, 85], [85, 85], [50, 32.5]],
+  '8': [[15, 15], [85, 15], [15, 50], [85, 50], [15, 85], [85, 85], [50, 32.5], [50, 67.5]],
+  '9': [[15, 15], [85, 15], [15, 38.3], [85, 38.3], [15, 61.7], [85, 61.7], [15, 85], [85, 85], [50, 50]],
+  '10': [[15, 15], [85, 15], [15, 38.3], [85, 38.3], [15, 61.7], [85, 61.7], [15, 85], [85, 85], [50, 26.7], [50, 73.3]],
 }
 
 export function pipLayout(rank: Rank): Pip[] {

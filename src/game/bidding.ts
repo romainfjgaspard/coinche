@@ -136,6 +136,7 @@ export function currentBidder(state: BiddingState): PlayerId | null {
 
 /** Valeurs de contrat encore ouvertes (ENC-3, ENC-4). */
 export function legalValues(state: BiddingState, rules: Rules = RULES): number[] {
+  if (coinched(state)) return [] // CO-5 : la coinche ferme les enchères
   const best = highestBid(state)
   if (best && best.kind !== 'contrat') return [] // au-delà du capot, plus de contrat chiffré
   const floor = best ? best.value + rules.bidStep : rules.minBid
@@ -145,11 +146,13 @@ export function legalValues(state: BiddingState, rules: Rules = RULES): number[]
 }
 
 export const canBidCapot = (state: BiddingState): boolean => {
+  if (coinched(state)) return false
   const best = highestBid(state)
   return !best || best.kind === 'contrat'
 }
 
 export const canBidGenerale = (state: BiddingState): boolean => {
+  if (coinched(state)) return false
   const best = highestBid(state)
   return !best || best.kind !== 'generale'
 }
@@ -184,6 +187,9 @@ export function apply(state: BiddingState, entry: BiddingEntry, rules: Rules = R
   }
 
   if (entry.player !== currentBidder(state)) throw new IllegalBid(`Ce n'est pas à ${entry.player} de parler`)
+
+  // CO-5 — après une coinche, le preneur ne peut plus que passer (ou surcoincher, plus haut).
+  if (coinched(state) && entry.kind !== 'passe') throw new IllegalBid('La coinche ferme les enchères')
 
   if (entry.kind === 'contrat') {
     if (!legalValues(state, rules).includes(entry.value)) {

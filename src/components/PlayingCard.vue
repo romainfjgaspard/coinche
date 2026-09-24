@@ -34,16 +34,25 @@ const pips = computed(() => pipLayout(rank.value))
 
 const s = computed(() => {
   const w = props.width
+  // Les pointes centrales doivent dominer nettement celles de l'index : à taille
+  // presque égale, les deux se confondaient. Le 9 et le 10 en portent davantage,
+  // on les réduit un peu pour qu'elles ne se touchent pas.
+  const pip = rank.value === '9' || rank.value === '10' ? 0.21 : 0.24
   return {
     width: `${w}px`,
     height: `${Math.round(w * 1.44)}px`,
-    radius: `${Math.max(3, Math.round(w * 0.13))}px`,
-    pad: `${Math.max(2, Math.round(w * 0.045))}px`,
-    rankSize: `${Math.round(w * 0.21)}px`,
-    pipSize: `${Math.round(w * 0.14)}px`,
-    inset: `${Math.round(w * 0.3)}px`,
-    bigPip: `${Math.round(w * 0.36)}px`,
-    smallPip: `${Math.round(w * 0.16)}px`,
+    radius: `${Math.max(3, Math.round(w * 0.08))}px`,
+    pad: `${Math.max(2, Math.round(w * 0.04))}px`,
+    rankSize: `${Math.max(8, Math.round(w * 0.18))}px`,
+    indexPip: `${Math.max(6, Math.round(w * 0.12))}px`,
+    inset: `${Math.round(w * 0.22)}px`,
+    bigPip: `${Math.round(w * 0.46)}px`,
+    smallPip: `${Math.round(w * pip)}px`,
+    band: `${Math.max(3, Math.round(w * 0.05))}px`,
+    // Le halo du gagnant suit la taille de la carte : fixe, il débordait des vignettes.
+    shadow: props.winner
+      ? `0 0 0 ${Math.max(2, Math.round(w * 0.025))}px #d9a441, 0 0 ${Math.round(w * 0.15)}px ${Math.round(w * 0.03)}px rgba(217,164,65,.55)`
+      : `0 0 0 1px rgba(0,0,0,.25), 0 ${Math.max(1, Math.round(w * 0.03))}px ${Math.max(3, Math.round(w * 0.08))}px rgba(0,0,0,.45)`,
   }
 })
 </script>
@@ -53,70 +62,74 @@ const s = computed(() => {
     :is="clickable ? 'button' : 'div'"
     :type="clickable ? 'button' : undefined"
     :aria-label="clickable ? `Jouer le ${cardLabel(card)}` : cardLabel(card)"
-    class="relative shrink-0 border bg-[#fdfcf8] p-0 shadow-[0_5px_12px_rgba(0,0,0,.45),inset_0_0_0_1px_rgba(255,255,255,.7)] transition"
-    :class="[
-      dimmed ? 'opacity-40' : 'opacity-100',
-      clickable ? 'cursor-pointer hover:-translate-y-1' : '',
-      winner ? 'border-gold' : 'border-black/20',
-    ]"
-    :style="{ width: s.width, height: s.height, borderRadius: s.radius }"
+    class="relative block shrink-0 overflow-hidden bg-white p-0 transition duration-150"
+    :class="clickable ? 'cursor-pointer' : ''"
+    :style="{ width: s.width, height: s.height, borderRadius: s.radius, boxShadow: s.shadow }"
     @click="clickable && emit('select', card)"
   >
-    <img
-      v-if="image"
-      :src="image"
-      alt=""
-      class="absolute inset-0 size-full"
-      :style="{ borderRadius: s.radius }"
-    />
+    <!--
+      Figure : l'illustration porte déjà ses propres index (en haut à gauche, en bas à
+      droite). On n'en ajoute pas : deux index superposés rognaient le dessin.
+    -->
+    <img v-if="image" :src="image" alt="" class="absolute inset-0 size-full" draggable="false" />
 
-    <!-- Index aux quatre coins : droits en haut, retournés en bas -->
-    <span
-      v-for="corner in [
-        { v: 'top', h: 'left', flip: false },
-        { v: 'top', h: 'right', flip: false },
-        { v: 'bottom', h: 'left', flip: true },
-        { v: 'bottom', h: 'right', flip: true },
-      ]"
-      :key="`${corner.v}${corner.h}`"
-      class="absolute rounded-[3px] bg-[#fdfcf8] px-[2px] py-px text-center leading-none"
-      :style="{
-        [corner.v]: s.pad,
-        [corner.h]: s.pad,
-        transform: corner.flip ? 'rotate(180deg)' : undefined,
-      }"
-    >
-      <span class="block font-bold" :style="{ fontSize: s.rankSize, color: ink }">
-        {{ RANK_LABEL[rank] }}
-      </span>
-      <span class="block" :style="{ fontSize: s.pipSize, color: ink }">{{ SUIT_GLYPH[suit] }}</span>
-    </span>
-
-    <!-- Pointes, pour les rangs sans illustration -->
-    <span
-      v-if="pips.length"
-      class="absolute"
-      :style="{ left: s.inset, right: s.inset, top: '13%', bottom: '13%' }"
-    >
+    <template v-else>
+      <!-- Index aux quatre coins : droits en haut, retournés en bas -->
       <span
-        v-for="(pip, i) in pips"
-        :key="i"
-        class="absolute leading-none"
+        v-for="corner in [
+          { v: 'top', h: 'left', flip: false },
+          { v: 'top', h: 'right', flip: false },
+          { v: 'bottom', h: 'left', flip: true },
+          { v: 'bottom', h: 'right', flip: true },
+        ]"
+        :key="`${corner.v}${corner.h}`"
+        class="absolute flex flex-col items-center leading-none"
         :style="{
-          left: `${pip.x}%`,
-          top: `${pip.y}%`,
-          fontSize: pip.large ? s.bigPip : s.smallPip,
-          color: ink,
-          transform: `translate(-50%, -50%) rotate(${pip.flipped ? 180 : 0}deg)`,
+          [corner.v]: s.pad,
+          [corner.h]: s.pad,
+          transform: corner.flip ? 'rotate(180deg)' : undefined,
         }"
-      >{{ SUIT_GLYPH[suit] }}</span>
-    </span>
+      >
+        <span class="block font-bold tracking-tight" :style="{ fontSize: s.rankSize, color: ink }">
+          {{ RANK_LABEL[rank] }}
+        </span>
+        <span class="block" :style="{ fontSize: s.indexPip, color: ink }">{{ SUIT_GLYPH[suit] }}</span>
+      </span>
 
-    <!-- Atout mis en évidence -->
+      <!-- Pointes -->
+      <span
+        class="absolute"
+        :style="{ left: s.inset, right: s.inset, top: '9%', bottom: '9%' }"
+      >
+        <span
+          v-for="(pip, i) in pips"
+          :key="i"
+          class="absolute leading-none"
+          :style="{
+            left: `${pip.x}%`,
+            top: `${pip.y}%`,
+            fontSize: pip.large ? s.bigPip : s.smallPip,
+            color: ink,
+            transform: `translate(-50%, -50%) rotate(${pip.flipped ? 180 : 0}deg)`,
+          }"
+        >{{ SUIT_GLYPH[suit] }}</span>
+      </span>
+    </template>
+
+    <!-- Atout : un bandeau doré en tête de carte — l'or plein reste au gagnant du pli -->
     <span
       v-if="trump"
-      class="pointer-events-none absolute -inset-0.5 border-2 border-gold"
-      :style="{ borderRadius: `calc(${s.radius} + 2px)` }"
+      class="pointer-events-none absolute inset-x-0 top-0 bg-gold"
+      :style="{ height: s.band }"
+    ></span>
+
+    <!--
+      Carte injouable : un voile opaque par-dessus, identique sur les figures et les
+      pointes. La transparence laissait voir la carte voisine à travers.
+    -->
+    <span
+      v-if="dimmed"
+      class="pointer-events-none absolute inset-0 bg-[#0c2a20]/60"
     ></span>
   </component>
 </template>

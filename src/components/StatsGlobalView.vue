@@ -9,7 +9,8 @@ import { PAIRES, clePaire, duoStats, joueurStats, parPalier } from '../game/stat
 import { useSession } from '../stores/session'
 
 const session = useSession()
-onMounted(() => { if (session.archives.length === 0) void session.loadArchives() })
+// Rechargé à chaque ouverture : une partie finie depuis la dernière visite doit apparaître.
+onMounted(() => { void session.loadArchives() })
 
 const BON = '#52a884'
 const MAUVAIS = '#cc6b4a'
@@ -60,9 +61,13 @@ const reperes = computed(() => {
     carte('PIRE DUO', nomPaire(dn.paire), taux(dn.gagnees, dn.parties),
       `${dn.gagnees} sur ${dn.parties}`, false),
     carte('MEILLEUR JOUEUR', nom(j0.joueur), taux(j0.gagnees, j0.parties),
-      `${j0.gagnees} parties sur ${j0.parties}`, true),
+      `${j0.gagnees} partie${j0.gagnees > 1 ? 's' : ''} sur ${j0.parties}`, true),
     carte('PIRE JOUEUR', nom(jn.joueur), taux(jn.gagnees, jn.parties),
-      `${jn.etoiles} étoile${jn.etoiles > 1 ? 's' : ''} de la honte`, false),
+      // Les étoiles quand il y en a ; sinon le bilan des parties, comme pour le meilleur.
+      jn.etoiles > 0
+        ? `${jn.etoiles} étoile${jn.etoiles > 1 ? 's' : ''} de la honte`
+        : `${jn.gagnees} partie${jn.gagnees > 1 ? 's' : ''} sur ${jn.parties}`,
+      false),
   ]
 })
 
@@ -105,7 +110,8 @@ const panaches = computed(() => {
         couleur: TEMPERAMENT,
         left: `${(positif ? 50 : 50 - part).toFixed(1)}%`,
         width: `${part.toFixed(1)}%`,
-        valeur: `${positif ? '+' : '−'}${Math.abs(j.panache!)}`,
+        // Un panache nul s'écrit 0 : « −0 » laissait croire à une valeur négative.
+        valeur: j.panache === 0 ? '0' : `${positif ? '+' : '−'}${Math.abs(j.panache!)}`,
       }
     })
 })
@@ -113,9 +119,26 @@ const panaches = computed(() => {
 
 <template>
   <div>
-    <p v-if="total === 0" class="mt-8 text-center text-sm text-sage">
+    <p v-if="session.archives.length === 0" class="mt-8 text-center text-sm text-sage">
       Aucune partie terminée pour l'instant. Les statistiques apparaîtront après la première.
     </p>
+
+    <!--
+      Toutes les parties terminées ont un bot : elles sont écartées par défaut, mais le
+      bouton pour les revoir doit rester là — sinon elles devenaient introuvables.
+    -->
+    <div v-else-if="total === 0" class="mt-8 flex flex-col items-center gap-3 text-center">
+      <p class="text-sm text-sage">
+        {{ partiesAvecBot > 1
+          ? `Les ${partiesAvecBot} parties terminées avaient un bot à table : elles sont écartées des classements.`
+          : 'La seule partie terminée avait un bot à table : elle est écartée des classements.' }}
+      </p>
+      <button
+        type="button"
+        class="cursor-pointer rounded-full border border-gold/60 px-4 py-1.5 text-[13px] font-semibold text-gold transition hover:bg-gold/15"
+        @click="avecBots = true"
+      >{{ partiesAvecBot > 1 ? 'Les afficher quand même' : 'L\'afficher quand même' }}</button>
+    </div>
 
     <template v-else>
       <div>

@@ -3,8 +3,16 @@ import { computed, ref, watch } from 'vue'
 import SuitRow from './SuitRow.vue'
 import { PLAYER_IDS, PLAYER_NAMES, type PlayerId, teamOfPlayer } from '../game/players'
 import { useSession } from '../stores/session'
+import { useLargeScreen } from '../composables/useLargeScreen'
+import { useTableLayout } from '../composables/useTableLayout'
+import { useFitZoom } from '../composables/useFitZoom'
 
 const session = useSession()
+const grand = useLargeScreen()
+const L = useTableLayout()
+/** À l'échelle de l'écran, sans jamais dépasser sa hauteur. */
+const contenu = ref<HTMLElement | null>(null)
+const zoom = useFitZoom(contenu, computed(() => L.value.t * 1.3), computed(() => L.value.height - 24))
 const chosen = ref<PlayerId | null>(session.playerId)
 const code = ref('')
 
@@ -34,7 +42,13 @@ function isTaken(p: PlayerId): boolean {
 </script>
 
 <template>
-  <div class="mx-auto flex min-h-full w-full max-w-md flex-col px-6 pt-14 pb-8">
+  <!-- Sur PC la colonne est mise à l'échelle et centrée : à 2560 px elle faisait un sixième de l'écran -->
+  <div class="flex min-h-full">
+  <div
+    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 max-lg:min-h-full lg:my-auto lg:py-10"
+    ref="contenu"
+    :style="grand ? { zoom } : undefined"
+  >
     <div class="flex flex-col items-center">
       <SuitRow />
       <h1 class="mt-4 font-display text-4xl leading-none">Coinche</h1>
@@ -49,7 +63,7 @@ function isTaken(p: PlayerId): boolean {
         :key="p"
         type="button"
         :disabled="isTaken(p)"
-        class="flex min-h-16 items-center gap-3.5 rounded-2xl border px-4 text-left transition disabled:opacity-40"
+        class="flex min-h-16 cursor-pointer items-center gap-3.5 rounded-2xl border px-4 text-left transition disabled:cursor-default disabled:opacity-40"
         :class="chosen === p
           ? 'border-gold bg-gold/15'
           : 'border-white/15 bg-white/5 hover:border-white/30'"
@@ -66,7 +80,7 @@ function isTaken(p: PlayerId): boolean {
       </button>
     </div>
 
-    <div class="grow"></div>
+    <div class="grow lg:hidden"></div>
 
     <label for="code" class="mt-10 mb-2 block text-[13px] text-sage">Code de la partie</label>
     <div class="flex gap-2.5">
@@ -83,7 +97,7 @@ function isTaken(p: PlayerId): boolean {
       <button
         type="button"
         :disabled="!canJoin || session.busy"
-        class="h-[50px] w-28 shrink-0 rounded-xl bg-gold text-[15px] font-bold text-felt disabled:opacity-40"
+        class="h-[50px] w-28 shrink-0 cursor-pointer rounded-xl bg-gold text-[15px] font-bold text-felt transition enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40"
         @click="session.join(cleanCode, chosen!)"
       >Rejoindre</button>
     </div>
@@ -91,10 +105,11 @@ function isTaken(p: PlayerId): boolean {
     <button
       type="button"
       :disabled="!chosen || session.busy"
-      class="mt-3 h-[46px] rounded-xl border border-white/15 text-sm font-medium text-mist disabled:opacity-40"
+      class="mt-3 h-[46px] cursor-pointer rounded-xl border border-white/15 text-sm font-medium text-mist transition enabled:hover:border-white/35 enabled:hover:bg-white/5 disabled:cursor-default disabled:opacity-40"
       @click="session.create(chosen!)"
     >Créer une nouvelle partie</button>
 
     <p v-if="session.error" class="mt-4 text-center text-sm text-red-card">{{ session.error }}</p>
+  </div>
   </div>
 </template>

@@ -6,7 +6,7 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { getDoc } from 'firebase/firestore'
-import type { Card } from '../game/cards'
+import { type Card, sortHand } from '../game/cards'
 import { PLAYER_IDS, type PlayerId } from '../game/players'
 import {
   type GameDoc, allSeatsTaken, createGame, deal, gameRef, placeBid, playCard, readArchives,
@@ -17,7 +17,8 @@ import type { GameEvent } from '../game/events'
 import {
   type BiddingEntry, canCoinche, canSurcoinche, currentBidder, legalValues, outcome,
 } from '../game/bidding'
-import { canDeclareBelote, currentPlayer, playableFor } from '../game/play'
+import { type CompletedTrick, canDeclareBelote, currentPlayer, playableFor } from '../game/play'
+import { PLI_VISIBLE_MS } from '../game/display'
 import { biddingFromEvents, currentDeal, playFromEvents, starsInGame } from '../game/replay'
 import { type DealSummary, type Tally, deals, momentum, runningScores, tallies } from '../game/stats'
 import { DEFAULT_SEATING, type Seating, teamOfPlayer } from '../game/players'
@@ -123,6 +124,37 @@ export const useSession = defineStore('session', () => {
   })
 
   const lastTrick = computed(() => play.value?.completed.at(-1) ?? null)
+
+  /** Ma main, triée pour l'affichage : atout en tête dès qu'il est connu. */
+  const sortedHand = computed(() => sortHand(hand.value, play.value?.trump ?? null))
+
+  /**
+   * Le pli qui vient de se fermer, laissé sur le tapis `PLI_VISIBLE_MS` : sans cette
+   * tenue, la quatrième carte disparaissait à l'instant même où elle était posée, et
+   * personne ne voyait qui ramassait.
+   */
+  const heldTrick = ref<CompletedTrick | null>(null)
+  let heldTimer: ReturnType<typeof setTimeout> | undefined
+  watch(
+    () => play.value?.completed.length ?? 0,
+    (n, avant) => {
+      clearTimeout(heldTimer)
+      if (n > avant && lastTrick.value) {
+        heldTrick.value = lastTrick.value
+        heldTimer = setTimeout(() => { heldTrick.value = null }, PLI_VISIBLE_MS)
+      } else {
+        heldTrick.value = null
+      }
+    },
+  )
+
+  /** Ce que le tapis montre : le pli en cours, sinon celui qu'on vient de ramasser. */
+  const shownTrick = computed(() => {
+    const current = play.value?.current ?? []
+    if (current.length > 0) return { plays: current, winner: null as PlayerId | null }
+    if (heldTrick.value) return { plays: heldTrick.value.plays, winner: heldTrick.value.winner }
+    return { plays: [], winner: null as PlayerId | null }
+  })
   const trickCounts = computed<[number, number]>(() => {
     const counts: [number, number] = [0, 0]
     for (const t of play.value?.completed ?? []) counts[teamOfPlayer(t.winner, seating.value)] += 1
@@ -205,6 +237,16 @@ export const useSession = defineStore('session', () => {
 
   /** Les bots lancés depuis cet onglet : on les arrête en quittant. */
   const bots = ref<BotHandle[]>([])
+  /** La donne dont un humain a lu le décompte : un bot donneur peut alors redistribuer. */
+  const dealAcknowledged = ref<number | null>(null)
+  /** Le donneur est un bot que cet onglet fait tourner : c'est à nous de lui dire de continuer. */
+  const botDealerHere = computed(() =>
+    Boolean(game.value && bots.value.some((b) => b.player === game.value!.dealer)),
+  )
+
+  function continueToNextDeal(): void {
+    if (game.value) dealAcknowledged.value = game.value.dealNumber
+  }
   /** Un seul client Firebase pour tous les bots de l'onglet, créé à la demande. */
   let botClient: Client | null = null
 
@@ -227,7 +269,10 @@ export const useSession = defineStore('session', () => {
       }
       botClient ??= await makeClient(`bots-${code.value}`)
       bots.value.push(
-        await startBot(code.value!, player, { level, delayMs, feed, client: botClient }),
+        await startBot(code.value!, player, {
+          level, delayMs, feed, client: botClient,
+          mayDealNext: (n) => dealAcknowledged.value === n,
+        }),
       )
     })
   }
@@ -238,9 +283,16 @@ export const useSession = defineStore('session', () => {
     botClient = null
   }
 
+  /** Un double clic lançait deux distributions : la seconde se heurtait au verrou. */
+  let distribution = false
   async function startDeal(): Promise<void> {
-    if (!code.value) return
-    await run(() => deal(code.value!))
+    if (!code.value || distribution) return
+    distribution = true
+    try {
+      await run(() => deal(code.value!))
+    } finally {
+      distribution = false
+    }
   }
 
   /** Change le placement avant la première donne. */
@@ -294,9 +346,9 @@ export const useSession = defineStore('session', () => {
     seated, ready, takenBy, myTeam, seating,
     bidding, biddingResult, toBid, myBidTurn, bidValues, mayCoinche, maySurcoinche,
     play, toPlay, myPlayTurn, playable, beloteCards,
-    lastTrick, trickCounts, stars, shame, lastStar,
+    lastTrick, trickCounts, stars, shame, lastStar, sortedHand, heldTrick, shownTrick,
     dealSummaries, scoreCurve, momentumBars, playerTallies, impasses, impasseCounts,
     peek, create, join, chooseSeating, startDeal, bid, playTheCard, leave, resume, loadArchives,
-    bots, addBot, stopBots,
+    bots, addBot, stopBots, botDealerHere, dealAcknowledged, continueToNextDeal,
   }
 })

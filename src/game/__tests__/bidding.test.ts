@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_SEATING } from '../players'
 import {
-  type BiddingEntry, IllegalBid, apply, canCoinche, canSurcoinche, currentBidder,
+  type BiddingEntry, IllegalBid, apply, canBidCapot, canBidGenerale, canCoinche, canSurcoinche, currentBidder,
   firstLeader, legalValues, multiplier, newBidding, outcome, taker,
 } from '../bidding'
 
@@ -137,6 +137,17 @@ describe('CO-1 à CO-3 — coinche', () => {
   it('après une coinche, plus personne ne surenchérit', () => {
     const s = apply(taken(), { kind: 'coinche', player: 'roux' })
     expect(() => apply(s, { kind: 'contrat', player: 'benel', value: 110, suit: 's' })).toThrow(IllegalBid)
+  })
+
+  it('CO-5 — même le preneur, à qui revient la parole, ne peut que passer ou surcoincher', () => {
+    const s = apply(taken(), { kind: 'coinche', player: 'roux' })
+    expect(currentBidder(s)).toBe('viv')
+    expect(legalValues(s)).toEqual([])
+    expect(canBidCapot(s)).toBe(false)
+    expect(canBidGenerale(s)).toBe(false)
+    expect(() => apply(s, { kind: 'contrat', player: 'viv', value: 110, suit: 'h' })).toThrow(IllegalBid)
+    expect(() => apply(s, { kind: 'capot', player: 'viv', declaration: 'h' })).toThrow(IllegalBid)
+    expect(() => apply(s, { kind: 'generale', player: 'viv', declaration: 'ta' })).toThrow(IllegalBid)
   })
 
   it('le preneur peut laisser passer la coinche : l\'enjeu reste doublé', () => {

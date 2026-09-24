@@ -33,6 +33,16 @@ describe('cartes', () => {
     expect(sortHand(['7h', 'As', '9s', 'Ah'], 's')[0]).toBe('9s')
   })
 
+  it('alterne rouge et noir pour que deux couleurs voisines ne se confondent pas', () => {
+    const couleurs = (main: Card[]) => main.map((c) => c.slice(-1))
+    // Sans atout : pique, cœur, trèfle, carreau — jamais deux noires côte à côte.
+    expect(couleurs(sortHand(['7c', '8d', '9s', '10h'], null))).toEqual(['s', 'h', 'c', 'd'])
+    // Atout cœur en tête, puis on repart sur une noire.
+    expect(couleurs(sortHand(['7c', '8d', '9s', '10h'], 'h'))).toEqual(['h', 's', 'd', 'c'])
+    // Sans rouge disponible, on garde les noires groupées par couleur.
+    expect(couleurs(sortHand(['Ac', '7s', 'Kc'], null))).toEqual(['s', 'c', 'c'])
+  })
+
   it('DIS-2 — on ramasse les plis et on coupe, sans rebattre', () => {
     const tricks: Card[][] = [['Ks', 'As', '7s', '9s'], ['Jh', '9h', '8h', 'Ah']]
     expect(gatherAndCut(tricks, 0)).toEqual(['Ks', 'As', '7s', '9s', 'Jh', '9h', '8h', 'Ah'])

@@ -14,7 +14,9 @@ type Screen = 'join' | 'loading' | 'lobby' | 'table'
 const screen = computed<Screen>(() => {
   if (!session.code || !session.playerId) return 'join'
   if (!session.game) return 'loading'
-  return session.game.phase === 'lobby' ? 'lobby' : 'table'
+  // Une donne blanche repasse la partie en « lobby » pour redistribuer : on reste à
+  // table. Le salon — et son choix d'équipes — n'existe qu'avant la première donne.
+  return session.game.phase === 'lobby' && session.game.dealNumber === 0 ? 'lobby' : 'table'
 })
 </script>
 

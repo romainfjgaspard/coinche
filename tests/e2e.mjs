@@ -6,7 +6,7 @@
  */
 import { chromium } from 'playwright'
 
-const SP = '/tmp/claude-1000/-home-pargass-projects/fc34aa59-2afb-42fb-b291-a7e2d8c95d56/scratchpad'
+const SP = process.env.SORTIE ?? '.'
 const URL = 'http://127.0.0.1:5173/coinche/'
 const navigateur = await chromium.launch()
 const erreurs = []
