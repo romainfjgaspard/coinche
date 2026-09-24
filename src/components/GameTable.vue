@@ -68,10 +68,12 @@ const basPli = computed(() => plisBas.value + hauteurDernierPli.value + 6)
 const pliCourant = computed(() => ({
   width: `${3 * largeurCarte.value + 12}px`,
   height: `${hauteurPli.value}px`,
-  bottom: `${basPli.value}px`,
+  bottom: `${basPli.value + 24}px`, // remonté : il frôlait le nom du joueur de droite
 }))
-/** Les adversaires à hauteur du pli en cours : à mi-écran, ils tombaient sur le dernier pli. */
-// Un peu sous le milieu du pli : la pastille du donneur mordait sur la carte de droite.
+/**
+ * Les adversaires à peu près à hauteur du pli en cours (à mi-écran, ils tombaient sur
+ * le dernier pli), mais nettement sous son milieu : leur nom frôlait la carte de droite.
+ */
 const cote = computed(() => ({ bottom: `${basPli.value + hauteurPli.value / 2 - 14}px`, transform: 'translateY(50%)' }))
 </script>
 
