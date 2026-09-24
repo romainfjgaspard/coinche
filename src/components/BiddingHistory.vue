@@ -11,8 +11,12 @@ import { currentDeal } from '../game/replay'
 import { useSession } from '../stores/session'
 import { nomDe } from '../stores/roster'
 import DealerChip from './DealerChip.vue'
+import { type PlayerId, teamOfPlayer } from '../game/players'
 
 const session = useSession()
+/** Le nom à la couleur de son équipe : or pour la mienne, bleu pour l'autre, comme partout. */
+const couleurEquipe = (p: PlayerId): string =>
+  teamOfPlayer(p, session.seating) === session.myTeam ? 'text-gold' : 'text-them'
 
 const lignes = computed(() => {
   const donne = currentDeal(session.events)
@@ -23,14 +27,14 @@ const lignes = computed(() => {
     const avant = donne[i - 1]
     const ms = e.thinkMs ?? (e.type === 'enchere' && avant ? e.at - avant.at : null)
     if (e.type !== 'enchere') {
-      return [{ cle: e.seq, qui: nomDe(e.player), quoi: e.type === 'coinche' ? 'Coinche ! ×2' : 'Surcoinche ! ×4', couleur: null as Suit | 'sa' | 'ta' | null, passe: false, coinche: true, temps: ms === null ? '' : duree(ms) }]
+      return [{ cle: e.seq, joueur: e.player, qui: nomDe(e.player), quoi: e.type === 'coinche' ? 'Coinche ! ×2' : 'Surcoinche ! ×4', couleur: null as Suit | 'sa' | 'ta' | null, passe: false, coinche: true, temps: ms === null ? '' : duree(ms) }]
     }
     const b = e.entry
     const couleur = b.kind === 'contrat' ? b.suit : b.kind === 'capot' || b.kind === 'generale' ? b.declaration : null
     const quoi = b.kind === 'passe' ? 'Passe'
       : b.kind === 'contrat' ? String(b.value)
         : b.kind === 'capot' ? 'Capot' : b.kind === 'generale' ? 'Générale' : ''
-    return [{ cle: e.seq, qui: nomDe(e.player), quoi, couleur, passe: b.kind === 'passe', coinche: false, temps: ms === null ? '' : duree(ms) }]
+    return [{ cle: e.seq, joueur: e.player, qui: nomDe(e.player), quoi, couleur, passe: b.kind === 'passe', coinche: false, temps: ms === null ? '' : duree(ms) }]
   })
 })
 </script>
@@ -48,12 +52,16 @@ const lignes = computed(() => {
         :key="l.cle"
         class="flex items-center gap-3 border-b border-white/7 py-2 last:border-0"
       >
-        <span class="w-16 truncate text-[13px] font-semibold">{{ l.qui }}</span>
-        <span class="flex grow items-center gap-1.5 text-sm">
-          <span :class="l.coinche ? 'font-bold text-[#f0a293]' : l.passe ? 'text-sage' : 'font-semibold text-ivory'">{{ l.quoi }}</span>
+        <span class="w-[70px] truncate text-sm font-semibold" :class="couleurEquipe(l.joueur)">{{ l.qui }}</span>
+        <!-- Même formalisme que le contrat : le chiffre doré en police d'affichage, le symbole sur rond ivoire -->
+        <span class="flex grow items-center gap-2">
+          <span
+            class="font-display text-xl leading-none"
+            :class="l.coinche ? 'text-[#f0a293]' : l.passe ? 'text-sage' : 'text-gold'"
+          >{{ l.quoi }}</span>
           <span
             v-if="l.couleur"
-            class="flex h-5 min-w-5 items-center justify-center rounded-full bg-ivory px-1 text-[13px] leading-none font-bold"
+            class="flex h-6 min-w-6 items-center justify-center rounded-full bg-ivory px-1 text-[15px] leading-none font-bold"
             :class="l.couleur === 'h' || l.couleur === 'd' ? 'text-red-card' : 'text-felt-dark'"
           >{{ l.couleur === 'sa' || l.couleur === 'ta' ? l.couleur.toUpperCase() : SUIT_GLYPH[l.couleur] }}</span>
         </span>

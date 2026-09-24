@@ -171,7 +171,7 @@ const teams = computed(() => [
           <p class="mb-2.5 text-xs font-semibold tracking-widest text-sage">DERNIER PLI</p>
           <!-- En croix : chaque carte à la place de celui qui l'a jouée -->
           <LastTrickCross v-if="session.lastTrick" :trick="session.lastTrick" :width="52" />
-          <p v-else class="flex h-[142px] items-center text-sm text-sage">aucun pli joué</p>
+          <p v-else class="flex h-[155px] items-center text-sm text-sage">aucun pli joué</p>
           <p class="mt-1.5 h-5 text-sm text-mist">
             <template v-if="session.lastTrick">
               pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>

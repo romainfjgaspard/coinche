@@ -54,19 +54,24 @@ defineProps<{
   >réfléchit…</span>
   <span
     v-else-if="annonce"
-    class="absolute top-full left-1/2 flex -translate-x-1/2 items-center rounded-full bg-black/45 whitespace-nowrap"
+    class="absolute top-full left-1/2 flex -translate-x-1/2 items-center whitespace-nowrap"
     :class="[
-      grand ? 'mt-1.5 gap-1.5 py-0.5 pr-1 pl-2.5 text-lg leading-tight' : 'mt-1 gap-1 py-px pr-0.5 pl-2 text-xs',
-      annonce.coinche ? 'pr-2.5 font-bold text-[#f0a293]' : annonce.passe ? 'pr-2.5 font-medium text-sage' : 'font-bold text-gold',
+      grand
+        ? 'mt-2 gap-[7.4px] font-display text-[26.7px] leading-none'
+        : 'mt-1 gap-1 rounded-full bg-black/45 py-px pr-0.5 pl-2 text-xs font-bold',
+      annonce.coinche ? 'pr-2.5 text-[#f0a293]' : annonce.passe ? 'pr-2.5 text-sage' : 'text-gold',
     ]"
   >
     {{ annonce.texte }}
-    <!-- Le symbole sur fond ivoire, en rouge ou en noir : comme le rappel du contrat -->
+    <!--
+      Le symbole sur fond ivoire, en rouge ou en noir. Sur PC, exactement le rappel du
+      contrat : 36 et 24 px à l'échelle de la table, divisés par le 1,35 de la pastille.
+    -->
     <span
       v-if="annonce.couleur"
       class="flex items-center justify-center rounded-full bg-ivory leading-none font-bold"
       :class="[
-        grand ? 'h-6 min-w-6 px-1 text-base' : 'h-4 min-w-4 px-0.5 text-[11px]',
+        grand ? 'h-[26.7px] min-w-[26.7px] px-[4.4px] font-sans text-[17.8px]' : 'h-4 min-w-4 px-0.5 text-[11px]',
         annonce.couleur === 'h' || annonce.couleur === 'd' ? 'text-red-card' : 'text-felt-dark',
       ]"
     >{{ annonce.couleur === 'sa' || annonce.couleur === 'ta' ? annonce.couleur.toUpperCase() : SUIT_GLYPH[annonce.couleur] }}</span>

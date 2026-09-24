@@ -207,7 +207,7 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
         <span class="text-[9px] tracking-widest text-sage">DERNIER PLI</span>
         <!-- En croix : chaque carte à la place de celui qui l'a jouée -->
         <LastTrickCross v-if="session.lastTrick" :trick="session.lastTrick" :width="largeurPli" />
-        <span v-else class="flex h-[82px] w-[90px] items-center text-[10px] text-sage">aucun pli joué</span>
+        <span v-else class="flex h-[89px] w-[96px] items-center text-[10px] text-sage">aucun pli joué</span>
         <span class="h-3.5 text-[10px] text-mist">
           <template v-if="session.lastTrick">
             pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>
