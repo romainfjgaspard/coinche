@@ -8,6 +8,7 @@ import { useTableLayout } from '../composables/useTableLayout'
 import { useFitZoom } from '../composables/useFitZoom'
 
 const session = useSession()
+const emit = defineEmits<{ stats: [] }>()
 const grand = useLargeScreen()
 const L = useTableLayout()
 /** À l'échelle de l'écran, sans jamais dépasser sa hauteur. */
@@ -108,6 +109,12 @@ function isTaken(p: PlayerId): boolean {
       class="mt-3 h-[46px] cursor-pointer rounded-xl border border-white/15 text-sm font-medium text-mist transition enabled:hover:border-white/35 enabled:hover:bg-white/5 disabled:cursor-default disabled:opacity-40"
       @click="session.create(chosen!)"
     >Créer une nouvelle partie</button>
+
+    <button
+      type="button"
+      class="mt-5 cursor-pointer self-center text-[13px] text-sage underline-offset-4 transition hover:text-mist hover:underline"
+      @click="emit('stats')"
+    >Voir les statistiques de toutes les parties</button>
 
     <p v-if="session.error" class="mt-4 text-center text-sm text-red-card">{{ session.error }}</p>
   </div>

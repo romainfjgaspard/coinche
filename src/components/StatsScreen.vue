@@ -17,8 +17,10 @@ import { useTableLayout } from '../composables/useTableLayout'
 const session = useSession()
 const grand = useLargeScreen()
 const L = useTableLayout()
+/** Ouvert depuis l'accueil : pas de partie en cours, seulement l'historique. */
+const props = defineProps<{ globalSeulement?: boolean }>()
 const emit = defineEmits<{ fermer: [] }>()
-const onglet = ref<'partie' | 'global'>('partie')
+const onglet = ref<'partie' | 'global'>(props.globalSeulement ? 'global' : 'partie')
 
 /*
  * Sur PC, les archives sont lues ici : l'en-tête résume toutes les parties, et le
@@ -46,10 +48,13 @@ const enTete = computed(() => {
     : ` · depuis le ${new Date(r.depuis).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
   return `${pl(r.parties, 'partie')} · ${pl(r.donnes, 'donne')} · ${pl(r.prises, 'prise')}${depuis}`
 })
-const ONGLETS = [
-  { id: 'partie', label: 'Partie en cours' },
-  { id: 'global', label: 'Toutes les parties' },
-] as const
+const ONGLETS = computed(() =>
+  ([
+    { id: 'partie', label: 'Partie en cours' },
+    { id: 'global', label: 'Toutes les parties' },
+  ] as const).filter((t) => !props.globalSeulement || t.id === 'global'),
+)
+const retour = computed(() => (props.globalSeulement ? 'Accueil' : 'Table'))
 
 const OR = '#d9a441'
 const BLEU = '#7fa8c9'
@@ -218,7 +223,7 @@ const faits = computed(() => {
           type="button"
           class="ml-4 cursor-pointer rounded-lg border border-white/15 px-2.5 py-1.5 text-xs font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
           @click="emit('fermer')"
-        >Table</button>
+        >{{ retour }}</button>
       </div>
       <StatsPartiePc v-if="onglet === 'partie'" />
       <template v-else>
@@ -240,10 +245,7 @@ const faits = computed(() => {
   >
     <div class="flex items-center gap-1.5">
       <button
-        v-for="t in ([
-          { id: 'partie', label: 'Partie en cours' },
-          { id: 'global', label: 'Toutes les parties' },
-        ] as const)"
+        v-for="t in ONGLETS"
         :key="t.id"
         type="button"
         class="cursor-pointer rounded-full border px-3.5 py-1.5 text-[13px] transition"
@@ -256,7 +258,7 @@ const faits = computed(() => {
         type="button"
         class="ml-auto cursor-pointer rounded-lg border border-white/15 px-2.5 py-1.5 text-xs font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
         @click="emit('fermer')"
-      >Table</button>
+      >{{ retour }}</button>
     </div>
 
     <StatsGlobalView v-if="onglet === 'global'" />
