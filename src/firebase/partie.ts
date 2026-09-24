@@ -5,7 +5,7 @@
  */
 import {
   collection, doc, getDoc, getDocFromServer, getDocs, onSnapshot, orderBy, query, runTransaction,
-  serverTimestamp, setDoc, updateDoc,
+  arrayUnion, serverTimestamp, setDoc, updateDoc,
 } from 'firebase/firestore'
 import { signInAnonymously } from 'firebase/auth'
 import { type Client, mainClient } from './app'
@@ -107,7 +107,7 @@ export const moveCount = (events: GameEvent[]): number =>
  *   *avant* que la transaction Firestore puisse se réessayer d'elle-même. Rien n'a
  *   changé pour le joueur : on reprend simplement le numéro suivant.
  */
-const TENTATIVES = 4
+const TENTATIVES = 8
 
 export const appendEvent = (
   code: string,
@@ -121,18 +121,28 @@ async function appendWith(
   code: string,
   event: NewEvent,
   expectedMove?: number,
+  /**
+   * Champs de la partie écrits **dans la même transaction** que l'événement, et
+   * contrôle préalable sur la partie telle qu'elle est à cet instant. Sert à la
+   * distribution : changer de phase puis écrire l'événement en deux temps laissait
+   * une fenêtre où l'on voyait « Ton enchère » sans donne dans le journal — et si
+   * l'événement échouait, la partie restait figée.
+   */
+  avec?: { game?: Partial<GameDoc>; verifier?: (game: GameDoc) => void },
 ): Promise<number> {
   const ecrire = () =>
     runTransaction(c.db, async (tx) => {
       const snap = await tx.get(gameRef(code, c))
       if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
       const game = snap.data() as GameDoc
+      avec?.verifier?.(game)
       const coups = game.moveSeq
       if (expectedMove !== undefined && coups !== undefined && coups !== expectedMove) {
         throw new ConcurrentWrite('Quelqu\'un a joué en même temps que toi')
       }
       const seq = (game.eventSeq ?? 0) + 1
       tx.update(gameRef(code, c), {
+        ...avec?.game,
         eventSeq: seq,
         ...(isDecision(event.type) ? { moveSeq: (coups ?? 0) + 1 } : {}),
       })
@@ -154,7 +164,9 @@ async function appendWith(
       // Une décision refusée le reste ; une course au numéro se rejoue.
       if (e instanceof ConcurrentWrite) throw e
       derniere = e
-      await new Promise((r) => setTimeout(r, 40 * (essai + 1)))
+      // Attente croissante et un peu d'aléa : deux clients refusés ensemble ne doivent
+      // pas se représenter au même instant, sinon ils se refont perdre mutuellement.
+      await new Promise((r) => setTimeout(r, Math.min(800, 50 * 2 ** essai) + Math.random() * 60))
     }
   }
   throw derniere
@@ -212,9 +224,14 @@ export async function takeSeat(
     if (holder && holder !== uid) throw new Error(`Ce siège est déjà pris`)
     // Le drapeau reste sur le siège : c'est lui qui sortira les parties avec bot
     // des statistiques, et il doit survivre à la partie dans l'archive.
-    const seats = { ...game.seats, [player]: asBot ? { uid, bot: true } : { uid } }
-    const seatedUids = Object.values(seats).map((s) => s!.uid)
-    tx.update(gameRef(code, c), { seats, seatedUids })
+    // Uniquement ce siège, et l'identifiant ajouté à la liste côté serveur. Réécrire
+    // la liste entière depuis notre lecture oubliait un joueur arrivé au même moment :
+    // la règle `claimsSeat` refusait alors (la liste perdait quelqu'un), et ce refus
+    // tombait avant que la transaction ne puisse se rejouer — le joueur restait dehors.
+    tx.update(gameRef(code, c), {
+      [`seats.${player}`]: asBot ? { uid, bot: true } : { uid },
+      seatedUids: arrayUnion(uid),
+    })
   })
   await appendWith(c, code, { type: 'joueur_connecte', player })
 }
@@ -234,9 +251,11 @@ export async function deal(
   previousTricks: Card[][] | null = null,
   c: Client = mainClient,
 ): Promise<void> {
-  const snap = await getDoc(gameRef(code, c))
+  const snap = await getDocFromServer(gameRef(code, c))
   if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
   const game = snap.data() as GameDoc
+  const distribuable = (g: GameDoc) => g.phase === 'lobby' || g.phase === 'decompte'
+  if (!distribuable(game)) throw new ConcurrentWrite('La donne est déjà distribuée')
 
   const cut = 1 + Math.floor(Math.random() * 30)
   const pile =
@@ -246,16 +265,34 @@ export async function deal(
   const order = dealingOrder(game.dealer, game.seating)
 
   const dealNumber = game.dealNumber + 1
+  // Scellée jusqu'à la fin de la partie, puis ouverte pour l'analyse. Écrite en premier :
+  // les règles n'autorisent que sa création, elle sert donc de verrou — une seconde
+  // distribution simultanée échoue ici, avant d'avoir touché aux mains.
+  try {
+    await setDoc(dealRef(code, dealNumber, c), { hands, cut, at: Date.now() })
+  } catch {
+    // Le verrou est déjà pris : quelqu'un d'autre vient de distribuer cette donne.
+    throw new ConcurrentWrite('La donne est déjà distribuée')
+  }
   await Promise.all(order.map((p) => setDoc(handRef(code, p, c), { cards: hands[p] })))
-  // Scellée jusqu'à la fin de la partie, puis ouverte pour l'analyse.
-  await setDoc(dealRef(code, dealNumber, c), { hands, cut, at: Date.now() })
-  await setDoc(gameRef(code, c), { ...game, dealNumber, phase: 'encheres' })
-  await appendWith(c, code, {
-    type: 'donne_commencee',
-    dealNumber,
-    dealer: game.dealer,
-    cut,
-  })
+  // Changement de phase et événement dans une seule transaction, sur les seuls champs
+  // concernés. Réécrire tout le document depuis la lecture du début effaçait ce qui
+  // avait changé entre-temps (compteurs, sièges), et écrire l'événement à part laissait
+  // la partie en « enchères » sans donne au journal si ce second temps échouait.
+  await appendWith(
+    c,
+    code,
+    { type: 'donne_commencee', dealNumber, dealer: game.dealer, cut },
+    undefined,
+    {
+      game: { dealNumber, phase: 'encheres' },
+      verifier: (g) => {
+        if (g.dealNumber !== game.dealNumber || !distribuable(g)) {
+          throw new ConcurrentWrite('La donne est déjà distribuée')
+        }
+      },
+    },
+  )
 }
 
 export const watchGame = (code: string, cb: (game: GameDoc | null) => void, c: Client = mainClient) =>

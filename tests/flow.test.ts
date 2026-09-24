@@ -39,7 +39,9 @@ describe('parcours complet', () => {
   it('assoit les quatre joueurs et passe aux enchères', async () => {
     const game = (await getDoc(gameRef(code))).data() as GameDoc
     expect(Object.keys(game.seats).sort()).toEqual([...PLAYER_IDS].sort())
-    expect(game.seatedUids).toHaveLength(4)
+    // Un ensemble de comptes : ici un seul client tient les quatre sièges, comme les bots
+    // d'un même onglet. Ce qui compte, c'est que chaque compte assis y figure.
+    expect(new Set(game.seatedUids)).toEqual(new Set(Object.values(game.seats).map((s) => s!.uid)))
     expect(game.phase).toBe('encheres')
     expect(game.dealNumber).toBe(1)
   })
@@ -237,7 +239,10 @@ describe('archive de fin de partie', () => {
     const prises = PLAYER_IDS.flatMap((p) => archive.players[p].detail)
     expect(prises).toHaveLength(1)
     expect(prises[0].value).toBe(100)
-    expect(prises[0].force).toBeGreaterThan(0)
+    // La main a été descellée et mesurée. Sa valeur dépend du hasard de la donne — le test
+    // annonce 100 quelle que soit la main — et peut valoir 0 : c'est `null` qui trahirait
+    // une donne restée scellée.
+    expect(prises[0].force).toEqual(expect.any(Number))
   }, 30_000)
 
   it('le condensé est relu par la page globale', async () => {
