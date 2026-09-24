@@ -394,10 +394,19 @@ export async function readJournal(code: string, c: Client = mainClient): Promise
  * Une prise de parole aux enchères. La légalité est vérifiée contre l'état rejoué
  * depuis le journal — jamais contre un état local qui pourrait avoir dérivé.
  */
+/**
+ * Temps de réflexion, mesuré par celui qui agit — depuis que son tour s'est affiché
+ * chez lui, pour ne pas dépendre des horloges des autres appareils. Firestore refuse
+ * les champs `undefined` : absent, il n'est pas écrit du tout.
+ */
+const reflexion = (thinkMs?: number): { thinkMs?: number } =>
+  thinkMs !== undefined && Number.isFinite(thinkMs) && thinkMs >= 0 ? { thinkMs: Math.round(thinkMs) } : {}
+
 export async function placeBid(
   code: string,
   entry: BiddingEntry,
   c: Client = mainClient,
+  thinkMs?: number,
 ): Promise<void> {
   const snap = await getDoc(gameRef(code, c))
   if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
@@ -409,12 +418,12 @@ export async function placeBid(
   const after = apply(before, entry) // lève IllegalBid si la règle l'interdit
 
   if (entry.kind === 'coinche' || entry.kind === 'surcoinche') {
-    await appendWith(c, code, { type: entry.kind, player: entry.player }, coupsVus)
+    await appendWith(c, code, { type: entry.kind, player: entry.player, ...reflexion(thinkMs) }, coupsVus)
   } else {
     await appendWith(
       c,
       code,
-      { type: 'enchere', player: entry.player, round: bidRound(before), entry },
+      { type: 'enchere', player: entry.player, round: bidRound(before), entry, ...reflexion(thinkMs) },
       coupsVus,
     )
   }
@@ -468,6 +477,7 @@ export async function playCard(
   card: Card,
   declareBelote = false,
   c: Client = mainClient,
+  thinkMs?: number,
 ): Promise<void> {
   const snap = await getDoc(gameRef(code, c))
   if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
@@ -496,6 +506,7 @@ export async function playCard(
       card,
       trickNumber: before.completed.length + 1,
       position: before.current.length,
+      ...reflexion(thinkMs),
     },
     moveCount(events),
     { extraWrites: (tx) => tx.set(handRef(code, player, c), { cards: hand.filter((h) => h !== card) }) },

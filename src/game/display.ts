@@ -18,6 +18,15 @@ export const SUIT_GLYPH: Record<Suit, string> = { s: '♠', h: '♥', d: '♦', 
  */
 export const PLI_VISIBLE_MS = 1100
 
+/** Une durée lisible : « < 1 s », « 4 s », « 4,5 s » sous 10 s, « 1 min 05 ». */
+export function duree(ms: number): string {
+  if (ms < 1000) return '< 1 s'
+  if (ms < 10_000) return `${(Math.round(ms / 100) / 10).toString().replace('.', ',')} s`
+  const s = Math.round(ms / 1000)
+  if (s < 60) return `${s} s`
+  return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')}`
+}
+
 /** Deux couleurs seulement, rouge et noir (décision du 23/09). */
 export const isRed = (suit: Suit): boolean => suit === 'h' || suit === 'd'
 

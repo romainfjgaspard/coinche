@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GameEvent } from '../events'
 import { DEFAULT_SEATING } from '../players'
 import {
-  cascade,
+  ajouterChrono, cascade, moyenne, reflexions,
   bilan, deals, dealsPlayed, enchereMoyenne, momentum, runningScores, tallies,
 } from '../stats'
 
@@ -142,5 +142,29 @@ describe('momentum en cascade', () => {
   it("se lit depuis l'autre camp en miroir", () => {
     const c = cascade([{ deal: 1, team: 0, points: 90 }], 1)
     expect(c[0]).toMatchObject({ avant: 0, apres: -90, nous: false })
+  })
+})
+
+describe('temps de réflexion', () => {
+  const evs = [
+    ev('enchere', { player: 'viv', round: 1, entry: { kind: 'passe', player: 'viv' }, thinkMs: 4000 }),
+    ev('enchere', { player: 'roux', round: 1, entry: { kind: 'passe', player: 'roux' } }), // pas mesuré
+    ev('coinche', { player: 'benel', thinkMs: 900 }), // hors tour : ignoré
+    ev('carte_jouee', { player: 'viv', card: 'As', trickNumber: 1, position: 0, thinkMs: 1000 }),
+    ev('carte_jouee', { player: 'viv', card: 'Ks', trickNumber: 2, position: 0, thinkMs: 3000 }),
+  ]
+
+  it('ne compte que les temps mesurés, annonces et cartes à part', () => {
+    const r = reflexions(evs)
+    expect(r.get('viv')).toEqual({ encheres: { total: 4000, n: 1, max: 4000 }, cartes: { total: 4000, n: 2, max: 3000 } })
+    expect(r.has('roux')).toBe(false)
+    expect(r.has('benel')).toBe(false)
+    expect(moyenne(r.get('viv')!.cartes)).toBe(2000)
+  })
+
+  it("s'additionne d'une partie à l'autre", () => {
+    const c = ajouterChrono({ total: 4000, n: 2, max: 3000 }, { total: 500, n: 1, max: 500 })
+    expect(c).toEqual({ total: 4500, n: 3, max: 3000 })
+    expect(moyenne({ total: 0, n: 0, max: 0 })).toBeNull()
   })
 })

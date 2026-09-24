@@ -4,6 +4,7 @@
  * « Stats — toutes les parties — ordinateur ». Dessinée pour 1920 px ; le parent la
  * met à l'échelle de l'écran.
  */
+import { duree } from '../game/display'
 import { computed, ref } from 'vue'
 import type { PlayerId } from '../game/players'
 import { nomDe } from '../stores/roster'
@@ -160,6 +161,9 @@ const details = computed(() =>
           couleur: reussite === null ? CLAIR : reussite >= 55 ? BON : reussite < 45 ? MAUVAIS : CLAIR,
         },
         { quoi: 'Étoiles de la honte', valeur: String(j.etoiles), couleur: OR },
+        // Temps mesurés depuis le 24/09/2026 : les parties d'avant n'en ont pas.
+        { quoi: 'Temps pour annoncer', valeur: j.tempsEnchere === null ? '—' : duree(j.tempsEnchere), couleur: CLAIR },
+        { quoi: 'Temps pour jouer', valeur: j.tempsCarte === null ? '—' : duree(j.tempsCarte), couleur: CLAIR },
       ],
     }
   }),
@@ -424,7 +428,7 @@ const nuages = computed(() => {
       </tbody>
     </table>
 
-    <h2 class="mt-7 mb-2.5 font-display text-xl font-normal">Belotes, impasses et étoiles</h2>
+    <h2 class="mt-7 mb-2.5 font-display text-xl font-normal">Belotes, impasses, étoiles et réflexion</h2>
     <div class="grid grid-cols-4 gap-4">
       <div v-for="d in details" :key="d.nom" class="rounded-xl border border-white/8 bg-white/4 px-[18px] py-3.5">
         <p class="mb-2.5 text-[15px] font-semibold">{{ d.nom }}</p>

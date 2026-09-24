@@ -193,8 +193,11 @@ const bestText = computed(() => {
       <PlayingCard v-for="card in session.sortedHand" :key="card" :card="card" :width="38" class="-ml-1.5 first:ml-0" />
     </div>
 
-    <!-- Qui a dit quoi : une colonne par joueur, dans l'ordre de parole -->
-    <div v-if="history.length" class="mb-4">
+    <!--
+      Qui a dit quoi : une colonne par joueur, dans l'ordre de parole. Sur PC, l'historique
+      a sa propre colonne à droite du tapis (BiddingHistory) : la fenêtre n'en garde rien.
+    -->
+    <div v-if="history.length && !grand" class="mb-4">
       <div class="grid grid-cols-4 gap-x-2 border-b border-white/10 pb-1.5">
         <span
           v-for="p in speakers"

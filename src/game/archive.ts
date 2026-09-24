@@ -11,7 +11,7 @@ import type { GameEvent } from './events'
 import { forceMain } from './force'
 import { impasseTallies, impassesOfGame } from './impasses'
 import { type PlayerId, type Seating, teamOfPlayer } from './players'
-import { deals } from './stats'
+import { type Reflexion, deals, reflexions } from './stats'
 
 /** Une prise, avec la main qui l'a permise — la matière du panache. */
 export interface PriseDetail {
@@ -42,6 +42,8 @@ export interface PlayerArchive {
   impassesReussies: number
   impassesRatees: number
   detail: PriseDetail[]
+  /** Temps de réflexion mesurés. Absent des archives déposées avant le 24/09/2026. */
+  reflexion?: Reflexion
 }
 
 export interface Archive {
@@ -110,6 +112,8 @@ export function buildArchive(
     if (d.beloteForgottenBy) players[d.beloteForgottenBy].belotesOubliees += 1
     if (d.etoile) players[d.etoile].etoiles += 1
   }
+
+  for (const [p, r] of reflexions(events)) if (players[p]) players[p].reflexion = r
 
   for (const [p, t] of impasseTallies(impassesOfGame(events, seating[1], seating))) {
     players[p].impasses = t.tentees

@@ -6,7 +6,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { type PlayerId, teamOfPlayer } from '../game/players'
 import { nomDe } from '../stores/roster'
-import { bilan, cascade, enchereMoyenne } from '../game/stats'
+import { type Chrono, bilan, cascade, enchereMoyenne, moyenne } from '../game/stats'
+import { duree } from '../game/display'
 import StatsGlobalView from './StatsGlobalView.vue'
 import StatsPartiePc from './StatsPartiePc.vue'
 import StatsGlobalPc from './StatsGlobalPc.vue'
@@ -169,6 +170,24 @@ const impasses = computed(() =>
 )
 
 const aucuneImpasse = computed(() => impasses.value.every((i) => i.tentees === 0))
+
+
+/** Le temps de réflexion : moyenne pour annoncer, pour jouer, et la plus longue hésitation. */
+const tempsReflexion = computed(() =>
+  [...session.seating].map((p) => {
+    const r = session.reflexionsPartie.get(p)
+    const m = (c?: Chrono) => (c ? moyenne(c) : null)
+    const max = Math.max(r?.encheres.max ?? 0, r?.cartes.max ?? 0)
+    return {
+      id: p,
+      nom: nomDe(p),
+      annonce: m(r?.encheres),
+      carte: m(r?.cartes),
+      max: max > 0 ? max : null,
+    }
+  }),
+)
+const aucunTemps = computed(() => tempsReflexion.value.every((t) => t.annonce === null && t.carte === null))
 
 /** « Roux ×2, Viv » plutôt que « Roux, Roux, Viv ». */
 function parJoueur(joueurs: PlayerId[]): string {
@@ -432,6 +451,28 @@ const faits = computed(() => {
       <p class="mt-2 text-[11px] leading-relaxed text-dusk">
         Impasse = garder l'as de la couleur entamée alors que personne n'a coupé.
         L'as coupé derrière, c'est raté ; s'il ramasse un dix, c'est réussi.
+      </p>
+    </template>
+    </section>
+
+    <section>
+    <h2 class="mt-6 mb-1 text-[13px] font-semibold">Temps de réflexion</h2>
+    <p v-if="aucunTemps" class="text-[13px] text-sage">Pas encore mesuré sur cette partie.</p>
+    <template v-else>
+      <div class="flex items-center gap-2.5 border-b border-white/15 pb-1 text-[10px] tracking-wider text-dusk uppercase">
+        <span class="w-16">Joueur</span>
+        <span class="grow text-right">Annoncer</span>
+        <span class="w-16 text-right">Jouer</span>
+        <span class="w-16 text-right">Max</span>
+      </div>
+      <div v-for="t in tempsReflexion" :key="t.id" class="flex items-center gap-2.5 border-b border-white/8 py-2">
+        <span class="w-16 text-[13px] font-semibold">{{ t.nom }}</span>
+        <span class="grow text-right text-[12px] tabular-nums text-mist">{{ t.annonce === null ? '—' : duree(t.annonce) }}</span>
+        <span class="w-16 text-right text-[12px] tabular-nums text-mist">{{ t.carte === null ? '—' : duree(t.carte) }}</span>
+        <span class="w-16 text-right text-[12px] tabular-nums text-mist">{{ t.max === null ? '—' : duree(t.max) }}</span>
+      </div>
+      <p class="mt-2 text-[11px] leading-relaxed text-dusk">
+        Moyennes, mesurées sur l'écran de chacun depuis que c'est à lui ; « Max » est la plus longue hésitation.
       </p>
     </template>
     </section>

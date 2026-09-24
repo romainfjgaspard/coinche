@@ -216,7 +216,7 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
     >
       <PlayerChip
         :player="me" :dealer="session.game?.dealer === me" :active="session.myPlayTurn"
-        :stars="starsOf(me)" me :annonce="lastBid.get(me)"
+        :stars="starsOf(me)" me
       />
       <span v-if="session.myPlayTurn" class="text-[13px] font-semibold text-gold">à toi de jouer</span>
     </div>

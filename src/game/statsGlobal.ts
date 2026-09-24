@@ -7,6 +7,7 @@
 import type { Archive, PriseDetail } from './archive'
 import { type PriseForce, panacheDe } from './force'
 import { PLAYER_IDS, type PlayerId, teamOfPlayer } from './players'
+import { type Chrono, ajouterChrono, moyenne } from './stats'
 
 export type Paire = [PlayerId, PlayerId]
 
@@ -129,6 +130,9 @@ export interface JoueurStats {
   panache: number | null
   /** Moyenne des contrats chiffrés pris (capots et générales à part, ils fausseraient tout). */
   enchereMoyenne: number | null
+  /** Temps de réflexion moyen, en ms : pour annoncer, pour jouer une carte. Null sans mesure. */
+  tempsEnchere: number | null
+  tempsCarte: number | null
 }
 
 export function joueurStats(archives: Archive[]): JoueurStats[] {
@@ -144,6 +148,8 @@ export function joueurStats(archives: Archive[]): JoueurStats[] {
       etoiles: 0, impasses: 0, impassesReussies: 0, impassesRatees: 0,
     }
     const encheres: number[] = []
+    let chronoEnchere: Chrono = { total: 0, n: 0, max: 0 }
+    let chronoCarte: Chrono = { total: 0, n: 0, max: 0 }
     for (const a of archives) {
       const p = a.players[joueur]
       if (!p) continue
@@ -159,6 +165,10 @@ export function joueurStats(archives: Archive[]): JoueurStats[] {
       base.offerts += p.offerts
       base.coinches += p.coinches
       base.coinchesGagnees += p.coinchesGagnees ?? 0
+      if (p.reflexion) {
+        chronoEnchere = ajouterChrono(chronoEnchere, p.reflexion.encheres)
+        chronoCarte = ajouterChrono(chronoCarte, p.reflexion.cartes)
+      }
       encheres.push(...p.detail.filter((d) => !d.capot && d.value <= 160).map((d) => d.value))
       base.belotesAnnoncees += p.belotesAnnoncees
       base.belotesOubliees += p.belotesOubliees
@@ -176,6 +186,8 @@ export function joueurStats(archives: Archive[]): JoueurStats[] {
       enchereMoyenne: encheres.length
         ? Math.round(encheres.reduce((s, v) => s + v, 0) / encheres.length)
         : null,
+      tempsEnchere: moyenne(chronoEnchere),
+      tempsCarte: moyenne(chronoCarte),
     }
   }).sort((a, b) => b.gagnees / (b.parties || 1) - a.gagnees / (a.parties || 1))
 }

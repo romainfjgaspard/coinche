@@ -15,6 +15,7 @@ import CardBack from './CardBack.vue'
 import PlayerChip from './PlayerChip.vue'
 import QuitGame from './QuitGame.vue'
 import CoincheButton from './CoincheButton.vue'
+import BiddingHistory from './BiddingHistory.vue'
 import { SUIT_GLYPH, isRed } from '../game/display'
 
 import { nomDe } from '../stores/roster'
@@ -245,10 +246,23 @@ const teams = computed(() => [
       <div class="flex items-center gap-3" :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
           :player="me" :dealer="session.game?.dealer === me" :active="isActive(me)" :stars="starsOf(me)" me
-          :annonce="lastBid.get(me)"
         />
         <span v-if="session.myPlayTurn" class="text-sm font-semibold text-gold">à toi de jouer</span>
         <span v-else-if="session.myBidTurn" class="text-sm font-semibold text-gold">à toi de parler</span>
+      </div>
+    </div>
+
+    <!-- L'historique des enchères, à droite du tapis comme sur la maquette -->
+    <div
+      v-if="session.game?.phase === 'encheres'"
+      class="absolute z-30"
+      :style="{
+        right: px(L.width - (L.tapis.x + L.tapis.w) + L.rim + Math.round(24 * L.u)),
+        top: px(L.tapis.y + L.rim + Math.round(22 * L.u)),
+      }"
+    >
+      <div class="w-[300px]" :style="{ zoom: L.t * 1.05 }">
+        <BiddingHistory />
       </div>
     </div>
 

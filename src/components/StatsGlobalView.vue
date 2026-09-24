@@ -3,6 +3,7 @@
  * Statistiques sur toutes les parties, lues depuis les archives.
  * Les duos, les joueurs, la réussite par palier et le panache.
  */
+import { duree } from '../game/display'
 import { computed, onMounted, ref } from 'vue'
 import type { PlayerId } from '../game/players'
 import { nomDe } from '../stores/roster'
@@ -98,6 +99,9 @@ const details = computed(() =>
           couleur: reussite === null ? CLAIR : reussite >= 55 ? BON : reussite < 45 ? MAUVAIS : CLAIR,
         },
         { quoi: 'Étoiles de la honte', valeur: String(j.etoiles), couleur: OR },
+        // Temps mesurés depuis le 24/09/2026 : les parties d'avant n'en ont pas.
+        { quoi: 'Temps pour annoncer', valeur: j.tempsEnchere === null ? '—' : duree(j.tempsEnchere), couleur: CLAIR },
+        { quoi: 'Temps pour jouer', valeur: j.tempsCarte === null ? '—' : duree(j.tempsCarte), couleur: CLAIR },
       ],
     }
   }),
@@ -334,7 +338,7 @@ const panaches = computed(() => {
       </section>
 
       <section>
-      <h2 class="mt-6 mb-2 font-display text-lg">Belotes, impasses et étoiles</h2>
+      <h2 class="mt-6 mb-2 font-display text-lg">Belotes, impasses, étoiles et réflexion</h2>
       <div class="grid grid-cols-2 gap-2.5">
         <div v-for="d in details" :key="d.id" class="rounded-xl border border-white/8 bg-white/4 px-3 py-2.5">
           <p class="mb-1.5 text-[13px] font-semibold">{{ d.nom }}</p>

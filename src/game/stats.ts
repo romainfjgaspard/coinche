@@ -118,6 +118,47 @@ export function cascade(
   })
 }
 
+/** Des durées de réflexion additionnées : la moyenne se déduit, et s'additionne entre parties. */
+export interface Chrono {
+  total: number
+  n: number
+  /** La plus longue hésitation */
+  max: number
+}
+
+export interface Reflexion {
+  encheres: Chrono
+  cartes: Chrono
+}
+
+const chronoVide = (): Chrono => ({ total: 0, n: 0, max: 0 })
+
+/**
+ * Temps de réflexion par joueur, pour annoncer et pour jouer une carte. Seuls
+ * comptent les temps réellement mesurés (`thinkMs`, depuis le 24/09/2026) : un écart
+ * entre deux événements mêlerait l'attente de l'affichage du pli, ou le réseau.
+ * La coinche, prise hors tour, n'en a pas.
+ */
+export function reflexions(events: GameEvent[]): Map<PlayerId, Reflexion> {
+  const out = new Map<PlayerId, Reflexion>()
+  for (const e of events) {
+    if ((e.type !== 'enchere' && e.type !== 'carte_jouee') || e.thinkMs === undefined) continue
+    let r = out.get(e.player)
+    if (!r) { r = { encheres: chronoVide(), cartes: chronoVide() }; out.set(e.player, r) }
+    const c = e.type === 'enchere' ? r.encheres : r.cartes
+    c.total += e.thinkMs
+    c.n += 1
+    c.max = Math.max(c.max, e.thinkMs)
+  }
+  return out
+}
+
+/** Additionne deux décomptes : d'une partie à l'autre, pour les statistiques globales. */
+export const ajouterChrono = (a: Chrono, b: Chrono): Chrono =>
+  ({ total: a.total + b.total, n: a.n + b.n, max: Math.max(a.max, b.max) })
+
+export const moyenne = (c: Chrono): number | null => (c.n ? c.total / c.n : null)
+
 export interface Tally {
   prises: number
   reussies: number

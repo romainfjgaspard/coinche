@@ -20,7 +20,9 @@ import {
 import { type CompletedTrick, canDeclareBelote, currentPlayer, playableFor } from '../game/play'
 import { PLI_VISIBLE_MS } from '../game/display'
 import { biddingFromEvents, currentDeal, playFromEvents, starsInGame } from '../game/replay'
-import { type DealSummary, type Tally, deals, momentum, runningScores, tallies } from '../game/stats'
+import {
+  type DealSummary, type Reflexion, type Tally, deals, momentum, reflexions, runningScores, tallies,
+} from '../game/stats'
 import { DEFAULT_SEATING, type Seating, teamOfPlayer } from '../game/players'
 import { type Impasse, impasseTallies, impassesOfGame } from '../game/impasses'
 import type { BotLevel } from '../game/bot'
@@ -172,6 +174,8 @@ export const useSession = defineStore('session', () => {
   const playerTallies = computed<Map<PlayerId, Tally>>(
     () => tallies(dealSummaries.value, seating.value),
   )
+  /** Temps de réflexion de chacun sur la partie, pour annoncer et pour jouer. */
+  const reflexionsPartie = computed<Map<PlayerId, Reflexion>>(() => reflexions(events.value))
   /** Les impasses se révèlent au fil des plis : définitives à la fin de chaque donne. */
   const impasses = computed<Impasse[]>(() =>
     game.value ? impassesOfGame(events.value, game.value.dealer, seating.value) : [],
@@ -314,12 +318,14 @@ export const useSession = defineStore('session', () => {
 
   async function bid(entry: BiddingEntry): Promise<void> {
     if (!code.value) return
-    await run(() => placeBid(code.value!, entry))
+    // La coinche se prend hors tour : pas de temps de réflexion qui ait un sens.
+    const hors = entry.kind === 'coinche' || entry.kind === 'surcoinche'
+    await run(() => placeBid(code.value!, entry, undefined, hors ? undefined : tempsDeReflexion()))
   }
 
   async function playTheCard(card: Card, declareBelote = false): Promise<void> {
     if (!code.value || !playerId.value) return
-    await run(() => playCard(code.value!, playerId.value!, card, declareBelote))
+    await run(() => playCard(code.value!, playerId.value!, card, declareBelote, undefined, tempsDeReflexion()))
   }
 
   function leave(): void {
@@ -334,6 +340,19 @@ export const useSession = defineStore('session', () => {
     code.value = null
     persist({ playerId: playerId.value, code: null })
   }
+
+  /**
+   * Depuis quand c'est à moi, vu de cet écran : le temps de réflexion se mesure ici,
+   * sans dépendre des horloges des autres appareils.
+   */
+  let monTourDepuis: number | null = null
+  watch(
+    () => myBidTurn.value || myPlayTurn.value,
+    (aMoi) => { monTourDepuis = aMoi ? Date.now() : null },
+    { immediate: true },
+  )
+  const tempsDeReflexion = (): number | undefined =>
+    monTourDepuis === null ? undefined : Date.now() - monTourDepuis
 
   /** Un mot pour l'accueil quand on y revient sans l'avoir choisi : partie annulée. */
   const avis = ref<string | null>(null)
@@ -377,7 +396,7 @@ export const useSession = defineStore('session', () => {
     bidding, biddingResult, toBid, myBidTurn, bidValues, mayCoinche, maySurcoinche,
     play, toPlay, myPlayTurn, playable, beloteCards,
     lastTrick, trickCounts, stars, shame, lastStar, sortedHand, heldTrick, shownTrick,
-    dealSummaries, scoreCurve, momentumBars, playerTallies, impasses, impasseCounts,
+    dealSummaries, scoreCurve, momentumBars, playerTallies, impasses, impasseCounts, reflexionsPartie,
     peek, create, join, chooseSeating, startDeal, bid, playTheCard, leave, resume, loadArchives,
     avis, cancel,
     bots, addBot, stopBots, botDealerHere, dealAcknowledged, continueToNextDeal,

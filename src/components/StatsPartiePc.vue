@@ -7,7 +7,8 @@
 import { computed } from 'vue'
 import { type PlayerId, teamOfPlayer } from '../game/players'
 import { nomDe } from '../stores/roster'
-import { bilan, cascade, enchereMoyenne, teamTallies } from '../game/stats'
+import { type Chrono, bilan, cascade, enchereMoyenne, moyenne, teamTallies } from '../game/stats'
+import { duree } from '../game/display'
 import { useSession } from '../stores/session'
 
 const session = useSession()
@@ -126,6 +127,24 @@ const prises = computed(() =>
     }
   }).sort((a, b) => b.bilanBrut - a.bilanBrut),
 )
+
+
+/** Le temps de réflexion : moyenne pour annoncer, pour jouer, et la plus longue hésitation. */
+const tempsReflexion = computed(() =>
+  [...session.seating].map((p) => {
+    const r = session.reflexionsPartie.get(p)
+    const m = (c?: Chrono) => (c ? moyenne(c) : null)
+    const max = Math.max(r?.encheres.max ?? 0, r?.cartes.max ?? 0)
+    return {
+      id: p,
+      nom: nomDe(p),
+      annonce: m(r?.encheres),
+      carte: m(r?.cartes),
+      max: max > 0 ? max : null,
+    }
+  }),
+)
+const aucunTemps = computed(() => tempsReflexion.value.every((t) => t.annonce === null && t.carte === null))
 
 // --- Ce qui s'est passé
 const faits = computed(() => {
@@ -317,6 +336,30 @@ const faits = computed(() => {
       <p class="mt-2.5 text-[11px] leading-normal text-dusk">
         Carré plein = contrat réussi, creux = chuté. Aucun pourcentage : sur deux ou trois prises, un ratio ne dit
         rien.
+      </p>
+
+      <h2 class="mt-6 mb-2 text-[13px] font-semibold">Temps de réflexion</h2>
+      <p v-if="aucunTemps" class="text-sm text-sage">Pas encore mesuré sur cette partie.</p>
+      <table v-else class="w-full border-collapse text-[13px]">
+        <thead>
+          <tr class="text-[11px] tracking-[.06em] text-sage">
+            <th class="pb-2 text-left font-semibold">JOUEUR</th>
+            <th class="pb-2 text-right font-semibold">POUR ANNONCER</th>
+            <th class="pb-2 text-right font-semibold">POUR JOUER</th>
+            <th class="pb-2 text-right font-semibold">PLUS LONGUE HÉSITATION</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="t in tempsReflexion" :key="t.id" class="border-t border-white/7">
+            <td class="py-2 font-semibold">{{ t.nom }}</td>
+            <td class="py-2 text-right tabular-nums text-mist">{{ t.annonce === null ? '—' : duree(t.annonce) }}</td>
+            <td class="py-2 text-right tabular-nums text-mist">{{ t.carte === null ? '—' : duree(t.carte) }}</td>
+            <td class="py-2 text-right tabular-nums text-mist">{{ t.max === null ? '—' : duree(t.max) }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="mt-2 text-[11px] leading-relaxed text-dusk">
+        Moyennes, mesurées sur l'écran de chacun depuis que c'est à lui. La coinche, prise hors tour, n'en a pas.
       </p>
 
       <h2 class="mt-6 mb-2.5 text-[13px] font-semibold">Ce qui s'est passé</h2>

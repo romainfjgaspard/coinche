@@ -103,6 +103,8 @@ export async function startBot(
   /** La dernière donne que ce bot a distribuée, pour ne pas distribuer deux fois. */
   let derniereDonne = -1
   let trace = ''
+  /** Quand le bot a vu que c'était à lui : son temps de réflexion part de là. */
+  let vuA = Date.now()
   let vivant = true
 
   type Action = 'distribuer' | 'parler' | 'poser'
@@ -139,7 +141,7 @@ export async function startBot(
     const decision = aFaire(game)
     if (!decision) return
     const { quoi, cle } = decision
-    if (cle !== trace) { trace = cle; console.warn('[p]', player, quoi, cle) }
+    if (cle !== trace) { trace = cle; vuA = Date.now(); console.warn('[p]', player, quoi, cle) }
 
     occupe = true
     try {
@@ -169,8 +171,8 @@ export async function startBot(
         // suivant réessaiera plutôt que de laisser le bot muet.
         if (hand.length === 0) throw new Error(`main vide pour ${player}`)
         agi = quoi === 'parler'
-          ? await parler(code, player, game, events, hand, c)
-          : await poser(code, player, game, events, hand, level, c)
+          ? await parler(code, player, game, events, hand, c, Date.now() - vuA)
+          : await poser(code, player, game, events, hand, level, c, Date.now() - vuA)
       }
       // On ne marque un état comme traité **que si on a réellement joué**. Le tour
       // peut avoir bougé pendant la lecture de la main : marquer quand même
@@ -237,6 +239,7 @@ async function parler(
   events: GameEvent[],
   hand: Card[],
   c: Client,
+  thinkMs?: number,
 ): Promise<boolean> {
   const etat = biddingFromEvents(events, game.dealer, tableDe(game))
   if (currentBidder(etat) !== player) return false
@@ -254,7 +257,7 @@ async function parler(
     ? { kind: 'contrat', player, value: choix.value, suit: choix.trump }
     : { kind: 'passe', player }
 
-  await placeBid(code, entry, c)
+  await placeBid(code, entry, c, thinkMs)
   return true
 }
 
@@ -267,6 +270,7 @@ async function poser(
   hand: Card[],
   level: BotLevel,
   c: Client,
+  thinkMs?: number,
 ): Promise<boolean> {
   const etat = playFromEvents(events, game.dealer, tableDe(game))
   if (!etat || currentPlayer(etat) !== player) return false
@@ -295,7 +299,7 @@ async function poser(
 
   // BEL-2 — un bot n'oublie jamais sa belote.
   const annonce = canDeclareBelote(etat, player, carte, hand, etat.trump)
-  await playCard(code, player, carte, annonce, c)
+  await playCard(code, player, carte, annonce, c, thinkMs)
   return true
 }
 

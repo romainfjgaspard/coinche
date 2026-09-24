@@ -16,6 +16,7 @@ defineProps<{
 </script>
 
 <template>
+  <div class="relative">
   <!-- Celui qui doit agir est en or plein : un simple liseré ne se voyait pas de loin -->
   <div
     class="flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 whitespace-nowrap transition"
@@ -35,10 +36,15 @@ defineProps<{
       :class="active ? 'text-felt' : 'text-gold'"
       title="Étoiles de la honte"
     >★<span v-if="stars > 1">{{ stars }}</span></span>
-    <span
-      v-if="annonce"
-      class="text-xs font-bold transition-colors"
-      :class="active ? 'text-felt' : annonce.coinche ? 'text-[#f0a293]' : annonce.passe ? 'font-medium text-sage' : 'text-gold'"
-    >{{ annonce.texte }}</span>
+  </div>
+  <!--
+    La dernière annonce, sous le nom et hors du flux : dans la pastille, elle
+    l'élargissait et la faisait déborder de l'écran sur les côtés.
+  -->
+  <span
+    v-if="annonce"
+    class="absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded-full bg-black/45 px-2 py-px text-xs whitespace-nowrap"
+    :class="annonce.coinche ? 'font-bold text-[#f0a293]' : annonce.passe ? 'font-medium text-sage' : 'font-bold text-gold'"
+  >{{ annonce.texte }}</span>
   </div>
 </template>

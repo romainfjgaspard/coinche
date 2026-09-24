@@ -12,7 +12,8 @@ import { describe, expect, it } from 'vitest'
 import { getDoc } from 'firebase/firestore'
 import { type Client, makeClient } from '../src/firebase/app'
 import {
-  ConcurrentWrite, type GameDoc, archiveRef, cancelGame, createGame, deal, gameRef, readEvents, readJournal, signIn,
+  ConcurrentWrite, type GameDoc, archiveRef, cancelGame, createGame, deal, gameRef, placeBid, readEvents, readJournal,
+  signIn,
   takeSeat,
 } from '../src/firebase/partie'
 import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId } from '../src/game/players'
@@ -138,5 +139,21 @@ describe('annulation', () => {
     const evts = await readEvents(code, clients.roux)
     expect(evts.at(-1)).toMatchObject({ type: 'partie_annulee', player: 'viv' })
     expect((await getDoc(archiveRef(code, clients.roux))).exists()).toBe(false)
+  }, 30_000)
+})
+
+describe('temps de réflexion', () => {
+  it("l'annonce porte le temps mesuré par le joueur, et rien quand il n'est pas connu", async () => {
+    const clients = await quatreClients()
+    const code = await nouvellePartie(clients)
+    for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
+    await deal(code, null, clients.benel)
+    // Placement par défaut, Benel donne : Viv parle en premier, puis Roux.
+    await placeBid(code, { kind: 'passe', player: 'viv' }, clients.viv, 4321.4)
+    await placeBid(code, { kind: 'passe', player: 'roux' }, clients.roux)
+    const evts = await readEvents(code, clients.romain)
+    const [viv, roux] = evts.filter((e) => e.type === 'enchere')
+    expect(viv.thinkMs).toBe(4321)
+    expect('thinkMs' in roux).toBe(false)
   }, 30_000)
 })
