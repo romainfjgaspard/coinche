@@ -131,7 +131,8 @@ export const useSession = defineStore('session', () => {
     )
   })
 
-  const lastTrick = computed(() => play.value?.completed.at(-1) ?? null)
+  /** Le pli qui vient de se fermer, qu'il soit encore sur le tapis ou déjà ramassé. */
+  const pliFerme = computed(() => play.value?.completed.at(-1) ?? null)
 
   /** Ma main, triée pour l'affichage : atout en tête dès qu'il est connu. */
   const sortedHand = computed(() => sortHand(hand.value, play.value?.trump ?? null))
@@ -147,8 +148,8 @@ export const useSession = defineStore('session', () => {
     () => play.value?.completed.length ?? 0,
     (n, avant) => {
       clearTimeout(heldTimer)
-      if (n > avant && lastTrick.value) {
-        heldTrick.value = lastTrick.value
+      if (n > avant && pliFerme.value) {
+        heldTrick.value = pliFerme.value
         heldTimer = setTimeout(() => { heldTrick.value = null }, PLI_VISIBLE_MS)
       } else {
         heldTrick.value = null
@@ -163,9 +164,20 @@ export const useSession = defineStore('session', () => {
     if (heldTrick.value) return { plays: heldTrick.value.plays, winner: heldTrick.value.winner }
     return { plays: [], winner: null as PlayerId | null }
   })
+  /**
+   * Les plis ramassés, pour l'affichage : celui qui est encore posé sur le tapis n'y
+   * compte qu'une fois disparu. Auparavant « dernier pli » et compteurs changeaient dès
+   * la quatrième carte posée, pendant que le pli était encore sous les yeux.
+   */
+  const plisRamasses = computed(() => {
+    const plis = play.value?.completed ?? []
+    const surLeTapis = heldTrick.value !== null && (play.value?.current.length ?? 0) === 0
+    return surLeTapis ? plis.slice(0, -1) : plis
+  })
+  const lastTrick = computed(() => plisRamasses.value.at(-1) ?? null)
   const trickCounts = computed<[number, number]>(() => {
     const counts: [number, number] = [0, 0]
-    for (const t of play.value?.completed ?? []) counts[teamOfPlayer(t.winner, seating.value)] += 1
+    for (const t of plisRamasses.value) counts[teamOfPlayer(t.winner, seating.value)] += 1
     return counts
   })
   const stars = computed(() => starsInGame(events.value))

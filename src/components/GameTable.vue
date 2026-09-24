@@ -9,6 +9,7 @@ import CardBack from './CardBack.vue'
 import PlayerChip from './PlayerChip.vue'
 import QuitGame from './QuitGame.vue'
 import BiddingHistory from './BiddingHistory.vue'
+import LastTrickCross from './LastTrickCross.vue'
 import { SUIT_GLYPH } from '../game/display'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableState } from '../composables/useTableState'
@@ -204,16 +205,9 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
     >
       <div class="flex flex-col gap-1">
         <span class="text-[9px] tracking-widest text-sage">DERNIER PLI</span>
-        <div v-if="session.lastTrick" class="flex gap-0.5">
-          <PlayingCard
-            v-for="p in session.lastTrick.plays"
-            :key="p.card"
-            :card="p.card"
-            :width="largeurPli"
-            :winner="p.player === session.lastTrick.winner"
-          />
-        </div>
-        <span v-else class="flex h-[43px] items-center text-[10px] text-sage">aucun pli joué</span>
+        <!-- En croix : chaque carte à la place de celui qui l'a jouée -->
+        <LastTrickCross v-if="session.lastTrick" :trick="session.lastTrick" :width="largeurPli" />
+        <span v-else class="flex h-[82px] w-[90px] items-center text-[10px] text-sage">aucun pli joué</span>
         <span class="h-3.5 text-[10px] text-mist">
           <template v-if="session.lastTrick">
             pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>

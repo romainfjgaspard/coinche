@@ -7,11 +7,21 @@ import { computed } from 'vue'
 import type { Card } from '../game/cards'
 import { HAND_SIZE } from '../game/deal'
 import { type PlayerId, playerAtSeat, seatOf } from '../game/players'
-import { SUIT_GLYPH } from '../game/display'
+import type { Declaration } from '../game/bidding'
 import { currentDeal } from '../game/replay'
 import { useSession } from '../stores/session'
 
 export type Place = 'me' | 'left' | 'top' | 'right'
+
+/** La dernière parole d'un joueur pendant les enchères, à côté de son nom. */
+export interface DerniereAnnonce {
+  /** « 90 », « Capot », « Passe », « Coinche » — sans le symbole */
+  texte: string
+  /** L'atout annoncé, affiché à part en couleur ; sans objet pour une passe ou une coinche */
+  couleur: Declaration | null
+  passe: boolean
+  coinche: boolean
+}
 
 export function useTableState() {
   const session = useSession()
@@ -97,21 +107,20 @@ export function useTableState() {
    * en est chacun. Une coinche l'emporte sur l'annonce qui la précède.
    */
   const lastBid = computed(() => {
-    const out = new Map<PlayerId, { texte: string; passe: boolean; coinche: boolean }>()
+    const out = new Map<PlayerId, DerniereAnnonce>()
     if (session.game?.phase !== 'encheres') return out
     for (const e of currentDeal(session.events)) {
       if (e.type === 'coinche' || e.type === 'surcoinche') {
-        out.set(e.player, { texte: e.type === 'coinche' ? 'Coinche' : 'Surcoinche', passe: false, coinche: true })
+        out.set(e.player, { texte: e.type === 'coinche' ? 'Coinche' : 'Surcoinche', couleur: null, passe: false, coinche: true })
       } else if (e.type === 'enchere') {
         const b = e.entry
-        const d = b.kind === 'contrat' ? SUIT_GLYPH[b.suit]
-          : b.kind === 'capot' || b.kind === 'generale'
-            ? (b.declaration === 'sa' || b.declaration === 'ta' ? b.declaration.toUpperCase() : SUIT_GLYPH[b.declaration])
-            : ''
+        // Le symbole à part : il s'affiche en couleur sur un rond ivoire, comme le contrat.
+        const couleur = b.kind === 'contrat' ? b.suit
+          : b.kind === 'capot' || b.kind === 'generale' ? b.declaration : null
         const texte = b.kind === 'passe' ? 'Passe'
-          : b.kind === 'contrat' ? `${b.value} ${d}`
-            : b.kind === 'capot' ? `Capot ${d}` : b.kind === 'generale' ? `Générale ${d}` : ''
-        if (texte) out.set(e.player, { texte, passe: b.kind === 'passe', coinche: false })
+          : b.kind === 'contrat' ? String(b.value)
+            : b.kind === 'capot' ? 'Capot' : b.kind === 'generale' ? 'Générale' : ''
+        if (texte) out.set(e.player, { texte, couleur, passe: b.kind === 'passe', coinche: false })
       }
     }
     return out

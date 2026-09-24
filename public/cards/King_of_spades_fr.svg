@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Modifie : contenu comprime verticalement pour egaliser les marges du cadre. Original : svg-cards, David Bellot, LGPL 2.1+. -->
+<!-- Modifie : contenu comprime verticalement pour egaliser les marges du cadre ; rouge aligne sur celui des cartes numerales (#c0392b). Original : svg-cards, David Bellot, LGPL 2.1+. -->
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" 
   "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg xmlns="http://www.w3.org/2000/svg" width="167.09" height="242.67" viewBox="0 0 167.09 242.67" preserveAspectRatio="none">
@@ -11,7 +11,7 @@
     <g stroke="none">
       <g fill="#f8c20f">
         <path d="M83.056 117.59l1.988-3.026 2.983-4.253 3.862-6.003-1.089-.628-8.183.502"/>
-        <g fill="#e61408">
+        <g fill="#c0392b">
           <path d="M42.883 68.575l28.005 67.595 1.345-1.444 5.446-8.616-3.652-37.057-14.967-34.07-14.303 9.552"/>
           <path d="M42.349 68.788l-.106 4.627 2.033.08.653-5.712m14.125 14.229l1.4.13 3.408 12.256-6.4 18.247-10.164 11.902-4.325-12.157"/>
           <path d="M68.789 117.7l-3.112-14.624-4.651 1.13-3.634 6.277-4.716 7.431-3.639 4.8 5.509-1.32 4.286.28 8.864 2.594m40.704-46.12l16.054-25.195-1.375-1.495-5.594-1.705-3.062 2.125-6.463 13.85-.49 12.201"/>
@@ -31,7 +31,7 @@
       </g>
       <g fill="#f8c20f">
         <path d="M84.193 124.72l-1.989 3.027L79.222 132l-3.863 6.004 1.089.627 8.184-.502"/>
-        <g fill="#e61408">
+        <g fill="#c0392b">
           <path d="M124.36 173.74l-28.004-67.595-1.346 1.444-5.445 8.617 3.651 37.055 14.967 34.07 14.304-9.552"/>
           <path d="M124.9 173.52l.106-4.628-2.034-.079-.652 5.71M108.19 160.3l-1.398-.13-3.41-12.257 6.4-18.247 10.164-11.902 4.324 12.157"/>
           <path d="M98.46 124.61l3.111 14.625 4.65-1.13 3.634-6.278 4.716-7.432 3.64-4.8-5.509 1.321-4.287-.279-8.863-2.595M58.85 164.16l-16.055 25.195 1.376 1.496 5.593 1.705 3.063-2.127 6.463-13.849.49-12.2"/>

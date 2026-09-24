@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** Fin de donne : le décompte, l'étoile éventuelle, et la donne suivante. */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { type PlayerId, teamOfPlayer } from '../game/players'
 import { nomDe } from '../stores/roster'
 import { SUIT_GLYPH, isRed } from '../game/display'
@@ -20,6 +20,11 @@ const result = computed(() => {
 })
 
 const over = computed(() => session.game?.phase === 'terminee')
+/**
+ * La partie finie, on montre d'abord le décompte de la dernière donne, comme les
+ * autres : l'écran « Partie gagnée » arrivait directement, sans ses scores.
+ */
+const bilanVu = ref(false)
 /** ENC-7 — quatre passes : la donne est annulée et le même donneur redistribue. */
 const blanche = computed(() => session.game?.phase === 'lobby')
 const final = computed(() => {
@@ -98,7 +103,7 @@ function next(): void {
         </p>
       </template>
 
-      <template v-else-if="over && final">
+      <template v-else-if="over && final && bilanVu">
         <h2 class="font-display text-3xl leading-none">
           {{ final.winner === session.myTeam ? 'Partie gagnée' : 'Partie perdue' }}
         </h2>
@@ -157,7 +162,13 @@ function next(): void {
         @click="emit('stats')"
       >Voir les statistiques</button>
 
-      <p v-if="!over && waitingForBot" class="mt-3 text-sm text-mist">
+      <button
+        v-if="over && !bilanVu"
+        type="button"
+        class="mt-2.5 h-13 w-full cursor-pointer rounded-xl bg-gold py-3.5 text-base font-bold text-felt transition hover:brightness-110"
+        @click="bilanVu = true"
+      >Voir le résultat de la partie</button>
+      <p v-else-if="!over && waitingForBot" class="mt-3 text-sm text-mist">
         {{ session.game ? nomDe(session.game.dealer) : '' }} distribue…
       </p>
       <button

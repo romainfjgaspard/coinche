@@ -16,6 +16,7 @@ import PlayerChip from './PlayerChip.vue'
 import QuitGame from './QuitGame.vue'
 import CoincheButton from './CoincheButton.vue'
 import BiddingHistory from './BiddingHistory.vue'
+import LastTrickCross from './LastTrickCross.vue'
 import { SUIT_GLYPH, isRed } from '../game/display'
 
 import { nomDe } from '../stores/roster'
@@ -162,19 +163,11 @@ const teams = computed(() => [
     >
       <div class="flex items-start gap-7" :style="{ zoom: L.t }">
         <!-- Largeur fixe : le bloc ne doit pas bouger quand arrive le premier pli -->
-        <div class="w-[244px]">
+        <div class="w-[168px]">
           <p class="mb-2.5 text-xs font-semibold tracking-widest text-sage">DERNIER PLI</p>
-          <!-- Côte à côte, sans chevauchement : l'index des figures doit rester lisible -->
-          <div v-if="session.lastTrick" class="flex gap-1.5">
-            <PlayingCard
-              v-for="p in session.lastTrick.plays"
-              :key="p.card"
-              :card="p.card"
-              :width="56"
-              :winner="p.player === session.lastTrick.winner"
-            />
-          </div>
-          <p v-else class="flex h-[81px] items-center text-sm text-sage">aucun pli joué</p>
+          <!-- En croix : chaque carte à la place de celui qui l'a jouée -->
+          <LastTrickCross v-if="session.lastTrick" :trick="session.lastTrick" :width="52" />
+          <p v-else class="flex h-[142px] items-center text-sm text-sage">aucun pli joué</p>
           <p class="mt-1.5 h-5 text-sm text-mist">
             <template v-if="session.lastTrick">
               pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>
@@ -205,7 +198,7 @@ const teams = computed(() => [
       <div :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
           :player="around.top" :dealer="session.game?.dealer === around.top"
-          :active="isActive(around.top)" :stars="starsOf(around.top)" :annonce="lastBid.get(around.top)"
+          :active="isActive(around.top)" :stars="starsOf(around.top)" :annonce="lastBid.get(around.top)" grand
         />
       </div>
     </div>
@@ -226,7 +219,7 @@ const teams = computed(() => [
       <div :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
           :player="around[side]" :dealer="session.game?.dealer === around[side]"
-          :active="isActive(around[side])" :stars="starsOf(around[side])" :annonce="lastBid.get(around[side])"
+          :active="isActive(around[side])" :stars="starsOf(around[side])" :annonce="lastBid.get(around[side])" grand
         />
       </div>
     </div>
