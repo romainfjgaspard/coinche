@@ -56,6 +56,19 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
 
+      # Les règles Firestore partent avant le site : un code qui s'appuie sur de nouvelles
+      # règles ne doit jamais être en ligne avant elles. Clé d'un compte de service limité
+      # aux règles (secret FIREBASE_SERVICE_ACCOUNT), écrite le temps de la commande seulement.
+      - name: Règles Firestore
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then echo "::error::Secret FIREBASE_SERVICE_ACCOUNT manquant"; exit 1; fi
+          cle="$RUNNER_TEMP/compte-service.json"
+          trap 'rm -f "$cle"' EXIT
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$cle"
+          GOOGLE_APPLICATION_CREDENTIALS="$cle" npx firebase deploy --only firestore:rules --project prod --non-interactive
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
