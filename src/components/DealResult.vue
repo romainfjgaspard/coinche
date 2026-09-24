@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /** Fin de donne : le décompte, l'étoile éventuelle, et la donne suivante. */
 import { computed } from 'vue'
-import { PLAYER_NAMES, type PlayerId, teamOfPlayer } from '../game/players'
+import { type PlayerId, teamOfPlayer } from '../game/players'
+import { nomDe } from '../stores/roster'
 import { SUIT_GLYPH, isRed } from '../game/display'
 import { SHAME_THRESHOLD } from '../game/replay'
 import { useSession } from '../stores/session'
@@ -83,7 +84,7 @@ function next(): void {
         <div class="text-6xl leading-none text-gold">★</div>
         <h2 class="mt-4 font-display text-4xl leading-none text-red-card">Shame shame</h2>
         <p class="mt-3.5 text-[17px] font-semibold">
-          {{ PLAYER_NAMES[result.etoile] }} a fait capot sans l'annoncer
+          {{ nomDe(result.etoile) }} a fait capot sans l'annoncer
         </p>
         <p class="mt-2 text-sm text-sage">
           Huit plis sur huit. Le score ne bouge pas — on ne compte que les enchères — mais l'étoile reste.
@@ -107,7 +108,7 @@ function next(): void {
         </p>
         <!-- La donne qui vient de clore la partie : sans elle, on ne savait pas comment elle s'était finie -->
         <p v-if="result && contract" class="mt-4 text-[13px] text-sage">
-          {{ `Dernière donne : ${PLAYER_NAMES[contract.taker]} · ${contractText}${contract.trump ? ' ' + SUIT_GLYPH[contract.trump] : ''} — ${(STATUS[result.status] ?? result.status).toLowerCase()}` }}
+          {{ `Dernière donne : ${nomDe(contract.taker)} · ${contractText}${contract.trump ? ' ' + SUIT_GLYPH[contract.trump] : ''} — ${(STATUS[result.status] ?? result.status).toLowerCase()}` }}
         </p>
       </template>
 
@@ -115,7 +116,7 @@ function next(): void {
         <h2 class="font-display text-3xl leading-none">{{ STATUS[result.status] ?? result.status }}</h2>
         <!-- Ce qui était en jeu : qui a pris, quoi, et à quel multiplicateur -->
         <p v-if="contract" class="mt-3 flex items-center justify-center gap-2 text-[15px]">
-          <span class="font-semibold">{{ PLAYER_NAMES[contract.taker] }}</span>
+          <span class="font-semibold">{{ nomDe(contract.taker) }}</span>
           <span class="text-sage">·</span>
           <span class="font-bold text-gold">{{ contractText }}</span>
           <span
@@ -143,10 +144,10 @@ function next(): void {
           {{ result.compared[session.myTeam === 0 ? 1 : 0] }}
         </p>
         <p v-if="result.beloteDeclaredBy" class="mt-1.5 text-[13px] text-sage">
-          {{ `Belote annoncée par ${PLAYER_NAMES[result.beloteDeclaredBy]}${beloteEnDefense ? ' — en défense, elle ne compte pas' : ''}` }}
+          {{ `Belote annoncée par ${nomDe(result.beloteDeclaredBy)}${beloteEnDefense ? ' — en défense, elle ne compte pas' : ''}` }}
         </p>
         <p v-else-if="result.beloteForgottenBy" class="mt-1.5 text-[13px] text-red-card">
-          {{ PLAYER_NAMES[result.beloteForgottenBy] }} avait la belote et ne l'a pas annoncée
+          {{ nomDe(result.beloteForgottenBy) }} avait la belote et ne l'a pas annoncée
         </p>
       </template>
 
@@ -157,7 +158,7 @@ function next(): void {
       >Voir les statistiques</button>
 
       <p v-if="!over && waitingForBot" class="mt-3 text-sm text-mist">
-        {{ session.game ? PLAYER_NAMES[session.game.dealer] : '' }} distribue…
+        {{ session.game ? nomDe(session.game.dealer) : '' }} distribue…
       </p>
       <button
         v-else-if="!over && (iAmDealer || session.botDealerHere)"
@@ -167,7 +168,7 @@ function next(): void {
         @click="next"
       >Distribuer la donne suivante</button>
       <p v-else-if="!over" class="mt-3 text-sm text-mist">
-        {{ session.game ? PLAYER_NAMES[session.game.dealer] : '' }} distribue.
+        {{ session.game ? nomDe(session.game.dealer) : '' }} distribue.
       </p>
       <button
         v-else

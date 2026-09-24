@@ -10,7 +10,7 @@ import {
 import { signInAnonymously } from 'firebase/auth'
 import { type Client, mainClient } from './app'
 import { type Card, DECK, gatherAndCut, shuffle } from '../game/cards'
-import { PLAYER_IDS, type PlayerId, type Seating, randomSeating } from '../game/players'
+import { type PlayerId, type Seating, randomSeating } from '../game/players'
 import { dealHands } from '../game/deal'
 import { ENGINE_VERSION } from '../game/rules'
 import type { GameEvent, NewEvent } from '../game/events'
@@ -36,8 +36,11 @@ export interface GameDoc {
   /** Dénormalisé pour que les règles Firestore restent simples et peu coûteuses */
   seatedUids: string[]
   dealer: PlayerId
-  /** Placement de cette partie : il définit les équipes, et il change d'une partie à l'autre. */
-  seating: Seating
+  /**
+   * Placement de cette partie : il définit les équipes, et il change d'une partie à
+   * l'autre. Nul tant que la table n'est pas complète — on ne sait pas encore qui joue.
+   */
+  seating: Seating | null
   phase: Phase
   dealNumber: number
   scores: [number, number]
@@ -48,6 +51,12 @@ export interface GameDoc {
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // sans I ni O, illisibles à l'écran
+/** Le placement d'une partie lancée ; une partie sans table complète ne se joue pas. */
+export function tableDe(game: GameDoc): Seating {
+  if (!game.seating) throw new Error("La table n'est pas encore complète")
+  return game.seating
+}
+
 export const newCode = (): string =>
   Array.from({ length: 4 }, () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]).join('')
 
@@ -178,12 +187,15 @@ async function appendWith(
   throw derniere
 }
 
-/** Le créateur prend son siège dans le même geste : sans siège, il ne pourrait pas
- *  écrire dans sa propre partie. */
+/**
+ * Le créateur prend son siège dans le même geste : sans siège, il ne pourrait pas
+ * écrire dans sa propre partie. Sans placement imposé, la table se forme avec les
+ * trois suivants qui rejoignent, et le placement est tiré au sort à ce moment-là.
+ */
 export async function createGame(
   creator: PlayerId,
-  seating: Seating = randomSeating(),
-  dealer: PlayerId = seating[1],
+  seating: Seating | null = null,
+  dealer: PlayerId = seating?.[1] ?? creator,
   c: Client = mainClient,
 ): Promise<string> {
   const uid = await signIn(c)
@@ -214,7 +226,7 @@ export async function createGame(
   return code
 }
 
-/** On ne saisit pas un pseudo : on choisit qui on est parmi les quatre. */
+/** On ne saisit pas un pseudo : on choisit qui on est dans la liste des joueurs. */
 export async function takeSeat(
   code: string,
   player: PlayerId,
@@ -228,6 +240,13 @@ export async function takeSeat(
     const game = snap.data() as GameDoc
     const holder = game.seats[player]?.uid
     if (holder && holder !== uid) throw new Error(`Ce siège est déjà pris`)
+    const assis = Object.keys(game.seats)
+    if (!holder) {
+      if (assis.length >= 4) throw new Error('La table est complète')
+      if (game.seating && !game.seating.includes(player)) throw new Error('Tu ne fais pas partie de cette table')
+    }
+    // Le quatrième arrivé complète la table : le placement est tiré entre les présents.
+    const table = !game.seating && !holder && assis.length === 3 ? randomSeating(Math.random, [...assis, player]) : null
     // Le drapeau reste sur le siège : c'est lui qui sortira les parties avec bot
     // des statistiques, et il doit survivre à la partie dans l'archive.
     // Uniquement ce siège, et l'identifiant ajouté à la liste côté serveur. Réécrire
@@ -237,13 +256,14 @@ export async function takeSeat(
     tx.update(gameRef(code, c), {
       [`seats.${player}`]: asBot ? { uid, bot: true } : { uid },
       seatedUids: arrayUnion(uid),
+      ...(table ? { seating: table, dealer: table[1] } : {}),
     })
   })
   await appendWith(c, code, { type: 'joueur_connecte', player })
 }
 
 export const allSeatsTaken = (game: GameDoc): boolean =>
-  PLAYER_IDS.every((p) => Boolean(game.seats[p]))
+  game.seating !== null && game.seating.every((p) => Boolean(game.seats[p]))
 
 /**
  * Distribution. Le donneur est le seul à pouvoir écrire les quatre mains — les règles
@@ -267,7 +287,7 @@ export async function deal(
   const pile =
     previousTricks && !RULES.shuffleEveryDeal ? gatherAndCut(previousTricks, cut) : shuffle(DECK)
 
-  const hands = dealHands(pile, game.dealer, game.seating)
+  const hands = dealHands(pile, game.dealer, tableDe(game))
   const dealNumber = game.dealNumber + 1
 
   // Toute la distribution en une seule transaction : la donne scellée (lisible une fois
@@ -293,7 +313,7 @@ export async function deal(
       },
       extraWrites: (tx) => {
         tx.set(dealRef(code, dealNumber, c), { hands, cut, at: Date.now() })
-        for (const p of PLAYER_IDS) tx.set(handRef(code, p, c), { cards: hands[p] })
+        for (const p of tableDe(game)) tx.set(handRef(code, p, c), { cards: hands[p] })
       },
     },
   )
@@ -385,7 +405,7 @@ export async function placeBid(
 
   const events = await readJournal(code, c)
   const coupsVus = moveCount(events)
-  const before = biddingFromEvents(events, game.dealer, game.seating)
+  const before = biddingFromEvents(events, game.dealer, tableDe(game))
   const after = apply(before, entry) // lève IllegalBid si la règle l'interdit
 
   if (entry.kind === 'coinche' || entry.kind === 'surcoinche') {
@@ -454,8 +474,8 @@ export async function playCard(
   const game = snap.data() as GameDoc
 
   const events = await readJournal(code, c)
-  const before = playFromEvents(events, game.dealer, game.seating)
-  const contract = contractFrom(events, game.seating)
+  const before = playFromEvents(events, game.dealer, tableDe(game))
+  const contract = contractFrom(events, tableDe(game))
   if (!before || !contract) throw new Error('Aucun contrat en cours')
 
   const hand = ((await getDoc(handRef(code, player, c))).data()?.cards ?? []) as Card[]
@@ -512,7 +532,7 @@ export async function playCard(
     tricksForScoring(after),
     contract,
     RULES,
-    declaredBy ? seatOf(declaredBy, game.seating) : null,
+    declaredBy ? seatOf(declaredBy, tableDe(game)) : null,
   )
 
   // Pour les statistiques : une belote détenue mais jamais annoncée est un oubli.
@@ -521,7 +541,7 @@ export async function playCard(
 
   // DEC-8 — capot réalisé sans l'avoir annoncé : une étoile pour le preneur.
   const etoile = unannouncedCapot(result, contract)
-    ? playerAtSeat(contract.takerSeat, game.seating)
+    ? playerAtSeat(contract.takerSeat, tableDe(game))
     : null
   const scores: [number, number] = [
     game.scores[0] + result.scores[0],
@@ -544,7 +564,7 @@ export async function playCard(
     etoile,
   }, undefined, over
     ? undefined
-    : { game: { scores, phase: 'decompte', dealer: nextPlayer(game.dealer, game.seating) } })
+    : { game: { scores, phase: 'decompte', dealer: nextPlayer(game.dealer, tableDe(game)) } })
 
   // DEC-9 — trois étoiles dans la même partie : la honte complète.
   if (etoile) {
@@ -563,7 +583,7 @@ export async function playCard(
       winner: scores[0] > scores[1] ? 0 : 1,
       deals: game.dealNumber,
     }, undefined, { game: { scores, phase: 'terminee' } })
-    await archiveGame(code, game.seating, c)
+    await archiveGame(code, tableDe(game), c)
   }
 }
 

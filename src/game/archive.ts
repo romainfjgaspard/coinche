@@ -10,7 +10,7 @@ import type { Card } from './cards'
 import type { GameEvent } from './events'
 import { forceMain } from './force'
 import { impasseTallies, impassesOfGame } from './impasses'
-import { PLAYER_IDS, type PlayerId, type Seating, teamOfPlayer } from './players'
+import { type PlayerId, type Seating, teamOfPlayer } from './players'
 import { deals } from './stats'
 
 /** Une prise, avec la main qui l'a permise — la matière du panache. */
@@ -75,7 +75,7 @@ export function buildArchive(
 ): Archive {
   const list = deals(events).filter((d) => d.status !== null)
   const players = Object.fromEntries(
-    PLAYER_IDS.map((p) => [p, vide()]),
+    seating.map((p) => [p, vide()]),
   ) as Record<PlayerId, PlayerArchive>
 
   for (const d of list) {

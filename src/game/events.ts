@@ -27,7 +27,7 @@ export type GameEvent = Base &
         type: 'partie_creee'
         seats: Record<PlayerId, string>
         /** Placement de cette partie : sans lui, on ne saurait plus qui jouait avec qui. */
-        seating: Seating
+        seating: Seating | null
         /** Copie intégrale des règles : sans elle, une partie archivée devient
          *  ininterprétable dès qu'un réglage change. */
         rules: Rules

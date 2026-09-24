@@ -14,7 +14,8 @@ import PlayingCard from './PlayingCard.vue'
 import CardBack from './CardBack.vue'
 import PlayerChip from './PlayerChip.vue'
 import { SUIT_GLYPH, isRed } from '../game/display'
-import { PLAYER_NAMES } from '../game/players'
+
+import { nomDe } from '../stores/roster'
 import type { Card } from '../game/cards'
 import { type Place, useTableState } from '../composables/useTableState'
 import { useTableLayout } from '../composables/useTableLayout'
@@ -128,7 +129,7 @@ const teams = computed(() => [
             :class="contract.trump && isRed(contract.trump) ? 'text-red-card' : 'text-felt-dark'"
           >{{ contract.trump ? SUIT_GLYPH[contract.trump] : (contract.declaration === 'sa' ? 'SA' : 'TA') }}</span>
         </div>
-        <p class="mt-1.5 text-base text-mist">par <span class="font-semibold text-ivory">{{ PLAYER_NAMES[contract.taker] }}</span></p>
+        <p class="mt-1.5 text-base text-mist">par <span class="font-semibold text-ivory">{{ nomDe(contract.taker) }}</span></p>
         <p
           v-if="contract.multiplier > 1"
           class="mt-2 inline-block rounded-full bg-red-card px-3 py-1 text-sm font-bold tracking-wide text-ivory"
@@ -162,7 +163,7 @@ const teams = computed(() => [
           <p v-else class="flex h-[81px] items-center text-sm text-sage">aucun pli joué</p>
           <p class="mt-1.5 h-5 text-sm text-mist">
             <template v-if="session.lastTrick">
-              pris par <span class="font-semibold text-gold">{{ PLAYER_NAMES[session.lastTrick.winner] }}</span>
+              pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>
             </template>
           </p>
         </div>

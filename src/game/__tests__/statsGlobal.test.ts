@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Archive, PlayerArchive } from '../archive'
 import type { Seating } from '../players'
-import { PAIRES, clePaire, duoStats, joueurStats, parPalier, prisesDe } from '../statsGlobal'
+import {
+  PAIRES, clePaire, duoStats, joueursDe, joueurStats, pairesJouees, parPalier, prisesDe, resumeGlobal,
+} from '../statsGlobal'
 
 const vide = (): PlayerArchive => ({
   prises: 0, reussies: 0, chutes: 0, marques: 0, offerts: 0, coinches: 0,
@@ -16,9 +18,7 @@ function partie(opts: {
   deals?: number
   joueurs?: Partial<Record<string, Partial<PlayerArchive>>>
 }): Archive {
-  const players = {
-    benel: vide(), roux: vide(), viv: vide(), romain: vide(),
-  } as Archive['players']
+  const players: Archive['players'] = Object.fromEntries(opts.seating.map((p) => [p, vide()]))
   for (const [j, p] of Object.entries(opts.joueurs ?? {})) {
     Object.assign(players[j as keyof typeof players], p)
   }
@@ -131,5 +131,46 @@ describe('nuage force × annonce', () => {
   it('rassemble les prises d\'un joueur dont on connaît la main', () => {
     expect(prisesDe(ARCHIVES, 'viv')).toHaveLength(3)
     expect(prisesDe(ARCHIVES, 'romain')).toHaveLength(0)
+  })
+})
+
+describe('au-delà des quatre du départ', () => {
+  // Jean remplace Roux le temps d'une partie
+  const C: Seating = ['romain', 'benel', 'viv', 'jean']
+  const AVEC_JEAN = [
+    ...ARCHIVES,
+    partie({ code: 'CCCC', seating: C, scores: [1020, 300], joueurs: {
+      jean: { prises: 1, chutes: 1, offerts: 160, detail: [
+        { deal: 1, value: 80, force: 6, reussi: false, capot: false },
+      ] },
+    } }),
+  ]
+
+  it('liste les quatre du départ puis les nouveaux', () => {
+    expect(joueursDe(AVEC_JEAN)).toEqual(['benel', 'roux', 'viv', 'romain', 'jean'])
+  })
+
+  it("ne compte à chacun que les parties qu'il a jouées", () => {
+    const j = joueurStats(AVEC_JEAN)
+    expect(j.find((x) => x.joueur === 'jean')).toMatchObject({ parties: 1, gagnees: 0, prises: 1, chutes: 1 })
+    expect(j.find((x) => x.joueur === 'roux')!.parties).toBe(2)
+    expect(j.find((x) => x.joueur === 'romain')!.parties).toBe(3)
+  })
+
+  it('un duo garde la trace de chaque paire affrontée', () => {
+    const rv = duoStats(AVEC_JEAN).find((d) => clePaire(d.paire) === clePaire(['romain', 'viv']))!
+    expect(rv.parties).toBe(2)
+    expect(rv.contre.map(clePaire).sort()).toEqual([clePaire(['benel', 'jean']), clePaire(['benel', 'roux'])].sort())
+  })
+
+  it('ne propose que les paires qui ont joué ensemble', () => {
+    const cles = pairesJouees(AVEC_JEAN).map(clePaire)
+    expect(cles).toContain(clePaire(['benel', 'jean']))
+    expect(cles).not.toContain(clePaire(['jean', 'roux']))
+  })
+
+  it('les paliers et le résumé tiennent compte du nouveau', () => {
+    expect(parPalier(AVEC_JEAN, ['jean']).find((l) => l.palier === 80)).toMatchObject({ reussis: 0, chutes: 1 })
+    expect(resumeGlobal(AVEC_JEAN).prises).toBe(8)
   })
 })

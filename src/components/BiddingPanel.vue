@@ -4,7 +4,8 @@ import { computed, ref, watch } from 'vue'
 import PlayingCard from './PlayingCard.vue'
 import type { Suit } from '../game/cards'
 import { SUIT_GLYPH, isRed } from '../game/display'
-import { PLAYER_NAMES, type PlayerId, nextPlayer, playerAtSeat, seatOf } from '../game/players'
+import { type PlayerId, nextPlayer, playerAtSeat, seatOf } from '../game/players'
+import { nomDe } from '../stores/roster'
 import { type BiddingEntry, type Declaration, canBidCapot, canBidGenerale } from '../game/bidding'
 import { currentDeal } from '../game/replay'
 import { useSession } from '../stores/session'
@@ -163,7 +164,7 @@ const suitOfEntry = (entry: BiddingEntry): Declaration | null =>
 const bestText = computed(() => {
   const b = best.value
   if (!b) return ''
-  const qui = PLAYER_NAMES[b.player]
+  const qui = nomDe(b.player)
   if (b.kind === 'contrat') return `${qui} a annoncé ${b.value} ${SUIT_GLYPH[b.suit]}`
   const quoi = b.kind === 'capot' ? 'un capot' : 'une générale'
   return `${qui} a annoncé ${quoi} ${declarationLabel(b.declaration)}`
@@ -200,7 +201,7 @@ const bestText = computed(() => {
           :key="p"
           class="truncate text-[13px] font-semibold"
           :class="p === session.playerId ? 'text-gold' : 'text-mist'"
-        >{{ PLAYER_NAMES[p] }}</span>
+        >{{ nomDe(p) }}</span>
       </div>
       <div
         v-for="(row, r) in rounds"
@@ -222,7 +223,7 @@ const bestText = computed(() => {
         v-for="(e, i) in coinches"
         :key="i"
         class="mt-2 rounded-lg bg-red-card/20 px-3 py-1.5 text-[14px] font-semibold text-[#f0a293]"
-      >{{ PLAYER_NAMES[e.player] }} {{ e.type === 'coinche' ? 'coinche ! ×2' : 'surcoinche ! ×4' }}</p>
+      >{{ nomDe(e.player) }} {{ e.type === 'coinche' ? 'coinche ! ×2' : 'surcoinche ! ×4' }}</p>
     </div>
 
     <template v-if="session.myBidTurn && coinched">
@@ -315,7 +316,7 @@ const bestText = computed(() => {
     </template>
 
     <p v-else class="py-3 text-center text-sm text-mist">
-      <span v-if="session.toBid">{{ PLAYER_NAMES[session.toBid] }} réfléchit…</span>
+      <span v-if="session.toBid">{{ nomDe(session.toBid) }} réfléchit…</span>
       <span v-else>Enchères closes</span>
     </p>
 

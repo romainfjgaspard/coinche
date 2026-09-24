@@ -10,16 +10,35 @@ import { PLAYER_IDS, type PlayerId, teamOfPlayer } from './players'
 
 export type Paire = [PlayerId, PlayerId]
 
-/** Les six paires possibles à quatre joueurs. */
-export const PAIRES: Paire[] = PLAYER_IDS.flatMap((a, i) =>
-  PLAYER_IDS.slice(i + 1).map((b) => [a, b] as Paire),
-)
+/** Toutes les paires possibles entre ces joueurs. */
+export const pairesEntre = (joueurs: readonly PlayerId[]): Paire[] =>
+  joueurs.flatMap((a, i) => joueurs.slice(i + 1).map((b) => [a, b] as Paire))
+
+/** Les six paires possibles entre les quatre du départ. */
+export const PAIRES: Paire[] = pairesEntre(PLAYER_IDS)
 
 export const clePaire = (p: Paire): string => [...p].sort().join('+')
 
+/**
+ * Les joueurs qui ont au moins une partie archivée : les quatre du départ en tête,
+ * puis les autres dans l'ordre de leur première partie.
+ */
+export function joueursDe(archives: Archive[]): PlayerId[] {
+  const vus = new Set<PlayerId>()
+  for (const a of [...archives].sort((x, y) => x.finishedAt - y.finishedAt)) for (const p of a.seating) vus.add(p)
+  return [...PLAYER_IDS.filter((p) => vus.has(p)), ...[...vus].filter((p) => !PLAYER_IDS.includes(p))]
+}
+
+/** Les paires qui ont joué ensemble au moins une fois. */
+export function pairesJouees(archives: Archive[]): Paire[] {
+  const cles = new Set(duoStats(archives).map((d) => clePaire(d.paire)))
+  return pairesEntre(joueursDe(archives)).filter((p) => cles.has(clePaire(p)))
+}
+
 export interface DuoStats {
   paire: Paire
-  contre: Paire
+  /** Les paires affrontées : une seule à quatre joueurs, plusieurs au-delà */
+  contre: Paire[]
   parties: number
   gagnees: number
   donnes: number
@@ -32,8 +51,8 @@ export interface DuoStats {
   pireScore: number | null
 }
 
-const duoVide = (paire: Paire, contre: Paire): DuoStats => ({
-  paire, contre, parties: 0, gagnees: 0, donnes: 0, donnesGagnees: 0,
+const duoVide = (paire: Paire): DuoStats => ({
+  paire, contre: [], parties: 0, gagnees: 0, donnes: 0, donnesGagnees: 0,
   prises: 0, reussies: 0, marques: 0, offerts: 0, scoreMoyen: 0, pireScore: null,
 })
 
@@ -55,7 +74,8 @@ export function duoStats(archives: Archive[]): DuoStats[] {
     for (const [paire, contre, team] of camps) {
       const cle = clePaire(paire)
       let d = out.get(cle)
-      if (!d) { d = { ...duoVide(paire, contre), scores: [] }; out.set(cle, d) }
+      if (!d) { d = { ...duoVide(paire), scores: [] }; out.set(cle, d) }
+      if (!d.contre.some((x) => clePaire(x) === clePaire(contre))) d.contre.push(contre)
 
       d.parties += 1
       if (a.winner === team) d.gagnees += 1
@@ -114,15 +134,9 @@ export interface JoueurStats {
 export function joueurStats(archives: Archive[]): JoueurStats[] {
   // Toutes les prises dont on connaît la main, joueur compris : le panache se
   // calcule ensuite pour chacun en excluant ses propres prises de la référence.
-  const toutes: PriseForce[] = archives.flatMap((a) =>
-    PLAYER_IDS.flatMap((p) =>
-      a.players[p].detail
-        .filter((d): d is PriseDetail & { force: number } => d.force !== null)
-        .map((d) => ({ joueur: p, force: d.force, value: d.value })),
-    ),
-  )
+  const toutes = prisesAvecForce(archives)
 
-  return PLAYER_IDS.map((joueur) => {
+  return joueursDe(archives).map((joueur) => {
     const scores: number[] = []
     const base = {
       joueur, parties: 0, gagnees: 0, donnes: 0, prises: 0, reussies: 0, chutes: 0,
@@ -131,8 +145,9 @@ export function joueurStats(archives: Archive[]): JoueurStats[] {
     }
     const encheres: number[] = []
     for (const a of archives) {
-      const team = teamOfPlayer(joueur, a.seating)
       const p = a.players[joueur]
+      if (!p) continue
+      const team = teamOfPlayer(joueur, a.seating)
       base.parties += 1
       if (a.winner === team) base.gagnees += 1
       base.donnes += a.deals
@@ -175,7 +190,7 @@ export function resumeGlobal(archives: Archive[]): {
   return {
     parties: archives.length,
     donnes: archives.reduce((s, a) => s + a.deals, 0),
-    prises: archives.reduce((s, a) => s + PLAYER_IDS.reduce((t, p) => t + a.players[p].prises, 0), 0),
+    prises: archives.reduce((s, a) => s + Object.values(a.players).reduce((t, p) => t + p.prises, 0), 0),
     depuis: archives.length ? Math.min(...archives.map((a) => a.finishedAt)) : null,
   }
 }
@@ -183,8 +198,8 @@ export function resumeGlobal(archives: Archive[]): {
 /** Toutes les prises dont la force est connue, pour la référence du groupe. */
 export function prisesAvecForce(archives: Archive[]): PriseForce[] {
   return archives.flatMap((a) =>
-    PLAYER_IDS.flatMap((p) =>
-      a.players[p].detail
+    Object.entries(a.players).flatMap(([p, j]) =>
+      j.detail
         .filter((d): d is PriseDetail & { force: number } => d.force !== null)
         .map((d) => ({ joueur: p, force: d.force, value: d.value })),
     ),
@@ -200,14 +215,14 @@ const palierDe = (d: PriseDetail): Palier => (d.capot ? 'capot' : (d.value as Pa
 /** Contrats pris et réussis par palier, pour un joueur ou pour tout le monde. */
 export function parPalier(
   archives: Archive[],
-  qui: PlayerId[] = [...PLAYER_IDS],
+  qui: PlayerId[] = joueursDe(archives),
 ): { palier: Palier; reussis: number; chutes: number }[] {
   const compte = new Map<Palier, { reussis: number; chutes: number }>()
   for (const p of PALIERS) compte.set(p, { reussis: 0, chutes: 0 })
 
   for (const a of archives) {
     for (const j of qui) {
-      for (const d of a.players[j].detail) {
+      for (const d of a.players[j]?.detail ?? []) {
         const c = compte.get(palierDe(d))
         if (!c) continue
         if (d.reussi) c.reussis += 1
@@ -220,5 +235,5 @@ export function parPalier(
 
 /** Toutes les prises d'un joueur, pour le nuage force × annonce. */
 export function prisesDe(archives: Archive[], joueur: PlayerId): PriseDetail[] {
-  return archives.flatMap((a) => a.players[joueur].detail).filter((d) => d.force !== null)
+  return archives.flatMap((a) => a.players[joueur]?.detail ?? []).filter((d) => d.force !== null)
 }

@@ -5,9 +5,10 @@
  * met à l'échelle de l'écran.
  */
 import { computed, ref } from 'vue'
-import { PLAYER_IDS, PLAYER_NAMES, type PlayerId } from '../game/players'
+import type { PlayerId } from '../game/players'
+import { nomDe } from '../stores/roster'
 import {
-  PAIRES, PALIERS, type Paire, clePaire, duoStats, joueurStats, parPalier, prisesAvecForce, prisesDe,
+  PALIERS, clePaire, duoStats, joueursDe, joueurStats, pairesJouees, parPalier, prisesAvecForce, prisesDe,
 } from '../game/statsGlobal'
 import { BAREME, habitudeDuGroupe, LARGEUR_BANDE } from '../game/force'
 import type { Archive } from '../game/archive'
@@ -21,7 +22,7 @@ const CLAIR = '#cfe0d8'
 const ARDOISE = '#5d7a70'
 const SEP = '1px solid rgba(255,255,255,.14)'
 
-const nom = (p: PlayerId): string => PLAYER_NAMES[p]
+const nom = (p: PlayerId): string => nomDe(p)
 const nomPaire = (p: readonly PlayerId[]): string => p.map(nom).join(' & ')
 const taux = (a: number, b: number): number => (b === 0 ? 0 : Math.round((a / b) * 100))
 /** Un nombre à une décimale, virgule française, signe toujours écrit. */
@@ -96,7 +97,7 @@ const lignesDuos = computed(() =>
   duos.value.map((d) => ({
     cle: clePaire(d.paire),
     paire: nomPaire(d.paire),
-    contre: nomPaire(d.contre),
+    contre: d.contre.map(nomPaire).join(' · '),
     cells: [
       cel(d.parties, { sep: SEP }), cel(d.gagnees), tauxCel(taux(d.gagnees, d.parties)),
       cel(d.scoreMoyen), cel(d.pireScore ?? '—'),
@@ -165,12 +166,17 @@ const details = computed(() =>
 )
 
 // --- Jusqu'où chacun peut monter
-const filtre = ref<{ nom: string; joueurs: PlayerId[] }>({ nom: 'Tous', joueurs: [...PLAYER_IDS] })
-const filtres = computed(() => [
-  { nom: 'Tous', joueurs: [...PLAYER_IDS] },
-  ...PAIRES.map((p: Paire) => ({ nom: nomPaire(p), joueurs: [...p] })),
-  ...PLAYER_IDS.map((p) => ({ nom: nom(p), joueurs: [p] })),
-])
+/** Le choix est retenu par son nom : la liste des joueurs dépend des archives chargées. */
+const choix = ref('Tous')
+const filtres = computed(() => {
+  const qui = joueursDe(props.archives)
+  return [
+    { nom: 'Tous', joueurs: qui },
+    ...pairesJouees(props.archives).map((p) => ({ nom: nomPaire(p), joueurs: [...p] })),
+    ...qui.map((p) => ({ nom: nom(p), joueurs: [p] })),
+  ]
+})
+const filtre = computed(() => filtres.value.find((f) => f.nom === choix.value) ?? filtres.value[0])
 const libellePalier = (p: (typeof PALIERS)[number]) => (p === 'capot' ? 'CAPOT' : String(p))
 function barres(qui: PlayerId[], hauteur: number, maxRef?: number) {
   const lignes = parPalier(props.archives, qui)
@@ -210,9 +216,9 @@ const resumeFiltre = computed(() => {
 const petits = computed(() => {
   const maxGlobal = Math.max(
     1,
-    ...PLAYER_IDS.flatMap((p) => parPalier(props.archives, [p]).map((l) => l.reussis + l.chutes)),
+    ...joueursDe(props.archives).flatMap((p) => parPalier(props.archives, [p]).map((l) => l.reussis + l.chutes)),
   )
-  return PLAYER_IDS.map((p) => {
+  return joueursDe(props.archives).map((p) => {
     const j = joueurs.value.find((x) => x.joueur === p)
     const choisi = filtre.value.joueurs.length === 1 && filtre.value.joueurs[0] === p
     return {
@@ -272,8 +278,8 @@ const titres = computed(() => {
   // La prise du siècle : le contrat tenu le plus haut au regard de la main.
   let siecle: { joueur: PlayerId; value: number; force: number; date: number } | null = null
   for (const a of props.archives) {
-    for (const p of PLAYER_IDS) {
-      for (const d of a.players[p].detail) {
+    for (const [p, j] of Object.entries(a.players)) {
+      for (const d of j.detail) {
         if (!d.reussi || d.force === null || d.capot) continue
         const audace = d.value - 8 * d.force
         if (!siecle || audace > siecle.value - 8 * siecle.force) {
@@ -300,7 +306,7 @@ const nuages = computed(() => {
   const reference = bandes
     .map((b) => `${posX(b * LARGEUR_BANDE + LARGEUR_BANDE / 2).toFixed(1)},${posY(habitude.get(b)!).toFixed(1)}`)
     .join(' ')
-  return PLAYER_IDS.map((p) => {
+  return joueursDe(props.archives).map((p) => {
     const prises = prisesDe(props.archives, p).filter((d) => !d.capot)
     const forces = prises.map((d) => d.force!).sort((a, b) => a - b)
     const mediane = forces.length ? forces[Math.floor(forces.length / 2)] : null
@@ -341,7 +347,9 @@ const nuages = computed(() => {
 
     <h2 class="mt-[26px] mb-[3px] font-display text-xl font-normal">Duo par duo</h2>
     <p class="mb-2.5 text-xs text-sage">
-      Les six paires possibles. Chaque paire n'a qu'un adversaire possible : les deux autres joueurs.
+      {{ joueursDe(archives).length <= 4
+        ? "Les six paires possibles. Chaque paire n'a qu'un adversaire possible : les deux autres joueurs."
+        : "Les paires qui ont joué ensemble, et les paires qu'elles ont affrontées." }}
     </p>
     <table class="w-full border-collapse text-[13px]">
       <thead>
@@ -377,7 +385,10 @@ const nuages = computed(() => {
 
     <h2 class="mt-7 mb-[3px] font-display text-xl font-normal">Joueur par joueur</h2>
     <p class="mb-2.5 text-xs text-sage">
-      Les quatre jouent toutes les parties : c'est le camp qui change. Les colonnes se trient d'un clic.
+      {{ joueursDe(archives).length <= 4
+        ? "Les quatre jouent toutes les parties : c'est le camp qui change."
+        : 'Chacun compte ses propres parties.' }}
+      Les colonnes se trient d'un clic.
     </p>
     <table class="w-full border-collapse text-[13px]">
       <thead>
@@ -438,7 +449,7 @@ const nuages = computed(() => {
         :class="filtre.nom === f.nom
           ? 'border-gold bg-gold/20 font-semibold text-gold'
           : 'border-white/14 font-medium text-mist hover:border-white/35'"
-        @click="filtre = f"
+        @click="choix = f.nom"
       >
         {{ f.nom }}
       </button>
@@ -477,7 +488,7 @@ const nuages = computed(() => {
         </div>
       </section>
       <section>
-        <h3 class="mb-0.5 text-base font-semibold">Les quatre, à la même échelle</h3>
+        <h3 class="mb-0.5 text-base font-semibold">{{ joueursDe(archives).length === 4 ? 'Les quatre' : 'Chacun' }}, à la même échelle</h3>
         <p class="mb-2.5 text-xs text-sage">Le nombre inscrit dans chaque barre est le taux de réussite, en pourcentage.</p>
         <div class="grid grid-cols-2 gap-3">
           <div

@@ -7,7 +7,7 @@ import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { getDoc } from 'firebase/firestore'
 import { type Card, sortHand } from '../game/cards'
-import { PLAYER_IDS, type PlayerId } from '../game/players'
+import type { PlayerId } from '../game/players'
 import {
   type GameDoc, allSeatsTaken, createGame, deal, gameRef, placeBid, playCard, readArchives,
   setSeating, signIn, takeSeat, watchEvents, watchGame, watchHand,
@@ -72,11 +72,13 @@ export const useSession = defineStore('session', () => {
 
   const seated = computed(() => Boolean(playerId.value && game.value?.seats[playerId.value]))
   const ready = computed(() => Boolean(game.value && allSeatsTaken(game.value)))
-  const takenBy = computed<Record<PlayerId, boolean>>(
-    () =>
-      Object.fromEntries(
-        PLAYER_IDS.map((p) => [p, Boolean(game.value?.seats[p])]),
-      ) as Record<PlayerId, boolean>,
+  /** Qui est déjà assis : un joueur absent de la liste n'est pas là. */
+  const takenBy = computed<Partial<Record<PlayerId, boolean>>>(() =>
+    Object.fromEntries(Object.keys(game.value?.seats ?? {}).map((p) => [p, true])),
+  )
+  /** Les joueurs assis, dans l'ordre du placement quand la table est complète. */
+  const present = computed<PlayerId[]>(() =>
+    game.value?.seating ? [...game.value.seating] : Object.keys(game.value?.seats ?? {}),
   )
 
   function subscribe(gameCode: string): void {
@@ -343,7 +345,7 @@ export const useSession = defineStore('session', () => {
 
   return {
     uid, playerId, code, game, hand, events, archives, error, busy,
-    seated, ready, takenBy, myTeam, seating,
+    seated, ready, takenBy, present, myTeam, seating,
     bidding, biddingResult, toBid, myBidTurn, bidValues, mayCoinche, maySurcoinche,
     play, toPlay, myPlayTurn, playable, beloteCards,
     lastTrick, trickCounts, stars, shame, lastStar, sortedHand, heldTrick, shownTrick,

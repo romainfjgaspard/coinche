@@ -92,7 +92,8 @@ describe('détection de l\'impasse', () => {
       { player: 'viv', suit: 'c', gardeeAu: 2, sortieAu: 4, issue: 'sans_suite', dealNumber: 2 },
     ])
     expect(t.get('viv')).toEqual({ tentees: 3, reussies: 1, ratees: 1 })
-    expect(t.get('roux')).toEqual({ tentees: 0, reussies: 0, ratees: 0 })
+    // Qui n'a rien tenté n'apparaît pas : la liste des joueurs n'est plus figée.
+    expect(t.get('roux')).toBeUndefined()
   })
 })
 

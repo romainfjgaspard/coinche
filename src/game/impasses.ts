@@ -10,7 +10,7 @@
  */
 import { type Card, type Suit, isTrump, rankOf, suitOf } from './cards'
 import type { GameEvent } from './events'
-import { type PlayerId, PLAYER_IDS, type Seating, nextPlayer } from './players'
+import { type PlayerId, type Seating, nextPlayer } from './players'
 import { type CompletedTrick, applyPlayed, newPlay } from './play'
 import { dealerOf, seatingOf } from './replay'
 
@@ -48,8 +48,14 @@ export function impassesOfTricks(
   trump: Suit | null,
   dealNumber = 0,
 ): Impasse[] {
-  const restantes = new Map<PlayerId, Set<Card>>(PLAYER_IDS.map((p) => [p, new Set<Card>()]))
-  for (const t of tricks) for (const j of t.plays) restantes.get(j.player)!.add(j.card)
+  // Chacun joue à chaque pli : les joueurs de la donne se lisent dans les plis eux-mêmes.
+  const restantes = new Map<PlayerId, Set<Card>>()
+  for (const t of tricks) {
+    for (const j of t.plays) {
+      if (!restantes.has(j.player)) restantes.set(j.player, new Set<Card>())
+      restantes.get(j.player)!.add(j.card)
+    }
+  }
 
   const out: Impasse[] = []
   const dejaVue = new Set<string>()
@@ -144,8 +150,9 @@ export function impassesOfGame(
 
 /** Le décompte par joueur, pour les tableaux. */
 export function impasseTallies(list: Impasse[]): Map<PlayerId, ImpasseTally> {
-  const out = new Map<PlayerId, ImpasseTally>(PLAYER_IDS.map((p) => [p, vide()]))
+  const out = new Map<PlayerId, ImpasseTally>()
   for (const imp of list) {
+    if (!out.has(imp.player)) out.set(imp.player, vide())
     const t = out.get(imp.player)!
     t.tentees += 1
     if (imp.issue === 'reussie') t.reussies += 1

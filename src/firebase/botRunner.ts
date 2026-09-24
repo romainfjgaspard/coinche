@@ -17,7 +17,7 @@ import { type BotLevel, chooseBid, chooseCard } from '../game/bot'
 import { PLI_VISIBLE_MS } from '../game/display'
 import { type Client, makeClient } from './app'
 import {
-  type GameDoc, allSeatsTaken, deal, moveCount, placeBid, playCard, signIn, takeSeat,
+  type GameDoc, allSeatsTaken, deal, moveCount, placeBid, playCard, signIn, tableDe, takeSeat,
   watchEvents, watchGame, watchHand,
 } from './partie'
 
@@ -122,12 +122,12 @@ export async function startBot(
         : null
     }
     if (g.phase === 'encheres') {
-      return currentBidder(biddingFromEvents(events, g.dealer, g.seating)) === player
+      return currentBidder(biddingFromEvents(events, g.dealer, tableDe(g))) === player
         ? { quoi: 'parler', cle }
         : null
     }
     if (g.phase === 'jeu') {
-      const etat = playFromEvents(events, g.dealer, g.seating)
+      const etat = playFromEvents(events, g.dealer, tableDe(g))
       return etat && currentPlayer(etat) === player ? { quoi: 'poser', cle } : null
     }
     return null
@@ -143,7 +143,7 @@ export async function startBot(
     occupe = true
     try {
       // Entamer juste après un pli : on laisse d'abord le pli complet sur le tapis.
-      const etat = quoi === 'poser' ? playFromEvents(events, game!.dealer, game!.seating) : null
+      const etat = quoi === 'poser' ? playFromEvents(events, game!.dealer, tableDe(game!)) : null
       const entame = etat !== null && etat.current.length === 0 && etat.completed.length > 0
       // Le pli reste affiché `pausePli` : on entame juste après, sans y ajouter la réflexion.
       await attendre(entame ? Math.max(delayMs, pausePli + Math.round(delayMs / 4)) : delayMs)
@@ -237,12 +237,12 @@ async function parler(
   hand: Card[],
   c: Client,
 ): Promise<boolean> {
-  const etat = biddingFromEvents(events, game.dealer, game.seating)
+  const etat = biddingFromEvents(events, game.dealer, tableDe(game))
   if (currentBidder(etat) !== player) return false
 
   const meilleure = highestBid(etat)
   const plancher = meilleure ? rankOf(meilleure) : 0
-  const partenaireTient = meilleure?.player === partnerOf(player, game.seating)
+  const partenaireTient = meilleure?.player === partnerOf(player, tableDe(game))
   // Dernier à parler après trois passes : on se lance plutôt que de redistribuer.
   const dernierAParler = etat.entries.length === 3 && meilleure === null
 
@@ -267,7 +267,7 @@ async function poser(
   level: BotLevel,
   c: Client,
 ): Promise<boolean> {
-  const etat = playFromEvents(events, game.dealer, game.seating)
+  const etat = playFromEvents(events, game.dealer, tableDe(game))
   if (!etat || currentPlayer(etat) !== player) return false
 
   const jouables = playableFor(etat, player, hand)
@@ -281,7 +281,7 @@ async function poser(
   const carte = chooseCard(
     {
       me: player,
-      seating: game.seating,
+      seating: tableDe(game),
       hand,
       trump: etat.trump,
       taker: preneur,

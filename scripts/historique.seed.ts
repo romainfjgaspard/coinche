@@ -17,7 +17,7 @@ import { describe, it } from 'vitest'
 import { getDoc } from 'firebase/firestore'
 import { type Client, db, makeClient, useEmulators } from '../src/firebase/app'
 import {
-  type GameDoc, createGame, deal, gameRef, handRef, placeBid, playCard, readArchives, readJournal, signIn,
+  type GameDoc, createGame, deal, gameRef, handRef, placeBid, playCard, readArchives, readJournal, signIn, tableDe,
   takeSeat,
 } from '../src/firebase/partie'
 import { type BiddingEntry, currentBidder, highestBid, rankOf } from '../src/game/bidding'
@@ -41,7 +41,7 @@ async function main(c: Client, code: string, joueur: PlayerId): Promise<Card[]> 
 async function parler(clients: Record<PlayerId, Client>, code: string, game: GameDoc, joueur: PlayerId) {
   const c = clients[joueur]
   const events = await readJournal(code, c)
-  const etat = biddingFromEvents(events, game.dealer, game.seating)
+  const etat = biddingFromEvents(events, game.dealer, tableDe(game))
   if (currentBidder(etat) !== joueur) return
   const coinche = etat.entries.some((e) => e.kind === 'coinche')
   if (coinche) {
@@ -54,13 +54,13 @@ async function parler(clients: Record<PlayerId, Client>, code: string, game: Gam
   }
   const meilleure = highestBid(etat)
   const plancher = meilleure ? rankOf(meilleure) : 0
-  const partenaire = meilleure?.player === partnerOf(joueur, game.seating)
+  const partenaire = meilleure?.player === partnerOf(joueur, tableDe(game))
   const dernier = etat.entries.length === 3 && meilleure === null
   const main_ = await main(c, code, joueur)
 
   // Un adversaire du preneur qui se sent fort coinche parfois.
   if (meilleure && !partenaire && meilleure.kind === 'contrat'
-      && teamOfPlayer(meilleure.player, game.seating) !== teamOfPlayer(joueur, game.seating)
+      && teamOfPlayer(meilleure.player, tableDe(game)) !== teamOfPlayer(joueur, tableDe(game))
       && hasard(0.12)) {
     await placeBid(code, { kind: 'coinche', player: joueur }, c)
     return
@@ -79,14 +79,14 @@ async function parler(clients: Record<PlayerId, Client>, code: string, game: Gam
 async function poser(clients: Record<PlayerId, Client>, code: string, game: GameDoc, joueur: PlayerId) {
   const c = clients[joueur]
   const events = await readJournal(code, c)
-  const etat = playFromEvents(events, game.dealer, game.seating)
+  const etat = playFromEvents(events, game.dealer, tableDe(game))
   if (!etat || currentPlayer(etat) !== joueur) return
   const main_ = await main(c, code, joueur)
   const jouables = playableFor(etat, joueur, main_)
   const contrat = [...currentDeal(events)].reverse().find((e) => e.type === 'contrat_fixe')
   const preneur = contrat && contrat.type === 'contrat_fixe' ? contrat.taker : joueur
   const carte = chooseCard({
-    me: joueur, seating: game.seating, hand: main_, trump: etat.trump, taker: preneur,
+    me: joueur, seating: tableDe(game), hand: main_, trump: etat.trump, taker: preneur,
     current: etat.current, completed: etat.completed,
   }, jouables, 'compteur')
   // BEL-2 : la belote s'annonce… sauf quand on l'oublie.
@@ -150,11 +150,11 @@ async function jouerUnePartie(n: number): Promise<void> {
       await deal(code, null, clients[game.dealer])
     } else if (game.phase === 'encheres') {
       const events = await readJournal(code, clients[createur])
-      const qui = currentBidder(biddingFromEvents(events, game.dealer, game.seating))
+      const qui = currentBidder(biddingFromEvents(events, game.dealer, tableDe(game)))
       if (qui) await parler(clients, code, game, qui)
     } else if (game.phase === 'jeu') {
       const events = await readJournal(code, clients[createur])
-      const etat = playFromEvents(events, game.dealer, game.seating)
+      const etat = playFromEvents(events, game.dealer, tableDe(game))
       const qui = etat ? currentPlayer(etat) : null
       if (qui) await poser(clients, code, game, qui)
     }

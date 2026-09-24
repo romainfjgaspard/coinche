@@ -5,7 +5,8 @@
  * la met à l'échelle de l'écran.
  */
 import { computed } from 'vue'
-import { PLAYER_IDS, PLAYER_NAMES, type PlayerId, teamOfPlayer } from '../game/players'
+import { type PlayerId, teamOfPlayer } from '../game/players'
+import { nomDe } from '../stores/roster'
 import { bilan, enchereMoyenne, teamTallies } from '../game/stats'
 import { useSession } from '../stores/session'
 
@@ -19,7 +20,7 @@ const CLAIR = '#cfe0d8'
 const nousTeam = computed(() => session.myTeam)
 const euxTeam = computed(() => (session.myTeam === 0 ? 1 : 0))
 const couleurDe = (p: PlayerId): string => (teamOfPlayer(p, session.seating) === nousTeam.value ? OR : BLEU)
-const nom = (p: PlayerId): string => PLAYER_NAMES[p]
+const nom = (p: PlayerId): string => nomDe(p)
 
 const scores = computed<[number, number]>(() => session.game?.scores ?? [0, 0])
 const nous = computed(() => scores.value[nousTeam.value])
@@ -27,7 +28,7 @@ const eux = computed(() => scores.value[euxTeam.value])
 
 /** Les joueurs de chaque camp, pour l'en-tête et le tableau par équipe. */
 const campDe = (team: 0 | 1): PlayerId[] =>
-  PLAYER_IDS.filter((p) => teamOfPlayer(p, session.seating) === team)
+  session.seating.filter((p) => teamOfPlayer(p, session.seating) === team)
 const nomCamp = (team: 0 | 1): string => campDe(team).map(nom).join(' & ')
 const donnesJouees = computed(() => session.dealSummaries.filter((d) => d.status !== null).length)
 
@@ -95,7 +96,7 @@ const equipes = computed(() => {
 
 // --- Par joueur
 const prises = computed(() =>
-  PLAYER_IDS.map((p) => {
+  session.seating.map((p) => {
     const t = session.playerTallies.get(p)
     const resultats = session.dealSummaries
       .filter((d) => d.taker === p && d.status !== null)

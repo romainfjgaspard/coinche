@@ -10,7 +10,8 @@ import PlayerChip from './PlayerChip.vue'
 import { SUIT_GLYPH } from '../game/display'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableState } from '../composables/useTableState'
-import { PLAYER_NAMES } from '../game/players'
+
+import { nomDe } from '../stores/roster'
 
 const emit = defineEmits<{ stats: [] }>()
 
@@ -91,7 +92,7 @@ const liseré = computed(() =>
           :class="contract.trump === 'h' || contract.trump === 'd' ? 'text-red-card' : 'text-felt-dark'"
         >{{ contract.trump ? SUIT_GLYPH[contract.trump] : (contract.declaration === 'sa' ? 'SA' : 'TA') }}</span>
         <span class="text-sm font-bold text-gold">{{ contractLabel }}</span>
-        <span class="text-xs text-mist">par {{ PLAYER_NAMES[contract.taker] }}</span>
+        <span class="text-xs text-mist">par {{ nomDe(contract.taker) }}</span>
         <span
           v-if="contract.multiplier > 1"
           class="rounded-full bg-red-card px-2 py-0.5 text-[11px] font-bold tracking-wide text-ivory"
@@ -201,7 +202,7 @@ const liseré = computed(() =>
         </div>
         <span v-else class="text-[10px] text-sage">aucun pli joué</span>
         <span v-if="session.lastTrick" class="text-[10px] text-sage">
-          pris par <span class="font-semibold text-gold">{{ PLAYER_NAMES[session.lastTrick.winner] }}</span>
+          pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>
         </span>
       </div>
 

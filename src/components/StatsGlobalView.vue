@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
  * Statistiques sur toutes les parties, lues depuis les archives.
- * Les six duos, les joueurs, la réussite par palier et le panache.
+ * Les duos, les joueurs, la réussite par palier et le panache.
  */
 import { computed, onMounted, ref } from 'vue'
-import { PLAYER_IDS, PLAYER_NAMES, type PlayerId } from '../game/players'
-import { PAIRES, clePaire, duoStats, joueurStats, parPalier } from '../game/statsGlobal'
+import type { PlayerId } from '../game/players'
+import { nomDe } from '../stores/roster'
+import { clePaire, duoStats, joueursDe, joueurStats, pairesJouees, parPalier } from '../game/statsGlobal'
 import { useSession } from '../stores/session'
 
 const session = useSession()
@@ -35,7 +36,7 @@ const joueurs = computed(() => joueurStats(archives.value))
 const total = computed(() => archives.value.length)
 
 const taux = (a: number, b: number): number => (b === 0 ? 0 : Math.round((a / b) * 100))
-const nom = (p: PlayerId): string => PLAYER_NAMES[p]
+const nom = (p: PlayerId): string => nomDe(p)
 const nomPaire = (p: readonly PlayerId[]): string => p.map(nom).join(' & ')
 
 /** Fond d'autant plus soutenu que le taux est élevé. */
@@ -72,12 +73,17 @@ const reperes = computed(() => {
 })
 
 /** Filtre du graphe par palier : tous, un duo, ou un joueur. */
-const filtre = ref<{ nom: string; joueurs: PlayerId[] }>({ nom: 'Tous', joueurs: [...PLAYER_IDS] })
-const filtres = computed(() => [
-  { nom: 'Tous', joueurs: [...PLAYER_IDS] },
-  ...PAIRES.map((p) => ({ nom: nomPaire(p), joueurs: [...p] })),
-  ...PLAYER_IDS.map((p) => ({ nom: nom(p), joueurs: [p] })),
-])
+/** Le choix est retenu par son nom : la liste des joueurs dépend des archives chargées. */
+const choix = ref('Tous')
+const filtres = computed(() => {
+  const qui = joueursDe(archives.value)
+  return [
+    { nom: 'Tous', joueurs: qui },
+    ...pairesJouees(archives.value).map((p) => ({ nom: nomPaire(p), joueurs: [...p] })),
+    ...qui.map((p) => ({ nom: nom(p), joueurs: [p] })),
+  ]
+})
+const filtre = computed(() => filtres.value.find((f) => f.nom === choix.value) ?? filtres.value[0])
 
 const paliers = computed(() => {
   const lignes = parPalier(archives.value, filtre.value.joueurs)
@@ -321,7 +327,7 @@ const panaches = computed(() => {
           :class="filtre.nom === f.nom
             ? 'border-gold bg-gold/20 font-semibold text-gold'
             : 'border-white/15 text-mist'"
-          @click="filtre = f"
+          @click="choix = f.nom"
         >{{ f.nom }}</button>
       </div>
       <div v-if="paliers.length" class="mt-3 flex items-end gap-1.5">

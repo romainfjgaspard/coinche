@@ -10,7 +10,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing'
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { DECK, shuffle } from '../src/game/cards'
 import { dealHands } from '../src/game/deal'
 import { DEFAULT_SEATING } from '../src/game/players'
@@ -179,5 +179,74 @@ describe('prise de siège', () => {
         phase: 'lobby',
       }),
     )
+  })
+})
+
+describe('table complétée par le quatrième arrivé', () => {
+  const troisAssis = {
+    seats: { benel: { uid: UID.benel }, roux: { uid: UID.roux }, viv: { uid: UID.viv } },
+    seatedUids: [UID.benel, UID.roux, UID.viv],
+    dealer: 'benel',
+    seating: null,
+    phase: 'lobby',
+  }
+  const complete = {
+    ...troisAssis,
+    seats: { ...troisAssis.seats, romain: { uid: UID.romain } },
+    seatedUids: [...troisAssis.seatedUids, UID.romain],
+    seating: DEFAULT_SEATING,
+    dealer: DEFAULT_SEATING[1],
+  }
+
+  it('fixe le placement et le donneur en s\'asseyant', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'parties', CODE), troisAssis))
+    await assertSucceeds(setDoc(doc(as(UID.romain), 'parties', CODE), complete))
+  })
+
+  it('mais ne peut plus changer un placement déjà fixé', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'parties', CODE), { ...troisAssis, seating: DEFAULT_SEATING }),
+    )
+    await assertFails(
+      setDoc(doc(as(UID.romain), 'parties', CODE), { ...complete, seating: ['viv', 'roux', 'benel', 'romain'] }),
+    )
+  })
+
+  it('et un cinquième ne s\'assied pas', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'parties', CODE), complete))
+    await assertFails(
+      setDoc(doc(as('uid-cinq'), 'parties', CODE), {
+        ...complete,
+        seats: { ...complete.seats, jean: { uid: 'uid-cinq' } },
+        seatedUids: [...complete.seatedUids, 'uid-cinq'],
+      }),
+    )
+  })
+})
+
+describe('joueurs ajoutés', () => {
+  const nouveau = (nom: string) => ({ nom, creeLe: serverTimestamp() })
+
+  it('tout joueur connecté peut en ajouter un', async () => {
+    await assertSucceeds(setDoc(doc(as(UID.viv), 'joueurs', 'jean-eric'), nouveau('Jean-Éric')))
+  })
+
+  it('refuse un identifiant mal formé ou un nom trop long', async () => {
+    await assertFails(setDoc(doc(as(UID.viv), 'joueurs', 'Jean Éric'), nouveau('Jean Éric')))
+    await assertFails(setDoc(doc(as(UID.viv), 'joueurs', 'long'), nouveau('x'.repeat(21))))
+  })
+
+  it('refuse un champ en trop', async () => {
+    await assertFails(setDoc(doc(as(UID.viv), 'joueurs', 'jean'), { ...nouveau('Jean'), admin: true }))
+  })
+
+  it('ne se modifie ni ne se supprime', async () => {
+    await assertSucceeds(setDoc(doc(as(UID.viv), 'joueurs', 'jean'), nouveau('Jean')))
+    await assertFails(setDoc(doc(as(UID.roux), 'joueurs', 'jean'), nouveau('Jeannot')))
+    await assertFails(deleteDoc(doc(as(UID.roux), 'joueurs', 'jean')))
+  })
+
+  it('refuse un anonyme non connecté', async () => {
+    await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), 'joueurs', 'jean'), nouveau('Jean')))
   })
 })

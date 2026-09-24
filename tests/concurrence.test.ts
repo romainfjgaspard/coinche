@@ -15,6 +15,7 @@ import {
   ConcurrentWrite, type GameDoc, createGame, deal, gameRef, readEvents, readJournal, signIn, takeSeat,
 } from '../src/firebase/partie'
 import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId } from '../src/game/players'
+import { addPlayer, readRoster } from '../src/firebase/joueurs'
 
 let n = 0
 /** Quatre sessions anonymes indépendantes, une par joueur. */
@@ -89,4 +90,37 @@ describe('lecture incrémentale du journal', () => {
     expect(apres.map((e) => e.seq)).toEqual((await readEvents(code, clients.viv)).map((e) => e.seq))
     expect(new Set(apres.map((e) => e.seq)).size).toBe(apres.length)
   }, 30_000)
+})
+
+describe('table formée par les arrivées', () => {
+  it('sans placement imposé, le quatrième arrivé fixe la table entre les présents', async () => {
+    const clients = await quatreClients()
+    const jean = await makeClient(`concurrence-${n}-jean`)
+    await signIn(jean)
+    // Jean remplace Romain : la table se forme avec ceux qui viennent, pas avec les quatre du départ.
+    const code = await createGame('benel', null, undefined, clients.benel)
+    let game = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
+    expect(game.seating).toBeNull()
+
+    await Promise.all([takeSeat(code, 'roux', clients.roux), takeSeat(code, 'viv', clients.viv), takeSeat(code, 'jean', jean)])
+    game = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
+    expect([...game.seating!].sort()).toEqual(['benel', 'jean', 'roux', 'viv'])
+    expect(game.dealer).toBe(game.seating![1])
+
+    // Table complète : Romain arrive trop tard.
+    await expect(takeSeat(code, 'romain', clients.romain)).rejects.toThrow('La table est complète')
+    // La partie se joue avec Jean.
+    await deal(code, null, clients[game.dealer as PlayerId] ?? jean)
+    game = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
+    expect(game.phase).toBe('encheres')
+  }, 30_000)
+
+  it('un joueur ajouté rejoint la liste, une seule fois', async () => {
+    const c = await makeClient(`concurrence-${n}-ajout`)
+    const nom = `Test ${Date.now() % 100000}`
+    const j = await addPlayer(nom, c)
+    expect(j.id).toMatch(/^test-\d+$/)
+    expect((await readRoster(c)).map((x) => x.id)).toContain(j.id)
+    await expect(addPlayer(nom, c)).rejects.toThrow('existe déjà')
+  })
 })

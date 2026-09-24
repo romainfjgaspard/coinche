@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** Pastille d'un joueur : nom, donneur, tour de jeu, étoiles de la honte. */
-import { PLAYER_NAMES, type PlayerId } from '../game/players'
+import { type PlayerId } from '../game/players'
+import { nomDe } from '../stores/roster'
 
 defineProps<{
   player: PlayerId
@@ -26,7 +27,7 @@ defineProps<{
       title="Donneur"
     >D</span>
     <span class="text-xs font-semibold" :class="active ? 'text-felt' : 'text-mist'">
-      {{ PLAYER_NAMES[player] }}<span v-if="me" :class="active ? 'text-felt/70' : 'text-sage'"> · toi</span>
+      {{ nomDe(player) }}<span v-if="me" :class="active ? 'text-felt/70' : 'text-sage'"> · toi</span>
     </span>
     <span
       v-if="stars"

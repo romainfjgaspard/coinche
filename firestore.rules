@@ -5,7 +5,7 @@ service cloud.firestore {
     function game(code) {
       return get(/databases/$(database)/documents/parties/$(code)).data;
     }
-    // Un joueur = un identifiant stable du roster ('benel', 'roux', 'viv', 'romain').
+    // Un joueur = un identifiant stable de la liste ('benel', 'roux', 'viv', 'romain', puis les ajouts).
     // `seats` associe cet identifiant au compte anonyme qui l'occupe pour cette partie.
     function holdsSeat(code, playerId) {
       return request.auth != null
@@ -16,18 +16,31 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid in game(code).seatedUids;
     }
     // Un joueur qui rejoint n'est pas encore assis : il doit pouvoir prendre un siège,
-    // mais seulement le sien, et sans jamais déloger les autres.
+    // mais seulement le sien, et sans jamais déloger les autres. Le quatrième arrivé
+    // complète la table : lui seul fixe le placement (et le donneur), une seule fois.
     function claimsSeat() {
       return request.auth != null
-             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seats', 'seatedUids'])
+             && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seats', 'seatedUids'])
+                 || (resource.data.get('seating', null) == null
+                     && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['seats', 'seatedUids', 'seating', 'dealer'])))
+             && request.resource.data.seats.size() <= 4
              && request.auth.uid in request.resource.data.seatedUids
              && request.resource.data.seatedUids.toSet().hasAll(resource.data.seatedUids.toSet());
     }
 
-    // Roster figé : lisible par tous, jamais modifié depuis l'app.
+    // Les joueurs ajoutés : on en crée, on n'en modifie ni n'en supprime jamais —
+    // leurs statistiques portent leur identifiant.
     match /joueurs/{playerId} {
-      allow read:  if request.auth != null;
-      allow write: if false;
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null
+                    && playerId.matches('^[a-z0-9-]{1,20}$')
+                    && request.resource.data.keys().hasOnly(['nom', 'creeLe'])
+                    && request.resource.data.nom is string
+                    && request.resource.data.nom.size() > 0
+                    && request.resource.data.nom.size() <= 20
+                    && request.resource.data.creeLe == request.time;
+      allow update, delete: if false;
     }
 
     match /parties/{code} {

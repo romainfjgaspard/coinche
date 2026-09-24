@@ -4,7 +4,8 @@
  * un événement arrive, les chiffres bougent.
  */
 import { computed, onMounted, ref } from 'vue'
-import { PLAYER_IDS, PLAYER_NAMES, type PlayerId, teamOfPlayer } from '../game/players'
+import { type PlayerId, teamOfPlayer } from '../game/players'
+import { nomDe } from '../stores/roster'
 import { bilan, enchereMoyenne } from '../game/stats'
 import StatsGlobalView from './StatsGlobalView.vue'
 import StatsPartiePc from './StatsPartiePc.vue'
@@ -33,7 +34,7 @@ const archives = computed(() =>
   avecBots.value ? session.archives : session.archives.filter((a) => (a.bots ?? []).length === 0),
 )
 const nomCamp = (team: 0 | 1): string =>
-  PLAYER_IDS.filter((p) => teamOfPlayer(p, session.seating) === team).map((p) => PLAYER_NAMES[p]).join(' & ')
+  session.seating.filter((p) => teamOfPlayer(p, session.seating) === team).map((p) => nomDe(p)).join(' & ')
 /** La phrase à droite des onglets, comme sur la maquette. */
 const enTete = computed(() => {
   if (onglet.value === 'partie') {
@@ -120,14 +121,14 @@ const barres = computed(() => {
 
 /** Les prises, joueur par joueur — sans pourcentage : trop peu de donnes. */
 const prises = computed(() =>
-  PLAYER_IDS.map((p) => {
+  session.seating.map((p) => {
     const t = session.playerTallies.get(p)
     const resultats = session.dealSummaries
       .filter((d) => d.taker === p && d.status !== null)
       .map((d) => d.status !== 'chute')
     return {
       id: p,
-      nom: PLAYER_NAMES[p],
+      nom: nomDe(p),
       prises: t?.prises ?? 0,
       resultats,
       enchere: t ? enchereMoyenne(t) : null,
@@ -142,11 +143,11 @@ const prises = computed(() =>
  * Coupé derrière, c'est raté ; s'il ramasse un dix, c'est réussi.
  */
 const impasses = computed(() =>
-  PLAYER_IDS.map((p) => {
+  session.seating.map((p) => {
     const t = session.impasseCounts.get(p)
     return {
       id: p,
-      nom: PLAYER_NAMES[p],
+      nom: nomDe(p),
       tentees: t?.tentees ?? 0,
       reussies: t?.reussies ?? 0,
       ratees: t?.ratees ?? 0,
@@ -160,7 +161,7 @@ const aucuneImpasse = computed(() => impasses.value.every((i) => i.tentees === 0
 function parJoueur(joueurs: PlayerId[]): string {
   const n = new Map<PlayerId, number>()
   for (const j of joueurs) n.set(j, (n.get(j) ?? 0) + 1)
-  return [...n].map(([j, k]) => (k > 1 ? `${PLAYER_NAMES[j]} ×${k}` : PLAYER_NAMES[j])).join(', ')
+  return [...n].map(([j, k]) => (k > 1 ? `${nomDe(j)} ×${k}` : nomDe(j))).join(', ')
 }
 
 const faits = computed(() => {

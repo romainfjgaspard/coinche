@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import SuitRow from './SuitRow.vue'
-import { PLAYER_IDS, PLAYER_NAMES, type PlayerId, teamOfPlayer } from '../game/players'
+import { type PlayerId, teamOfPlayer } from '../game/players'
 import { useSession } from '../stores/session'
+import { nomDe, useRoster } from '../stores/roster'
+import { NOM_MAX } from '../firebase/joueurs'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableLayout } from '../composables/useTableLayout'
 import { useFitZoom } from '../composables/useFitZoom'
 
 const session = useSession()
+const roster = useRoster()
+onMounted(() => void roster.charger())
 const emit = defineEmits<{ stats: [] }>()
 const grand = useLargeScreen()
 const L = useTableLayout()
@@ -16,6 +20,16 @@ const contenu = ref<HTMLElement | null>(null)
 const zoom = useFitZoom(contenu, computed(() => L.value.t * 1.3), computed(() => L.value.height - 24))
 const chosen = ref<PlayerId | null>(session.playerId)
 const code = ref('')
+/** Créer ou rejoindre prend plusieurs allers-retours avec la base : on le montre. */
+const enCours = ref<'creer' | 'rejoindre' | null>(null)
+async function creer(): Promise<void> {
+  enCours.value = 'creer'
+  try { await session.create(chosen.value!) } finally { enCours.value = null }
+}
+async function rejoindre(): Promise<void> {
+  enCours.value = 'rejoindre'
+  try { await session.join(cleanCode.value, chosen.value!) } finally { enCours.value = null }
+}
 
 const cleanCode = computed(() => code.value.trim().toUpperCase())
 const canJoin = computed(() => Boolean(chosen.value) && cleanCode.value.length === 4)
@@ -37,8 +51,35 @@ const teamLabel = (p: PlayerId): string => {
 const teamClass = (p: PlayerId): string => (team(p) === 1 ? 'text-them' : 'text-gold')
 const avatarClass = (p: PlayerId): string => (team(p) === 1 ? 'bg-them' : 'bg-gold')
 
+/** La partie regardée : on grise qui y est déjà assis, et tout le monde si elle est pleine. */
+const regardee = computed(() => cleanCode.value.length === 4 && session.game !== null)
 function isTaken(p: PlayerId): boolean {
-  return cleanCode.value.length === 4 && session.takenBy[p] && p !== session.playerId
+  return regardee.value && Boolean(session.takenBy[p]) && p !== session.playerId
+}
+function horsTable(p: PlayerId): boolean {
+  return regardee.value && !session.takenBy[p] && session.present.length >= 4
+}
+const sousTitre = computed(() => {
+  const noms = roster.joueurs.map(nomDe)
+  return `Entre ${noms.slice(0, -1).join(', ')} et ${noms.at(-1)}`
+})
+
+// --- Ajouter un joueur : un nom, et il rejoint la liste pour de bon.
+const ajout = ref(false)
+const nouveauNom = ref('')
+const champNom = ref<HTMLInputElement | null>(null)
+async function ouvrirAjout(): Promise<void> {
+  ajout.value = true
+  roster.erreur = null
+  await nextTick()
+  champNom.value?.focus()
+}
+async function ajouter(): Promise<void> {
+  const id = await roster.ajouter(nouveauNom.value)
+  if (!id) return
+  chosen.value = id
+  nouveauNom.value = ''
+  ajout.value = false
 }
 </script>
 
@@ -53,17 +94,17 @@ function isTaken(p: PlayerId): boolean {
     <div class="flex flex-col items-center">
       <SuitRow />
       <h1 class="mt-4 font-display text-4xl leading-none">Coinche</h1>
-      <p class="mt-1 text-sm text-sage">Entre Benel, Roux, Viv et Romain</p>
+      <p class="mt-1 text-center text-sm text-sage">{{ sousTitre }}</p>
     </div>
 
     <h2 class="mt-12 mb-4 text-[15px] font-semibold text-mist">Qui es-tu ?</h2>
 
     <div class="flex flex-col gap-3">
       <button
-        v-for="p in PLAYER_IDS"
+        v-for="p in roster.joueurs"
         :key="p"
         type="button"
-        :disabled="isTaken(p)"
+        :disabled="isTaken(p) || horsTable(p)"
         class="flex min-h-16 cursor-pointer items-center gap-3.5 rounded-2xl border px-4 text-left transition disabled:cursor-default disabled:opacity-40"
         :class="chosen === p
           ? 'border-gold bg-gold/15'
@@ -73,12 +114,43 @@ function isTaken(p: PlayerId): boolean {
         <span
           class="flex size-10 shrink-0 items-center justify-center rounded-full text-[15px] font-bold text-felt"
           :class="avatarClass(p)"
-        >{{ PLAYER_NAMES[p].charAt(0) }}</span>
-        <span class="grow text-lg font-semibold">{{ PLAYER_NAMES[p] }}</span>
+        >{{ nomDe(p).charAt(0) }}</span>
+        <span class="grow text-lg font-semibold">{{ nomDe(p) }}</span>
         <span class="text-xs" :class="teamClass(p)">
-          {{ isTaken(p) ? 'déjà pris' : teamLabel(p) }}
+          {{ isTaken(p) ? 'déjà pris' : horsTable(p) ? 'table complète' : teamLabel(p) }}
         </span>
       </button>
+
+      <form v-if="ajout" class="flex gap-2.5" @submit.prevent="ajouter">
+        <input
+          ref="champNom"
+          v-model="nouveauNom"
+          type="text"
+          :maxlength="NOM_MAX"
+          autocomplete="off"
+          placeholder="Nom du joueur"
+          aria-label="Nom du nouveau joueur"
+          class="h-[50px] w-0 grow rounded-xl border border-white/15 bg-black/20 px-4 text-base font-semibold placeholder:font-normal placeholder:text-dusk focus:border-gold focus:outline-none"
+          @keydown.esc="ajout = false"
+        />
+        <button
+          type="submit"
+          :disabled="!nouveauNom.trim() || roster.occupe"
+          class="h-[50px] shrink-0 cursor-pointer rounded-xl bg-gold px-4 text-[15px] font-bold text-felt transition enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40"
+        >{{ roster.occupe ? '…' : 'Ajouter' }}</button>
+        <button
+          type="button"
+          class="h-[50px] shrink-0 cursor-pointer rounded-xl border border-white/15 px-3 text-sm text-mist transition hover:border-white/35"
+          @click="ajout = false"
+        >Annuler</button>
+      </form>
+      <button
+        v-else
+        type="button"
+        class="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 text-sm text-sage transition hover:border-white/40 hover:text-mist"
+        @click="ouvrirAjout"
+      >+ Ajouter un joueur</button>
+      <p v-if="roster.erreur" class="text-center text-sm text-red-card">{{ roster.erreur }}</p>
     </div>
 
     <div class="grow lg:hidden"></div>
@@ -99,16 +171,16 @@ function isTaken(p: PlayerId): boolean {
         type="button"
         :disabled="!canJoin || session.busy"
         class="h-[50px] w-28 shrink-0 cursor-pointer rounded-xl bg-gold text-[15px] font-bold text-felt transition enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40"
-        @click="session.join(cleanCode, chosen!)"
-      >Rejoindre</button>
+        @click="rejoindre"
+      >{{ enCours === 'rejoindre' ? '…' : 'Rejoindre' }}</button>
     </div>
 
     <button
       type="button"
       :disabled="!chosen || session.busy"
       class="mt-3 h-[46px] cursor-pointer rounded-xl border border-white/15 text-sm font-medium text-mist transition enabled:hover:border-white/35 enabled:hover:bg-white/5 disabled:cursor-default disabled:opacity-40"
-      @click="session.create(chosen!)"
-    >Créer une nouvelle partie</button>
+      @click="creer"
+    >{{ enCours === 'creer' ? 'Création de la partie…' : 'Créer une nouvelle partie' }}</button>
 
     <button
       type="button"
