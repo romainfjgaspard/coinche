@@ -56,15 +56,24 @@ const COURT_FRAME: Record<string, readonly [number, number, number, number]> = {
 }
 
 /**
- * Où placer l'image d'une figure pour que seul l'intérieur de son cadre remplisse la
- * carte : ni le contour dessiné dans le SVG, ni les traits du cadre ne se voient le
- * long des bords. Chaque figure a son propre cadre : un recadrage commun rognait
- * l'index de celles dont le cadre est plus près du bord.
+ * Marge blanche gardée autour du cadre, en unités du SVG, trait du cadre compris.
+ * Plus petite que le plus étroit des cadres (7 unités) : le contour de carte dessiné
+ * dans le SVG, à 0,25 du bord, reste toujours dehors.
+ */
+const MARGE_CADRE = 6
+
+/**
+ * Où placer l'image d'une figure pour que son cadre soit à la même distance du bord
+ * sur les quatre côtés, pour les douze figures. Le cadre fait partie du dessin et se
+ * garde ; seul le contour de carte du SVG part, sinon deux bords se voyaient l'un
+ * dans l'autre. Chaque figure a son propre cadre : un recadrage commun le laissait
+ * collé au bord en haut et en bas, mais en retrait sur les côtés.
  */
 export function courtCrop(card: Card): { left: string; top: string; width: string; height: string } | null {
   const rank = rankOf(card)
   if (!isCourt(rank)) return null
-  const [l, r, t, b] = COURT_FRAME[`${COURT_FILE[rank as 'J' | 'Q' | 'K']}_of_${SUIT_FILE[suitOf(card)]}`]
+  const [fl, fr, ft, fb] = COURT_FRAME[`${COURT_FILE[rank as 'J' | 'Q' | 'K']}_of_${SUIT_FILE[suitOf(card)]}`]
+  const [l, r, t, b] = [fl, fr, ft, fb].map((v) => v - MARGE_CADRE)
   const w = 167.09 - l - r
   const h = 242.67 - t - b
   const pct = (v: number) => `${(v * 100).toFixed(3)}%`

@@ -74,12 +74,11 @@ const s = computed(() => {
     -->
     <!--
       L'image dessine son propre contour de carte, et un cadre intérieur à 7 à 10 unités
-      du bord selon la figure. On ne garde que l'intérieur de ce cadre (courtCrop) :
-      sinon ses traits se voyaient le long des côtés, comme un second bord. Les SVG
-      s'étirent (preserveAspectRatio="none") : l'intérieur du cadre est environ 5 %
-      plus haut que la carte, écart invisible. Décodage synchrone (et
-      figures préchargées au démarrage) : sans lui, une figure posée sur le tapis restait
-      blanche un instant.
+      du bord selon la figure. On garde le cadre, à la même marge sur les quatre côtés
+      (courtCrop), et le contour part : sinon deux bords se voyaient l'un dans l'autre.
+      Les SVG s'étirent (preserveAspectRatio="none") au format de la carte, écart de
+      quelques pour cent, invisible. Décodage synchrone (et figures préchargées au
+      démarrage) : sans lui, une figure posée sur le tapis restait blanche un instant.
     -->
     <img
       v-if="image"
