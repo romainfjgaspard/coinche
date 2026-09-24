@@ -23,6 +23,9 @@ const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID
  */
 export const useEmulators =
   import.meta.env.VITE_USE_EMULATORS === '1' || !projectId
+  // Vitest charge `.env.local` : sans cette garde, `tests/flow.test.ts` jouait ses
+  // parties et déposait ses archives dans la vraie base.
+  || import.meta.env.MODE === 'test'
 
 const config = useEmulators
   ? { projectId: 'demo-coinche', apiKey: 'demo', authDomain: 'demo-coinche.firebaseapp.com' }
