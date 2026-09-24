@@ -5,7 +5,7 @@
  */
 import {
   collection, doc, getDoc, getDocFromServer, getDocs, onSnapshot, orderBy, query, runTransaction,
-  arrayUnion, serverTimestamp, setDoc, updateDoc,
+  arrayUnion, serverTimestamp, setDoc, updateDoc, where,
 } from 'firebase/firestore'
 import { signInAnonymously } from 'firebase/auth'
 import { type Client, mainClient } from './app'
@@ -328,6 +328,34 @@ export async function readEvents(code: string, c: Client = mainClient): Promise<
   return snap.docs.map((d) => d.data() as GameEvent)
 }
 
+/** Le journal déjà lu, par client et par partie. */
+const journaux = new Map<string, { seq: number; events: GameEvent[] }>()
+
+/**
+ * Le journal à jour, en ne lisant que ce qui est nouveau depuis la dernière fois.
+ *
+ * Relire le journal entier à chaque carte coûtait cher : Firestore facture chaque
+ * document lu, et une partie complète (≈ 600 événements) en lisait ≈ 140 000 — près
+ * de trois fois le quota gratuit quotidien, pour une seule partie. Ici, chaque appel
+ * ne lit que les événements postérieurs au dernier connu.
+ *
+ * C'est sûr parce que `seq` est attribué dans une transaction sur le document de partie
+ * (`appendWith`) : unique, croissant, et un événement n'est visible qu'une fois tous
+ * ceux qui le précèdent écrits.
+ */
+export async function readJournal(code: string, c: Client = mainClient): Promise<GameEvent[]> {
+  const cle = `${c.app.name}|${code}`
+  const connu = journaux.get(cle) ?? { seq: 0, events: [] }
+  const snap = await getDocs(query(eventsRef(code, c), where('seq', '>', connu.seq), orderBy('seq')))
+  for (const d of snap.docs) {
+    const e = d.data() as GameEvent
+    connu.events.push(e)
+    connu.seq = Math.max(connu.seq, e.seq)
+  }
+  journaux.set(cle, connu)
+  return [...connu.events]
+}
+
 /**
  * Une prise de parole aux enchères. La légalité est vérifiée contre l'état rejoué
  * depuis le journal — jamais contre un état local qui pourrait avoir dérivé.
@@ -341,7 +369,7 @@ export async function placeBid(
   if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
   const game = snap.data() as GameDoc
 
-  const events = await readEvents(code, c)
+  const events = await readJournal(code, c)
   const coupsVus = moveCount(events)
   const before = biddingFromEvents(events, game.dealer, game.seating)
   const after = apply(before, entry) // lève IllegalBid si la règle l'interdit
@@ -411,7 +439,7 @@ export async function playCard(
   if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
   const game = snap.data() as GameDoc
 
-  const events = await readEvents(code, c)
+  const events = await readJournal(code, c)
   const before = playFromEvents(events, game.dealer, game.seating)
   const contract = contractFrom(events, game.seating)
   if (!before || !contract) throw new Error('Aucun contrat en cours')
@@ -462,7 +490,7 @@ export async function playCard(
   if (!isDealOver(after)) return
 
   // BEL-2 / BEL-6 — la belote ne compte qu'annoncée aux deux cartes, Roi et Dame.
-  const dealEvents = await readEvents(code, c)
+  const dealEvents = await readJournal(code, c)
   const declaredBy = declaredBelote(dealEvents)
   const result = scoreDeal(
     tricksForScoring(after),
@@ -498,7 +526,7 @@ export async function playCard(
 
   // DEC-9 — trois étoiles dans la même partie : la honte complète.
   if (etoile) {
-    const stars = (starsInGame(await readEvents(code, c)).get(etoile) ?? 0)
+    const stars = (starsInGame(await readJournal(code, c)).get(etoile) ?? 0)
     if (stars === SHAME_THRESHOLD) {
       await appendWith(c, code, { type: 'honte_complete', player: etoile, stars })
     }
@@ -553,7 +581,7 @@ export async function archiveGame(
   seating: Seating,
   c: Client = mainClient,
 ): Promise<Archive> {
-  const events = await readEvents(code, c)
+  const events = await readJournal(code, c)
   const snap = await getDocs(dealsRef(code, c))
   const mains: Record<number, Record<string, Card[]>> = {}
   for (const d of snap.docs) {
