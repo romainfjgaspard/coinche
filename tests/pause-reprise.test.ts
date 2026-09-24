@@ -5,8 +5,8 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { getDoc } from 'firebase/firestore'
 import {
-  PartieEnPause, createGame, deal, gameRef, placeBid, readEvents, reprendreSiegeBot, setPause, signIn,
-  takeSeat, type GameDoc,
+  PartieEnPause, createGame, deal, gameRef, placeBid, readEvents, remplacerParBot, reprendreMaPlace,
+  reprendreSiegeBot, setPause, signIn, takeSeat, type GameDoc,
 } from '../src/firebase/partie'
 import { makeClient } from '../src/firebase/app'
 import { DEFAULT_SEATING } from '../src/game/players'
@@ -79,5 +79,42 @@ describe('reprise d\'un bot', () => {
   it('on ne reprend pas le siège d\'un humain', async () => {
     const humain = (await lire(code)).seats.roux!.uid
     await expect(reprendreSiegeBot(code, 'roux', humain, await makeClient('reprise-c'))).rejects.toThrow(/pas tenu par un bot/)
+  })
+})
+
+describe('un joueur absent remplacé par un bot', () => {
+  let code: string
+  let viv: Awaited<ReturnType<typeof makeClient>>
+
+  beforeAll(async () => {
+    await signIn()
+    code = await createGame('benel', DEFAULT_SEATING)
+    viv = await makeClient('absente-viv')
+    await takeSeat(code, 'viv', viv)
+    for (const p of ['roux', 'romain'] as const) await takeSeat(code, p)
+  }, 30_000)
+
+  it('un autre joueur confie la place de Viv à un bot', async () => {
+    const ancien = (await lire(code)).seats.viv!.uid
+    const bots = await makeClient('remplacant')
+    await remplacerParBot(code, 'viv', ancien, 'simple', bots)
+    expect((await lire(code)).seats.viv).toMatchObject({ bot: true, niveau: 'simple', remplace: true })
+  })
+
+  it('on ne remplace pas deux fois : le bot tient déjà la place', async () => {
+    const actuel = (await lire(code)).seats.viv!.uid
+    await expect(remplacerParBot(code, 'viv', actuel, 'simple', await makeClient('remplacant-2'))).rejects.toThrow(/déjà/)
+  })
+
+  it('Viv revient et reprend sa place ; la partie reste marquée « avec bot »', async () => {
+    await reprendreMaPlace(code, 'viv', viv)
+    const siege = (await lire(code)).seats.viv!
+    expect(siege.uid).toBe(viv.auth.currentUser?.uid)
+    expect(siege.bot).toBeUndefined()
+    expect(siege.aideBot).toBe(true)
+  })
+
+  it("reprendre une place qui n'est pas tenue par un bot est refusé", async () => {
+    await expect(reprendreMaPlace(code, 'viv', viv)).rejects.toThrow(/pas tenue par un bot/)
   })
 })

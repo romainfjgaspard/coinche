@@ -10,8 +10,8 @@ import { type Card, sortHand } from '../game/cards'
 import type { PlayerId } from '../game/players'
 import {
   type GameDoc, allSeatsTaken, cancelGame, createGame, deal, gameRef, placeBid, playCard, readArchives,
-  rejouer as rejouerPartie, setOptions, setPause, setSeating, signIn, takeSeat, watchEvents, watchGame,
-  watchHand,
+  rejouer as rejouerPartie, reprendreMaPlace as reprendreMaPlaceEnBase, setOptions, setPause, setSeating,
+  signIn, takeSeat, watchEvents, watchGame, watchHand,
 } from '../firebase/partie'
 import type { Archive } from '../game/archive'
 import type { GameEvent } from '../game/events'
@@ -32,6 +32,8 @@ import { type Client, makeClient } from '../firebase/app'
 import { nomDe } from './roster'
 
 const STORE_KEY = 'coinche.session'
+/** Le dernier code de partie utilisé : l'accueil le pré-remplit. */
+export const DERNIER_CODE_KEY = 'coinche.dernierCode'
 
 interface Persisted {
   playerId: PlayerId | null
@@ -63,6 +65,10 @@ export const useSession = defineStore('session', () => {
   const playerId = ref<PlayerId | null>(saved.playerId)
   const code = ref<string | null>(saved.code)
   const game = ref<GameDoc | null>(null)
+  watch(code, (c) => {
+    if (!c) return
+    try { localStorage.setItem(DERNIER_CODE_KEY, c) } catch { /* pré-remplissage perdu, sans gravité */ }
+  }, { immediate: true })
   /** La pause en cours : qui l'a mise. Nulle : on joue. */
   const pause = computed(() => game.value?.pause ?? null)
   const hand = ref<Card[]>([])
@@ -292,7 +298,12 @@ export const useSession = defineStore('session', () => {
    * Il obtient sa **propre** session anonyme, donc les règles Firestore lui
    * interdisent de lire la main des autres — au même titre qu'un humain.
    */
-  async function addBot(player: PlayerId, level: BotLevel = 'simple', reprendDe?: string): Promise<void> {
+  async function addBot(
+    player: PlayerId,
+    level: BotLevel = 'simple',
+    reprendDe?: string,
+    remplaceHumain = false,
+  ): Promise<void> {
     if (!code.value) return
     const lancer = async () => {
       // `?botDelay=` permet aux tests d'accélérer la table sans toucher au jeu.
@@ -311,12 +322,13 @@ export const useSession = defineStore('session', () => {
           level, delayMs, feed, client: botClient,
           mayDealNext: (n) => dealAcknowledged.value === n,
           reprendDe,
+          remplaceHumain,
           onDetache: () => { bots.value = bots.value.filter((b) => b.player !== player) },
         }),
       )
     }
     // Une reprise se fait sans bruit : perdue face à un autre onglet, elle n'est pas une erreur.
-    if (!reprendDe) { await run(lancer); return }
+    if (!reprendDe || remplaceHumain) { await run(lancer); return }
     try { await lancer() } catch (e) { console.warn('[reprise]', player, e) }
   }
 
@@ -383,10 +395,48 @@ export const useSession = defineStore('session', () => {
   })
   /** Le dernier signe de vie de la table : un événement, un changement de phase. */
   let dernierProgres = Date.now()
+  /** Une horloge réactive, pour qu'un silence prolongé finisse par se voir à l'écran. */
+  const horloge = ref(Date.now())
+  const silenceDepuis = ref(Date.now())
   watch(
     () => `${events.value.length}|${game.value?.phase}|${game.value?.dealNumber}|${Boolean(game.value?.pause)}`,
-    () => { dernierProgres = Date.now() },
+    () => { dernierProgres = Date.now(); silenceDepuis.value = dernierProgres },
   )
+
+  /**
+   * Un joueur humain à qui c'est le tour et qui ne répond plus depuis une minute : on
+   * propose aux autres de le remplacer par un bot. Pas pendant une pause, ni pour moi.
+   */
+  const ABSENCE_MS = 60000
+  const humainAbsent = computed<PlayerId | null>(() => {
+    const g = game.value
+    if (!g || g.pause || !playerId.value) return null
+    // Entre deux donnes, c'est le donneur qu'on attend : sans lui, personne ne redistribue.
+    const attendu = g.phase === 'encheres' ? toBid.value : g.phase === 'jeu' ? toPlay.value
+      : (g.phase === 'decompte' || (g.phase === 'lobby' && g.dealNumber > 0)) && allSeatsTaken(g) ? g.dealer : null
+    if (!attendu || attendu === playerId.value || g.seats[attendu]?.bot) return null
+    return horloge.value - silenceDepuis.value >= ABSENCE_MS ? attendu : null
+  })
+  async function remplacerParBot(p: PlayerId): Promise<void> {
+    const siege = game.value?.seats[p]
+    if (!siege || siege.bot) return
+    await addBot(p, 'simple', siege.uid, true)
+  }
+
+  /** Ma place, prise par un bot pendant mon absence : je peux la reprendre. */
+  const placePrise = computed(() => {
+    const s = playerId.value ? game.value?.seats[playerId.value] : undefined
+    return Boolean(s?.bot && s.remplace && s.uid !== uid.value)
+  })
+  async function reprendreMaPlace(): Promise<void> {
+    if (!code.value || !playerId.value) return
+    const fait = await run(async () => {
+      await reprendreMaPlaceEnBase(code.value!, playerId.value!)
+      return true
+    })
+    // La main est relue avec le siège retrouvé : l'écoute d'avant avait été refusée.
+    if (fait && code.value) subscribe(code.value)
+  }
   /**
    * Un bot silencieux depuis trop longtemps : on le reprend ici. Un bot joue en
    * quelques secondes ; entre deux donnes, on laisse aux humains le temps de lire le
@@ -396,6 +446,7 @@ export const useSession = defineStore('session', () => {
   const REPRISE_MS = 15000
   const REPRISE_DONNEUR_MS = 45000
   setInterval(() => {
+    horloge.value = Date.now()
     const b = botAttendu.value
     const g = game.value
     if (!b || !g || busy.value || !playerId.value) return
@@ -606,5 +657,6 @@ export const useSession = defineStore('session', () => {
     peek, create, join, chooseSeating, chooseOptions, startDeal, bid, playTheCard, leave, resume, loadArchives,
     avis, cancel, rejouer,
     bots, addBot, stopBots, botDealerHere, dealAcknowledged, continueToNextDeal,
+    humainAbsent, remplacerParBot, placePrise, reprendreMaPlace,
   }
 })

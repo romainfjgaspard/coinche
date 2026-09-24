@@ -117,7 +117,7 @@ function next(): void {
         </h2>
         <p class="mt-3 text-[17px]">
           {{ final.scores[session.myTeam] }} – {{ final.scores[session.myTeam === 0 ? 1 : 0] }}
-          <span class="text-sage">en {{ final.deals }} donnes</span>
+          <span class="text-sage">en {{ final.deals }} donne{{ final.deals > 1 ? 's' : '' }}</span>
         </p>
         <!-- La donne qui vient de clore la partie : sans elle, on ne savait pas comment elle s'était finie -->
         <p v-if="result && contract" class="mt-4 text-[13px] text-sage">
@@ -193,13 +193,17 @@ function next(): void {
         {{ session.game ? nomDe(session.game.dealer) : '' }} distribue.
       </p>
       <!-- L'organisateur relance une partie : mêmes équipes, donneur suivant ; les autres suivent -->
-      <button
-        v-else-if="organisateur"
-        type="button"
-        :disabled="session.busy"
-        class="mt-2.5 h-13 w-full cursor-pointer rounded-xl bg-gold py-3.5 text-base font-bold text-felt transition hover:brightness-110 disabled:opacity-40"
-        @click="session.rejouer()"
-      >{{ session.busy ? 'Nouvelle partie…' : 'Rejouer' }}</button>
+      <template v-else-if="organisateur">
+        <button
+          type="button"
+          :disabled="session.busy"
+          class="mt-2.5 h-13 w-full cursor-pointer rounded-xl bg-gold py-3.5 text-base font-bold text-felt transition hover:brightness-110 disabled:opacity-40"
+          @click="session.rejouer()"
+        >{{ session.busy ? 'Nouvelle partie…' : 'Rejouer' }}</button>
+        <p class="mt-1.5 text-xs text-sage">
+          Mêmes joueurs, même soirée : les équipes se changent au salon avant la première donne.
+        </p>
+      </template>
       <p v-else class="mt-3 text-sm text-mist">
         {{ nomDe(createur) }} peut relancer une partie : vous y serez tous rebasculés.
       </p>

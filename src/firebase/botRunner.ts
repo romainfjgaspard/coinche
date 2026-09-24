@@ -17,7 +17,7 @@ import { type BotLevel, chooseBid, chooseCard } from '../game/bot'
 import { PLI_VISIBLE_MS } from '../game/display'
 import { type Client, makeClient } from './app'
 import {
-  type GameDoc, allSeatsTaken, deal, moveCount, placeBid, playCard, reprendreSiegeBot, signIn, tableDe,
+  type GameDoc, allSeatsTaken, deal, moveCount, placeBid, playCard, remplacerParBot, reprendreSiegeBot, signIn, tableDe,
   takeSeat, watchEvents, watchGame, watchHand,
 } from './partie'
 
@@ -76,6 +76,8 @@ export interface BotOptions {
    * l'uid qui tenait son siège, que la reprise remplace.
    */
   reprendDe?: string
+  /** Avec `reprendDe` : le siège est celui d'un joueur humain qui ne répond plus. */
+  remplaceHumain?: boolean
   /** Prévenu quand un autre onglet a repris ce bot : celui-ci s'est arrêté. */
   onDetache?: () => void
 }
@@ -87,13 +89,14 @@ export async function startBot(
 ): Promise<BotHandle> {
   const {
     level = 'simple', delayMs = REFLEXION_MS, feed, client, onError = defaultOnError, mayDealNext,
-    reprendDe, onDetache,
+    reprendDe, onDetache, remplaceHumain,
   } = options
   /** La pause après un pli suit le rythme du bot : les tests accélérés ne l'attendent pas. */
   const pausePli = Math.round((PLI_VISIBLE_MS * delayMs) / REFLEXION_MS)
   const c: Client = client ?? (await makeClient(`bot-${code}-${Date.now()}`))
   const monUid = await signIn(c)
-  if (reprendDe) await reprendreSiegeBot(code, player, reprendDe, c)
+  if (reprendDe && remplaceHumain) await remplacerParBot(code, player, reprendDe, level, c)
+  else if (reprendDe) await reprendreSiegeBot(code, player, reprendDe, c)
   else await takeSeat(code, player, c, true, level)
 
   let game: GameDoc | null = null

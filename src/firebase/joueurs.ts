@@ -5,7 +5,7 @@
  * Les règles Firestore l'imposent (création seule, jamais de modification).
  */
 import { type Timestamp, collection, doc, getDocs, runTransaction, serverTimestamp } from 'firebase/firestore'
-import { PLAYER_IDS, type PlayerId, playerIdFrom } from '../game/players'
+import { PLAYER_IDS, PLAYER_NAMES, type PlayerId, playerIdFrom } from '../game/players'
 import { type Client, mainClient } from './app'
 import { signIn } from './partie'
 
@@ -32,18 +32,27 @@ export async function readRoster(c: Client = mainClient): Promise<RosterEntry[]>
     .map(({ id, nom }) => ({ id, nom }))
 }
 
-/** Ajoute un joueur ; refuse un nom vide, trop long ou déjà pris. */
-export async function addPlayer(nomSaisi: string, c: Client = mainClient): Promise<RosterEntry> {
+/**
+ * Ajoute un joueur ; refuse un nom vide ou trop long. Un nom déjà connu n'est pas
+ * recréé : on rend le joueur existant (`existait`), que l'accueil remet simplement
+ * dans sa liste — la liste affichée est propre à chaque navigateur.
+ */
+export async function addPlayer(
+  nomSaisi: string,
+  c: Client = mainClient,
+): Promise<RosterEntry & { existait: boolean }> {
   const nom = nomSaisi.trim().replace(/\s+/g, ' ')
   const id = playerIdFrom(nom)
   if (!nom || !id) throw new Error('Il faut un nom')
   if (nom.length > NOM_MAX) throw new Error(`${NOM_MAX} caractères au plus`)
-  if (PLAYER_IDS.includes(id)) throw new Error(`${nom} existe déjà`)
+  if (id === 'bot' || id.startsWith('bot-')) throw new Error('Ce nom est réservé aux bots')
+  if (PLAYER_IDS.includes(id)) return { id, nom: PLAYER_NAMES[id] ?? nom, existait: true }
   await signIn(c)
   const ref = doc(c.db, 'joueurs', id)
-  await runTransaction(c.db, async (tx) => {
-    if ((await tx.get(ref)).exists()) throw new Error(`${nom} existe déjà`)
+  return runTransaction(c.db, async (tx) => {
+    const deja = await tx.get(ref)
+    if (deja.exists()) return { id, nom: (deja.data() as { nom?: string }).nom ?? nom, existait: true }
     tx.set(ref, { nom, creeLe: serverTimestamp() })
+    return { id, nom, existait: false }
   })
-  return { id, nom }
 }
