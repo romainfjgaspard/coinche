@@ -5,13 +5,13 @@
  */
 import {
   collection, doc, getDoc, getDocFromServer, getDocs, onSnapshot, orderBy, query, runTransaction,
-  arrayUnion, serverTimestamp, setDoc, updateDoc, where,
+  type Transaction, arrayUnion, serverTimestamp, setDoc, updateDoc, where,
 } from 'firebase/firestore'
 import { signInAnonymously } from 'firebase/auth'
 import { type Client, mainClient } from './app'
 import { type Card, DECK, gatherAndCut, shuffle } from '../game/cards'
 import { PLAYER_IDS, type PlayerId, type Seating, randomSeating } from '../game/players'
-import { dealHands, dealingOrder } from '../game/deal'
+import { dealHands } from '../game/deal'
 import { ENGINE_VERSION } from '../game/rules'
 import type { GameEvent, NewEvent } from '../game/events'
 import { type BiddingEntry, apply, outcome } from '../game/bidding'
@@ -128,7 +128,12 @@ async function appendWith(
    * une fenêtre où l'on voyait « Ton enchère » sans donne dans le journal — et si
    * l'événement échouait, la partie restait figée.
    */
-  avec?: { game?: Partial<GameDoc>; verifier?: (game: GameDoc) => void },
+  avec?: {
+    game?: Partial<GameDoc>
+    verifier?: (game: GameDoc) => void
+    /** Autres documents écrits dans la même transaction (la donne scellée, les mains). */
+    extraWrites?: (tx: Transaction) => void
+  },
 ): Promise<number> {
   const ecrire = () =>
     runTransaction(c.db, async (tx) => {
@@ -153,6 +158,7 @@ async function appendWith(
       // est celui de la partie — et là, la transaction se rejoue toute seule.
       // L'ordre reste porté par le champ `seq`, sur lequel la lecture trie déjà.
       tx.set(doc(eventsRef(code, c)), { ...event, seq, at: Date.now() })
+      avec?.extraWrites?.(tx)
       return seq
     })
 
@@ -262,23 +268,17 @@ export async function deal(
     previousTricks && !RULES.shuffleEveryDeal ? gatherAndCut(previousTricks, cut) : shuffle(DECK)
 
   const hands = dealHands(pile, game.dealer, game.seating)
-  const order = dealingOrder(game.dealer, game.seating)
-
   const dealNumber = game.dealNumber + 1
-  // Scellée jusqu'à la fin de la partie, puis ouverte pour l'analyse. Écrite en premier :
-  // les règles n'autorisent que sa création, elle sert donc de verrou — une seconde
-  // distribution simultanée échoue ici, avant d'avoir touché aux mains.
-  try {
-    await setDoc(dealRef(code, dealNumber, c), { hands, cut, at: Date.now() })
-  } catch {
-    // Le verrou est déjà pris : quelqu'un d'autre vient de distribuer cette donne.
-    throw new ConcurrentWrite('La donne est déjà distribuée')
-  }
-  await Promise.all(order.map((p) => setDoc(handRef(code, p, c), { cards: hands[p] })))
-  // Changement de phase et événement dans une seule transaction, sur les seuls champs
-  // concernés. Réécrire tout le document depuis la lecture du début effaçait ce qui
-  // avait changé entre-temps (compteurs, sièges), et écrire l'événement à part laissait
-  // la partie en « enchères » sans donne au journal si ce second temps échouait.
+
+  // Toute la distribution en une seule transaction : la donne scellée (lisible une fois
+  // la partie terminée, pour l'analyse), les quatre mains, le changement de phase et
+  // l'événement. Tout ou rien — auparavant, en plusieurs temps :
+  // - réécrire tout le document de partie depuis la lecture du début effaçait ce qui
+  //   avait changé entre-temps (compteurs, sièges) ;
+  // - un échec après le passage en « enchères » laissait une partie sans donne au
+  //   journal, figée ;
+  // - deux distributions simultanées pouvaient mêler leurs mains.
+  // La vérification dans la transaction garantit qu'une seule distribution passe.
   await appendWith(
     c,
     code,
@@ -290,6 +290,10 @@ export async function deal(
         if (g.dealNumber !== game.dealNumber || !distribuable(g)) {
           throw new ConcurrentWrite('La donne est déjà distribuée')
         }
+      },
+      extraWrites: (tx) => {
+        tx.set(dealRef(code, dealNumber, c), { hands, cut, at: Date.now() })
+        for (const p of PLAYER_IDS) tx.set(handRef(code, p, c), { cards: hands[p] })
       },
     },
   )
@@ -328,8 +332,8 @@ export async function readEvents(code: string, c: Client = mainClient): Promise<
   return snap.docs.map((d) => d.data() as GameEvent)
 }
 
-/** Le journal déjà lu, par client et par partie. */
-const journaux = new Map<string, { seq: number; events: GameEvent[] }>()
+/** Le journal déjà lu, par client et par partie, et la lecture en cours s'il y en a une. */
+const journaux = new Map<string, { seq: number; events: GameEvent[]; lecture: Promise<void> }>()
 
 /**
  * Le journal à jour, en ne lisant que ce qui est nouveau depuis la dernière fois.
@@ -342,17 +346,27 @@ const journaux = new Map<string, { seq: number; events: GameEvent[] }>()
  * C'est sûr parce que `seq` est attribué dans une transaction sur le document de partie
  * (`appendWith`) : unique, croissant, et un événement n'est visible qu'une fois tous
  * ceux qui le précèdent écrits.
+ *
+ * Les lectures d'un même client sont mises en file : deux appels simultanés (double
+ * clic, deux bots du même onglet) auraient sinon ajouté deux fois les mêmes événements
+ * au cache, faussant le compteur de coups jusqu'au rechargement.
  */
 export async function readJournal(code: string, c: Client = mainClient): Promise<GameEvent[]> {
   const cle = `${c.app.name}|${code}`
-  const connu = journaux.get(cle) ?? { seq: 0, events: [] }
-  const snap = await getDocs(query(eventsRef(code, c), where('seq', '>', connu.seq), orderBy('seq')))
-  for (const d of snap.docs) {
-    const e = d.data() as GameEvent
-    connu.events.push(e)
-    connu.seq = Math.max(connu.seq, e.seq)
-  }
+  const connu = journaux.get(cle) ?? { seq: 0, events: [], lecture: Promise.resolve() }
   journaux.set(cle, connu)
+  const suite = connu.lecture.then(async () => {
+    const snap = await getDocs(query(eventsRef(code, c), where('seq', '>', connu.seq), orderBy('seq')))
+    for (const d of snap.docs) {
+      const e = d.data() as GameEvent
+      if (e.seq <= connu.seq) continue // déjà connu : jamais deux fois le même événement
+      connu.events.push(e)
+      connu.seq = e.seq
+    }
+  })
+  // Une lecture ratée ne doit pas bloquer les suivantes.
+  connu.lecture = suite.catch(() => {})
+  await suite
   return [...connu.events]
 }
 
@@ -385,6 +399,8 @@ export async function placeBid(
     )
   }
 
+  // L'événement et le changement de phase dans la même transaction : écrits en deux
+  // temps, un onglet fermé entre les deux laissait la partie coincée dans la mauvaise phase.
   const result = outcome(after)
   if (result.status === 'contrat') {
     await appendWith(c, code, {
@@ -395,16 +411,14 @@ export async function placeBid(
       multiplier: result.multiplier,
       capot: result.capot,
       generale: result.generale,
-    })
-    await updateDoc(gameRef(code, c), { phase: 'jeu' })
+    }, undefined, { game: { phase: 'jeu' } })
   } else if (result.status === 'donne_blanche') {
     // ENC-7 + DIS-3 : personne ne prend, le même donneur redonne.
     await appendWith(c, code, {
       type: 'donne_annulee',
       dealNumber: game.dealNumber,
       reason: 'quatre_passes',
-    })
-    await updateDoc(gameRef(code, c), { phase: 'lobby' })
+    }, undefined, { game: { phase: 'lobby' } })
   }
 }
 
@@ -446,7 +460,13 @@ export async function playCard(
 
   const hand = ((await getDoc(handRef(code, player, c))).data()?.cards ?? []) as Card[]
   const after = play(before, player, card, hand) // lève IllegalPlay si le coup est interdit
+  // BEL-2 — vérifiée avant toute écriture : refusée après coup, elle laissait la carte au
+  // journal sans la retirer de la main, ni fermer le pli.
+  if (declareBelote && !canDeclareBelote(before, player, card, hand, before.trump)) {
+    throw new Error('Rien à annoncer avec cette carte')
+  }
 
+  // La carte et la main allégée dans la même transaction.
   await appendWith(
     c,
     code,
@@ -458,12 +478,10 @@ export async function playCard(
       position: before.current.length,
     },
     moveCount(events),
+    { extraWrites: (tx) => tx.set(handRef(code, player, c), { cards: hand.filter((h) => h !== card) }) },
   )
   // BEL-2 — l'annonce est un geste volontaire, au moment de poser la carte.
   if (declareBelote) {
-    if (!canDeclareBelote(before, player, card, hand, before.trump)) {
-      throw new Error('Rien à annoncer avec cette carte')
-    }
     const already = events.some((e) => e.type === 'belote_annoncee' && e.player === player)
     await appendWith(c, code, {
       type: 'belote_annoncee',
@@ -471,8 +489,6 @@ export async function playCard(
       half: already ? 'rebelote' : 'belote',
     })
   }
-
-  await setDoc(handRef(code, player, c), { cards: hand.filter((c) => c !== card) })
 
   if (after.completed.length === before.completed.length) return
 
@@ -512,6 +528,10 @@ export async function playCard(
     game.scores[1] + result.scores[1],
   ]
 
+  const over = isGameOver(scores)
+  // Hors fin de partie, le décompte et le passage à la donne suivante partent avec
+  // l'événement : écrits à part, un onglet fermé entre les deux figeait la table en « jeu ».
+  // MAT-3 — le donneur tourne d'un joueur vers la gauche.
   await appendWith(c, code, {
     type: 'donne_terminee',
     dealNumber: game.dealNumber,
@@ -522,7 +542,9 @@ export async function playCard(
     beloteDeclaredBy: declaredBy,
     beloteForgottenBy: forgotten ? held : null,
     etoile,
-  })
+  }, undefined, over
+    ? undefined
+    : { game: { scores, phase: 'decompte', dealer: nextPlayer(game.dealer, game.seating) } })
 
   // DEC-9 — trois étoiles dans la même partie : la honte complète.
   if (etoile) {
@@ -532,19 +554,16 @@ export async function playCard(
     }
   }
 
-  if (isGameOver(scores)) {
+  if (over) {
+    // La phase passe à « terminée » avec l'événement : c'est elle qui descelle les donnes,
+    // lues juste après pour l'archive.
     await appendWith(c, code, {
       type: 'partie_terminee',
       scores,
       winner: scores[0] > scores[1] ? 0 : 1,
       deals: game.dealNumber,
-    })
-    // La phase passe à « terminée » d'abord : c'est elle qui descelle les donnes.
-    await updateDoc(gameRef(code, c), { scores, phase: 'terminee' })
+    }, undefined, { game: { scores, phase: 'terminee' } })
     await archiveGame(code, game.seating, c)
-  } else {
-    // MAT-3 — le donneur tourne d'un joueur vers la gauche.
-    await updateDoc(gameRef(code, c), { scores, phase: 'decompte', dealer: nextPlayer(game.dealer, game.seating) })
   }
 }
 

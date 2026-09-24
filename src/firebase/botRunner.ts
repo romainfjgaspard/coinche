@@ -11,7 +11,7 @@ import type { GameEvent } from '../game/events'
 import type { PlayerId } from '../game/players'
 import { partnerOf, teamOfPlayer } from '../game/players'
 import { type BiddingEntry, currentBidder, highestBid, rankOf } from '../game/bidding'
-import { biddingFromEvents, playFromEvents } from '../game/replay'
+import { biddingFromEvents, currentDeal, playFromEvents } from '../game/replay'
 import { canDeclareBelote, currentPlayer, playableFor } from '../game/play'
 import { type BotLevel, chooseBid, chooseCard } from '../game/bot'
 import { PLI_VISIBLE_MS } from '../game/display'
@@ -22,7 +22,7 @@ import {
 } from './partie'
 
 /** Un temps de réflexion par défaut, pour que la table reste lisible par des humains. */
-export const REFLEXION_MS = 900
+export const REFLEXION_MS = 550
 
 export interface BotHandle {
   player: PlayerId
@@ -145,7 +145,8 @@ export async function startBot(
       // Entamer juste après un pli : on laisse d'abord le pli complet sur le tapis.
       const etat = quoi === 'poser' ? playFromEvents(events, game!.dealer, game!.seating) : null
       const entame = etat !== null && etat.current.length === 0 && etat.completed.length > 0
-      await attendre(entame ? delayMs + pausePli : delayMs)
+      // Le pli reste affiché `pausePli` : on entame juste après, sans y ajouter la réflexion.
+      await attendre(entame ? Math.max(delayMs, pausePli + Math.round(delayMs / 4)) : delayMs)
       const apres = aFaire(game!)?.cle
       if (!vivant || !game || apres !== cle) {
         console.warn('[p]', player, 'abandon', quoi, cle, '->', apres)
@@ -272,7 +273,9 @@ async function poser(
   const jouables = playableFor(etat, player, hand)
   if (jouables.length === 0) return false
 
-  const contrat = events.find((e) => e.type === 'contrat_fixe')
+  // Le contrat de la donne en cours : `find` sur tout le journal renvoyait celui de la
+  // première donne, et le bot jouait ensuite avec un faux preneur.
+  const contrat = [...currentDeal(events)].reverse().find((e) => e.type === 'contrat_fixe')
   const preneur = contrat && contrat.type === 'contrat_fixe' ? contrat.taker : player
 
   const carte = chooseCard(
