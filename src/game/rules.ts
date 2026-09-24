@@ -25,7 +25,7 @@ export interface Rules {
 export const RULES: Rules = {
   target: 1000,
   minBid: 80,
-  maxBid: 160,
+  maxBid: 170,
   bidStep: 10,
   capotValue: 250,
   generaleValue: 250,

@@ -9,7 +9,7 @@
  * dans la console Firestore et dans les exports.
  */
 import type { Card, Suit } from './cards'
-import type { BiddingEntry } from './bidding'
+import type { BiddingEntry, Declaration } from './bidding'
 import type { PlayerId, Seating } from './players'
 import type { Rules } from './rules'
 
@@ -42,6 +42,11 @@ export type GameEvent = Base &
         taker: PlayerId
         value: number
         trump: Suit | null
+        /**
+         * L'annonce complète : sans elle, sans-atout et tout-atout se confondaient
+         * (`trump` vaut null dans les deux cas). Absente des donnes d'avant le 24/09/2026.
+         */
+        declaration?: Declaration
         multiplier: 1 | 2 | 4
         capot: boolean
         generale: boolean
@@ -77,6 +82,8 @@ export type GameEvent = Base &
         beloteForgottenBy: PlayerId | null
         /** DEC-8 — capot réalisé sans l'avoir annoncé : une étoile pour le preneur */
         etoile: PlayerId | null
+        /** Blitz : donne non coinchée, marquée sans être jouée — pas de cartes à compter */
+        blitz?: boolean
       }
     | { type: 'donne_annulee'; dealNumber: number; reason: 'quatre_passes' }
     /** DEC-9 — trois étoiles dans la même partie : la honte complète. */

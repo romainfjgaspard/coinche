@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Modifie : contenu comprime verticalement pour egaliser les marges du cadre ; rouge aligne sur celui des cartes numerales (#c0392b). Original : svg-cards, David Bellot, LGPL 2.1+. -->
+<!-- Modifie : contenu comprime verticalement pour egaliser les marges du cadre ; rouge et noir alignes sur ceux des cartes numerales (#c0392b, #1f2937). Original : svg-cards, David Bellot, LGPL 2.1+. -->
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" 
   "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns="http://www.w3.org/2000/svg" width="167.09" height="242.67" viewBox="0 0 167.09 242.67" preserveAspectRatio="none">
-  <path fill="#fff" stroke="#000" stroke-width=".5" d="M166.84 235.55a6.89 6.89 0 0 1-6.87 6.87H7.11a6.89 6.89 0 0 1-6.86-6.87V7.12A6.89 6.89 0 0 1 7.11.25H160a6.89 6.89 0 0 1 6.87 6.87z"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="167.09" height="242.67" viewBox="0 0 167.09 242.67" preserveAspectRatio="none" fill="#1f2937">
+  <path fill="#fff" stroke="#1f2937" stroke-width=".5" d="M166.84 235.55a6.89 6.89 0 0 1-6.87 6.87H7.11a6.89 6.89 0 0 1-6.86-6.87V7.12A6.89 6.89 0 0 1 7.11.25H160a6.89 6.89 0 0 1 6.87 6.87z"/>
   <g transform="matrix(1 0 0 0.95386 0 5.0596)">
-  <path fill="#fff" stroke="#000" stroke-width=".03" d="M166.73 235.44a6.88 6.88 0 0 1-6.87 6.87H7a6.88 6.88 0 0 1-6.86-6.87V7A6.89 6.89 0 0 1 7 .15h152.86A6.89 6.89 0 0 1 166.73 7z"/>
+  <path fill="#fff" stroke="#1f2937" stroke-width=".03" d="M166.73 235.44a6.88 6.88 0 0 1-6.87 6.87H7a6.88 6.88 0 0 1-6.86-6.87V7A6.89 6.89 0 0 1 7 .15h152.86A6.89 6.89 0 0 1 166.73 7z"/>
   
-  <path fill="#fff" stroke="#000" stroke-linejoin="round" stroke-width="1.5" d="M158.58 239.8H9.24V4h149.34z"/>
+  <path fill="#fff" stroke="#1f2937" stroke-linejoin="round" stroke-width="1.5" d="M158.58 239.8H9.24V4h149.34z"/>
   <path fill="#f8c20f" d="M108.71 77.42l7.39-11.24-.62-.9-1.94 2.09L110 73.2"/>
   <path fill="#f8c20f" d="M100.23 17.79h1.54l3.41 8.83 2.64 9.28 1.18 8.37 1.15 15.38-1.07 17.19-12.62 19.63-4.71-1.19 2.73-8.48-3.12-3.32v-5.37L98 63.61l4.29-16.27.89-14.47M42.64 99.54L40.06 105l-2.91 8.59-1.46 6.66-1 6.23.65 4.91 4.48-.62 4.47-5.53 2.44-9.46L46 108l-1.38-6M62.7 88.77l-3.54 3.16-.16 5.76 1.08 3.39 2.55 2.06 3.93-3.14 1.7-4.12L66.73 92l-2.61-3.29m7.05 47.18L60 137.18l-7.6 2.9-7.25 4.19-5.13 5-3.28 6.22-1.41 5-.38 5.3.73 3.79 2.12 4.19 2.4 3 3.56 2.39 4.91-7.43 10.31-16"/>
   <path fill="#1c1585" d="M66.21 74.28L62.47 76l-3.64 3.26-5.25 1.43-10.84 17.73 4.75 13.35L45 124l-3.63 5.59-7.23 3.85-.36 9 .59 8.88 1.84 4.68 3-4.89 7.2-16.12 5.75-11.25 10.75-20.17-2.79-2.66-1.46-4.59L60 88.61l3.16-4.84"/>

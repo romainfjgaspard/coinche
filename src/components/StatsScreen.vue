@@ -41,7 +41,7 @@ const enTete = computed(() => {
   if (onglet.value === 'partie') {
     const n = session.dealSummaries.filter((d) => d.status !== null).length
     const eux = session.myTeam === 0 ? 1 : 0
-    return `${nomCamp(session.myTeam)} contre ${nomCamp(eux)} · ${n} donne${n > 1 ? 's' : ''} · objectif 1000`
+    return `${nomCamp(session.myTeam)} contre ${nomCamp(eux)} · ${n} donne${n > 1 ? 's' : ''} · objectif ${session.game?.objectif ?? 1000}${session.game?.blitz ? ' · blitz' : ''}`
   }
   const r = resumeGlobal(archives.value)
   const pl = (v: number, mot: string) => `${v} ${mot}${v > 1 ? 's' : ''}`
@@ -311,7 +311,7 @@ const faits = computed(() => {
         <p class="font-display text-4xl leading-none text-mist">{{ eux }}</p>
       </div>
       <p class="ml-auto text-right text-xs text-sage">
-        {{ donnesJouees }} donne{{ donnesJouees > 1 ? 's' : '' }}<br>objectif 1000
+        {{ donnesJouees }} donne{{ donnesJouees > 1 ? 's' : '' }}<br>objectif {{ session.game?.objectif ?? 1000 }}<template v-if="session.game?.blitz"> · blitz</template>
       </p>
     </div>
     </section>

@@ -8,7 +8,7 @@
  *
  * Pur : se calcule depuis le seul journal, donc aussi bien en direct qu'après coup.
  */
-import { type Card, type Suit, isTrump, rankOf, suitOf } from './cards'
+import { type Atout, type Card, type Suit, isTrump, rankOf, suitOf } from './cards'
 import type { GameEvent } from './events'
 import { type PlayerId, type Seating, nextPlayer } from './players'
 import { type CompletedTrick, applyPlayed, newPlay } from './play'
@@ -45,7 +45,7 @@ const vide = (): ImpasseTally => ({ tentees: 0, reussies: 0, ratees: 0 })
  */
 export function impassesOfTricks(
   tricks: CompletedTrick[],
-  trump: Suit | null,
+  trump: Atout,
   dealNumber = 0,
 ): Impasse[] {
   // Chacun joue à chaque pli : les joueurs de la donne se lisent dans les plis eux-mêmes.
@@ -134,7 +134,7 @@ export function impassesOfGame(
     const places = seatingOf(events.slice(0, bornes[b + 1]), seating)
     const donneur = dealerOf(tranche, dealer)
     const premier = contrat.generale ? contrat.taker : nextPlayer(donneur, places)
-    let state = newPlay(contrat.trump, premier, places)
+    let state = newPlay(contrat.declaration === 'ta' ? 'ta' : contrat.trump, premier, places)
     for (const e of tranche) {
       if (e.type !== 'carte_jouee') continue
       try {

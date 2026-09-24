@@ -12,11 +12,13 @@ import { describe, expect, it } from 'vitest'
 import { getDoc } from 'firebase/firestore'
 import { type Client, makeClient } from '../src/firebase/app'
 import {
-  ConcurrentWrite, type GameDoc, archiveRef, cancelGame, createGame, deal, gameRef, placeBid, readEvents, readJournal,
+  ConcurrentWrite, type GameDoc, archiveRef, cancelGame, createGame, deal, gameRef, placeBid, readEvents, readJournal, rejouer,
   signIn,
   takeSeat,
 } from '../src/firebase/partie'
-import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId } from '../src/game/players'
+import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId, nextPlayer, teamOfPlayer } from '../src/game/players'
+import { biddingFromEvents } from '../src/game/replay'
+import { currentBidder } from '../src/game/bidding'
 import { addPlayer, readRoster } from '../src/firebase/joueurs'
 
 let n = 0
@@ -172,4 +174,45 @@ describe('coinche hors enchères', () => {
     expect(game.phase).toBe('jeu')
     await expect(placeBid(code, { kind: 'coinche', player: 'benel' }, clients.benel)).rejects.toThrow('Les enchères sont closes')
   }, 30_000)
+})
+
+describe('partie en 500, en blitz, puis « Rejouer »', () => {
+  it('trois capots non joués finissent la partie, archivée avec ses règles ; la suivante reprend les équipes', async () => {
+    const clients = await quatreClients()
+    const code = await createGame('benel', DEFAULT_SEATING, 'benel', clients.benel, { objectif: 500, blitz: true })
+    for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
+
+    for (let donne = 1; donne <= 3; donne++) {
+      const avant = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
+      await deal(code, null, clients[avant.dealer as PlayerId])
+      const evts = await readEvents(code, clients.benel)
+      const premier = currentBidder(biddingFromEvents(evts, avant.dealer, avant.seating!))!
+      // Toujours la même équipe (Romain et Viv) : on passe jusqu'à elle, elle annonce le capot.
+      let qui = premier
+      while (teamOfPlayer(qui, avant.seating!) !== 0) {
+        await placeBid(code, { kind: 'passe', player: qui }, clients[qui])
+        qui = nextPlayer(qui, avant.seating!)
+      }
+      await placeBid(code, { kind: 'capot', player: qui, declaration: 's' }, clients[qui])
+      for (let i = 0; i < 3; i++) {
+        qui = nextPlayer(qui, avant.seating!)
+        await placeBid(code, { kind: 'passe', player: qui }, clients[qui])
+      }
+      const fin = (await readEvents(code, clients.benel)).filter((e) => e.type === 'donne_terminee').at(-1)
+      expect(fin).toMatchObject({ blitz: true, status: 'capot' })
+    }
+
+    const finie = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
+    expect(finie.phase).toBe('terminee')
+    const archive = (await getDoc(archiveRef(code, clients.benel))).data()
+    expect(archive).toMatchObject({ objectif: 500, blitz: true })
+
+    const suivante = await rejouer(code, 'benel', clients.benel)
+    expect(await rejouer(code, 'benel', clients.benel)).toBe(suivante) // un seul « Rejouer »
+    const nouvelle = (await getDoc(gameRef(suivante, clients.benel))).data() as GameDoc
+    expect(nouvelle.seating).toEqual(finie.seating)
+    expect(nouvelle.dealer).toBe(nextPlayer(finie.dealer, finie.seating!))
+    expect(nouvelle).toMatchObject({ objectif: 500, blitz: true, phase: 'lobby' })
+    expect(((await getDoc(gameRef(code, clients.viv))).data() as GameDoc).suivante).toBe(suivante)
+  }, 60_000)
 })

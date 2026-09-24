@@ -247,7 +247,7 @@ export function teamTallies(list: DealSummary[], seating: Seating): [TeamTally, 
       const e = equipes[teamOfPlayer(d.taker, seating)]
       e.prises += 1
       if (d.status !== 'chute') e.reussies += 1
-      if (!d.capot && d.value <= 160) e.encheres.push(d.value)
+      if (!d.capot && d.value <= 170) e.encheres.push(d.value)
     }
     for (const c of d.coincheurs) {
       const camp = teamOfPlayer(c, seating)

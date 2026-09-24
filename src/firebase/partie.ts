@@ -19,11 +19,11 @@ import {
   SHAME_THRESHOLD, biddingFromEvents, bidRound, currentDeal, declaredBelote, playFromEvents,
   starsInGame,
 } from '../game/replay'
-import { nextPlayer, playerAtSeat, seatOf } from '../game/players'
+import { nextPlayer, playerAtSeat, seatOf, teamOfPlayer } from '../game/players'
 import {
   beloteHeld, canDeclareBelote, isDealOver, play, trickFlags, tricksForScoring,
 } from '../game/play'
-import { type Contract, scoreDeal, unannouncedCapot } from '../game/scoring'
+import { type Contract, type DealStatus, scoreDeal, unannouncedCapot } from '../game/scoring'
 import { type Archive, buildArchive } from '../game/archive'
 import { isGameOver, RULES } from '../game/rules'
 
@@ -48,6 +48,14 @@ export interface GameDoc {
   /** Nombre de décisions de joueur écrites : enchère, coinche, surcoinche, carte */
   moveSeq: number
   createdAt: unknown
+  /** Points à dépasser pour gagner, choisis au salon. Absent : 1000 (FIN-1). */
+  objectif?: number
+  /** Blitz : une donne non coinchée est marquée sans être jouée, contrat réputé réussi. */
+  blitz?: boolean
+  /** Qui a créé la partie : c'est lui qui peut proposer de rejouer. */
+  createur?: PlayerId
+  /** « Rejouer » : le code de la partie suivante, où chacun est rebasculé. */
+  suivante?: string
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // sans I ni O, illisibles à l'écran
@@ -197,6 +205,7 @@ export async function createGame(
   seating: Seating | null = null,
   dealer: PlayerId = seating?.[1] ?? creator,
   c: Client = mainClient,
+  options: { objectif?: number; blitz?: boolean } = {},
 ): Promise<string> {
   const uid = await signIn(c)
   const code = newCode()
@@ -211,6 +220,9 @@ export async function createGame(
     eventSeq: 0,
     moveSeq: 0,
     createdAt: serverTimestamp(),
+    createur: creator,
+    ...(options.objectif ? { objectif: options.objectif } : {}),
+    ...(options.blitz ? { blitz: true } : {}),
   }
   await setDoc(gameRef(code, c), game)
   // Le snapshot des règles part avec la partie : sans lui, une partie archivée
@@ -439,10 +451,31 @@ export async function placeBid(
       taker: result.taker,
       value: result.value,
       trump: result.trump,
+      declaration: result.declaration,
       multiplier: result.multiplier,
       capot: result.capot,
       generale: result.generale,
     }, undefined, { game: { phase: 'jeu' } })
+
+    // Blitz : une donne non coinchée n'est pas jouée — le contrat est réputé réussi et le
+    // preneur marque sa valeur (250 pour un capot ou une générale). La belote n'est
+    // jamais marquée (BEL-5). Coinchée, la donne se joue normalement.
+    if (game.blitz && result.multiplier === 1) {
+      const camp = teamOfPlayer(result.taker, tableDe(game))
+      const valeur = result.generale ? RULES.generaleValue : result.capot ? RULES.capotValue : result.value
+      const marque: [number, number] = [0, 0]
+      marque[camp] = valeur
+      await clore(code, game, {
+        status: result.generale ? 'generale' : result.capot ? 'capot' : 'reussi',
+        cardPoints: [0, 0],
+        compared: [0, 0],
+        scores: marque,
+        beloteDeclaredBy: null,
+        beloteForgottenBy: null,
+        etoile: null,
+        blitz: true,
+      }, c)
+    }
   } else if (result.status === 'donne_blanche') {
     // ENC-7 + DIS-3 : personne ne prend, le même donneur redonne.
     await appendWith(c, code, {
@@ -460,7 +493,8 @@ function contractFrom(events: GameEvent[], seating: Seating): Contract | null {
   return {
     takerSeat: seatOf(e.taker, seating),
     value: e.value,
-    trump: e.trump,
+    // Tout-atout : les plis se comptent avec l'ordre de l'atout dans chaque couleur.
+    trump: e.declaration === 'ta' ? 'ta' : e.trump,
     multiplier: e.multiplier,
     capot: e.capot,
     generale: e.generale,
@@ -556,18 +590,7 @@ export async function playCard(
   const etoile = unannouncedCapot(result, contract)
     ? playerAtSeat(contract.takerSeat, tableDe(game))
     : null
-  const scores: [number, number] = [
-    game.scores[0] + result.scores[0],
-    game.scores[1] + result.scores[1],
-  ]
-
-  const over = isGameOver(scores)
-  // Hors fin de partie, le décompte et le passage à la donne suivante partent avec
-  // l'événement : écrits à part, un onglet fermé entre les deux figeait la table en « jeu ».
-  // MAT-3 — le donneur tourne d'un joueur vers la gauche.
-  await appendWith(c, code, {
-    type: 'donne_terminee',
-    dealNumber: game.dealNumber,
+  await clore(code, game, {
     status: result.status,
     cardPoints: result.cardPoints,
     compared: result.compared,
@@ -575,6 +598,44 @@ export async function playCard(
     beloteDeclaredBy: declaredBy,
     beloteForgottenBy: forgotten ? held : null,
     etoile,
+  }, c)
+}
+
+/**
+ * Clôt une donne : le décompte, la honte éventuelle, et la fin de partie si l'objectif
+ * est dépassé. Partagé par la donne jouée et la donne blitz, qui ne se joue pas.
+ */
+async function clore(
+  code: string,
+  game: GameDoc,
+  donne: {
+    status: DealStatus
+    cardPoints: [number, number]
+    compared: [number, number]
+    scores: [number, number]
+    beloteDeclaredBy: PlayerId | null
+    beloteForgottenBy: PlayerId | null
+    etoile: PlayerId | null
+    blitz?: boolean
+  },
+  c: Client,
+): Promise<void> {
+  const { etoile } = donne
+  const scores: [number, number] = [
+    game.scores[0] + donne.scores[0],
+    game.scores[1] + donne.scores[1],
+  ]
+
+  const over = isGameOver(scores, { ...RULES, target: game.objectif ?? RULES.target })
+  // Hors fin de partie, le décompte et le passage à la donne suivante partent avec
+  // l'événement : écrits à part, un onglet fermé entre les deux figeait la table en « jeu ».
+  // MAT-3 — le donneur tourne d'un joueur vers la gauche.
+  const { blitz, ...detail } = donne
+  await appendWith(c, code, {
+    type: 'donne_terminee',
+    dealNumber: game.dealNumber,
+    ...detail,
+    ...(blitz ? { blitz: true } : {}),
   }, undefined, over
     ? undefined
     : { game: { scores, phase: 'decompte', dealer: nextPlayer(game.dealer, tableDe(game)) } })
@@ -620,6 +681,46 @@ export async function cancelGame(code: string, player: PlayerId, c: Client = mai
   })
 }
 
+/**
+ * « Rejouer » à la fin d'une partie : les mêmes équipes, le donneur suivant, les
+ * mêmes règles. La partie finie garde le code de la suivante : les autres y sont
+ * rebasculés en le voyant. Deux clics simultanés ne créent qu'une partie.
+ */
+export async function rejouer(code: string, player: PlayerId, c: Client = mainClient): Promise<string> {
+  const ancienne = (await getDoc(gameRef(code, c))).data() as GameDoc | undefined
+  if (!ancienne || ancienne.phase !== 'terminee') throw new Error("La partie n'est pas terminée")
+  if (ancienne.suivante) return ancienne.suivante
+  const table = tableDe(ancienne)
+  const suivante = await createGame(player, table, nextPlayer(ancienne.dealer, table), c, {
+    objectif: ancienne.objectif,
+    blitz: ancienne.blitz,
+  })
+  // Le premier arrivé l'emporte : un second « Rejouer » simultané rejoint sa partie.
+  return runTransaction(c.db, async (tx) => {
+    const g = (await tx.get(gameRef(code, c))).data() as GameDoc
+    if (g.suivante) return g.suivante
+    tx.update(gameRef(code, c), { suivante })
+    return suivante
+  })
+}
+
+/** Les objectifs proposés au salon. */
+export const OBJECTIFS = [500, 1000, 1500, 2000] as const
+
+/** Règles de la partie, choisies au salon : l'objectif, le blitz. Figées dès la première donne. */
+export async function setOptions(
+  code: string,
+  options: { objectif?: number; blitz?: boolean },
+  c: Client = mainClient,
+): Promise<void> {
+  const snap = await getDoc(gameRef(code, c))
+  if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
+  if ((snap.data() as GameDoc).dealNumber > 0) {
+    throw new Error('Les règles ne changent plus une fois la partie commencée')
+  }
+  await updateDoc(gameRef(code, c), options)
+}
+
 /** Change le placement avant la première donne : au hasard, ou choisi. */
 export async function setSeating(
   code: string,
@@ -658,7 +759,12 @@ export async function archiveGame(
   const bots = partie
     ? (Object.keys(partie.seats) as PlayerId[]).filter((p) => partie.seats[p]?.bot)
     : []
-  const archive = buildArchive(code, events, seating, mains, bots)
+  const archive: Archive = {
+    ...buildArchive(code, events, seating, mains, bots),
+    // Une partie en 500 ou en blitz ne se compare pas tout à fait aux autres : on le garde.
+    ...(partie?.objectif && partie.objectif !== RULES.target ? { objectif: partie.objectif } : {}),
+    ...(partie?.blitz ? { blitz: true } : {}),
+  }
   await setDoc(archiveRef(code, c), archive)
   return archive
 }

@@ -35,7 +35,8 @@ const level = ref<Level | null>(null)
 const declaration = ref<Declaration | null>(null)
 
 const SUITS: Suit[] = ['s', 'h', 'd', 'c']
-const ALL_VALUES = [80, 90, 100, 110, 120, 130, 140, 150, 160]
+// 170 : un « 150 belotté », qui ne se tient qu'avec la belote (DEC-3).
+const ALL_VALUES = [80, 90, 100, 110, 120, 130, 140, 150, 160, 170]
 
 const best = computed(() => {
   const entries = session.bidding?.entries ?? []
@@ -176,7 +177,12 @@ const bestText = computed(() => {
     Sur PC le panneau se cale en haut du tapis et grandit vers le bas : centré
     verticalement, il sautait à chaque annonce ajoutée à l'historique.
   -->
+  <!--
+    Sur PC, la fenêtre n'apparaît que quand c'est à moi de parler : « réfléchit… » se lit
+    à côté du joueur concerné, et l'historique a sa colonne à gauche du tapis.
+  -->
   <div
+    v-if="!grand || session.myBidTurn"
     :class="grand ? 'absolute z-40 -translate-x-1/2' : 'absolute inset-x-0 bottom-0 z-40'"
     :style="grand ? { left: '50%', top: `${L.tapis.y + L.rim + Math.round(22 * L.u)}px` } : undefined"
   >

@@ -16,6 +16,8 @@ defineProps<{
   annonce?: DerniereAnnonce
   /** Annonce en grand : sur PC, elle se lit de loin, comme le rappel du contrat */
   grand?: boolean
+  /** C'est à lui de parler : « réfléchit… » sous son nom, à la place de sa dernière annonce */
+  reflechit?: boolean
 }>()
 </script>
 
@@ -46,7 +48,12 @@ defineProps<{
     l'élargissait et la faisait déborder de l'écran sur les côtés.
   -->
   <span
-    v-if="annonce"
+    v-if="reflechit"
+    class="absolute top-full left-1/2 -translate-x-1/2 rounded-full bg-black/45 whitespace-nowrap text-mist italic"
+    :class="grand ? 'mt-1.5 px-2.5 py-0.5 text-base' : 'mt-1 px-2 py-px text-xs'"
+  >réfléchit…</span>
+  <span
+    v-else-if="annonce"
     class="absolute top-full left-1/2 flex -translate-x-1/2 items-center rounded-full bg-black/45 whitespace-nowrap"
     :class="[
       grand ? 'mt-1.5 gap-1.5 py-0.5 pr-1 pl-2.5 text-lg leading-tight' : 'mt-1 gap-1 py-px pr-0.5 pl-2 text-xs',

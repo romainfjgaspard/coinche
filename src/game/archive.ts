@@ -56,6 +56,9 @@ export interface Archive {
   /** Sièges tenus par un bot. Vide pour une partie entre humains. */
   bots: PlayerId[]
   players: Record<PlayerId, PlayerArchive>
+  /** Points à dépasser, et partie en blitz. Absents : 1000 et partie normale. */
+  objectif?: number
+  blitz?: boolean
 }
 
 const vide = (): PlayerArchive => ({

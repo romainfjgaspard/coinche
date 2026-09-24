@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Modifie : contenu comprime verticalement pour egaliser les marges du cadre ; rouge aligne sur celui des cartes numerales (#c0392b). Original : svg-cards, David Bellot, LGPL 2.1+. -->
+<!-- Modifie : contenu comprime verticalement pour egaliser les marges du cadre ; rouge et noir alignes sur ceux des cartes numerales (#c0392b, #1f2937). Original : svg-cards, David Bellot, LGPL 2.1+. -->
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" 
   "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns="http://www.w3.org/2000/svg" width="167.09" height="242.67" viewBox="0 0 167.09 242.67" preserveAspectRatio="none">
-  <path fill="#fff" stroke="#000" stroke-width=".5" d="M166.84 235.55a6.89 6.89 0 0 1-6.87 6.87H7.11a6.89 6.89 0 0 1-6.86-6.87V7.12A6.89 6.89 0 0 1 7.11.25H160a6.89 6.89 0 0 1 6.87 6.87z"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="167.09" height="242.67" viewBox="0 0 167.09 242.67" preserveAspectRatio="none" fill="#1f2937">
+  <path fill="#fff" stroke="#1f2937" stroke-width=".5" d="M166.84 235.55a6.89 6.89 0 0 1-6.87 6.87H7.11a6.89 6.89 0 0 1-6.86-6.87V7.12A6.89 6.89 0 0 1 7.11.25H160a6.89 6.89 0 0 1 6.87 6.87z"/>
   <g transform="matrix(1 0 0 0.95888 0 5.2868)">
   
-  <path fill="#fff" stroke="#000" stroke-linejoin="round" stroke-width="1.5" d="M157.81 237.75H9.54V4.3h148.27z"/>
+  <path fill="#fff" stroke="#1f2937" stroke-linejoin="round" stroke-width="1.5" d="M157.81 237.75H9.54V4.3h148.27z"/>
   <path d="M46.61 185.34L41 181.73l80.12-124.82 5.63 3.61z"/>
   <path fill="#fff" d="M47.24 179.86a2 2 0 1 1-2.84.6 2.06 2.06 0 0 1 2.84-.6z"/>
   <path d="M46.5 181a.65.65 0 0 1-.71 1.1.64.64 0 0 1-.19-.89.65.65 0 0 1 .9-.21z"/>

@@ -10,7 +10,7 @@ import { type Card, sortHand } from '../game/cards'
 import type { PlayerId } from '../game/players'
 import {
   type GameDoc, allSeatsTaken, cancelGame, createGame, deal, gameRef, placeBid, playCard, readArchives,
-  setSeating, signIn, takeSeat, watchEvents, watchGame, watchHand,
+  rejouer as rejouerPartie, setOptions, setSeating, signIn, takeSeat, watchEvents, watchGame, watchHand,
 } from '../firebase/partie'
 import type { Archive } from '../game/archive'
 import type { GameEvent } from '../game/events'
@@ -326,6 +326,11 @@ export const useSession = defineStore('session', () => {
     })
   }
 
+  async function chooseOptions(options: { objectif?: number; blitz?: boolean }): Promise<void> {
+    if (!code.value) return
+    await run(() => setOptions(code.value!, options))
+  }
+
   async function chooseSeating(next: Seating): Promise<void> {
     if (!code.value) return
     await run(() => setSeating(code.value!, next))
@@ -342,6 +347,29 @@ export const useSession = defineStore('session', () => {
     if (!code.value || !playerId.value) return
     await run(() => playCard(code.value!, playerId.value!, card, declareBelote, undefined, tempsDeReflexion()))
   }
+
+  /**
+   * Le huitième pli se joue tout seul : il ne reste qu'une carte, il n'y a rien à
+   * décider. Un court temps d'attente laisse voir le pli précédent se ramasser. La
+   * belote (rebelote sur la dernière carte) s'annonce d'office : elle ne peut que servir.
+   */
+  let derniereCarteJouee: string | null = null
+  watch(
+    () => (myPlayTurn.value && hand.value.length === 1 && heldTrick.value === null ? hand.value[0] : null),
+    (carte) => {
+      if (!carte) return
+      const cle = `${code.value}|${game.value?.dealNumber}|${carte}`
+      if (cle === derniereCarteJouee) return
+      derniereCarteJouee = cle
+      setTimeout(() => {
+        if (myPlayTurn.value && hand.value.length === 1 && hand.value[0] === carte && code.value && playerId.value) {
+          // Sans temps de réflexion : joué d'office, il fausserait les moyennes.
+          const belote = beloteCards.value.includes(carte)
+          void run(() => playCard(code.value!, playerId.value!, carte, belote))
+        }
+      }, 600)
+    },
+  )
 
   function leave(): void {
     stopBots()
@@ -396,6 +424,40 @@ export const useSession = defineStore('session', () => {
     },
   )
 
+  /**
+   * Passe à la partie suivante (« Rejouer ») : on s'y assoit — le créateur l'est déjà —
+   * et on relance, avec leur niveau, les bots que cet onglet faisait tourner.
+   */
+  async function basculerVers(suivante: string): Promise<void> {
+    const moi = playerId.value
+    if (!moi || code.value === suivante) return
+    const aRelancer = bots.value.map((b) => ({ player: b.player, level: b.level }))
+    stopBots()
+    await run(async () => {
+      const g = (await getDoc(gameRef(suivante))).data() as GameDoc | undefined
+      if (!g?.seats[moi]) await takeSeat(suivante, moi)
+      code.value = suivante
+      persist({ playerId: moi, code: suivante })
+      subscribe(suivante)
+    })
+    for (const b of aRelancer) await addBot(b.player, b.level)
+  }
+
+  /** « Rejouer » : l'organisateur crée la partie suivante, les autres y basculent seuls. */
+  async function rejouer(): Promise<void> {
+    if (!code.value || !playerId.value) return
+    const suivante = await run(() => rejouerPartie(code.value!, playerId.value!))
+    if (suivante) await basculerVers(suivante)
+  }
+
+  // Les autres voient apparaître la partie suivante sur la partie finie : ils y basculent.
+  watch(
+    () => game.value?.suivante,
+    (suivante) => {
+      if (suivante && game.value?.phase === 'terminee') void basculerVers(suivante)
+    },
+  )
+
   /** Reprise après rafraîchissement : on se rebranche sur la partie mémorisée. */
   async function resume(): Promise<void> {
     if (!code.value || !playerId.value) return
@@ -412,8 +474,8 @@ export const useSession = defineStore('session', () => {
     play, toPlay, myPlayTurn, playable, beloteCards,
     lastTrick, trickCounts, stars, shame, lastStar, sortedHand, heldTrick, shownTrick,
     dealSummaries, scoreCurve, momentumBars, playerTallies, impasses, impasseCounts, reflexionsPartie,
-    peek, create, join, chooseSeating, startDeal, bid, playTheCard, leave, resume, loadArchives,
-    avis, cancel,
+    peek, create, join, chooseSeating, chooseOptions, startDeal, bid, playTheCard, leave, resume, loadArchives,
+    avis, cancel, rejouer,
     bots, addBot, stopBots, botDealerHere, dealAcknowledged, continueToNextDeal,
   }
 })

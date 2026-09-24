@@ -4,7 +4,7 @@
  * L'état complet d'une donne se déduit de la suite des cartes posées : c'est ce qui
  * permet de le rejouer depuis le journal, et d'analyser les parties après coup.
  */
-import { type Card, type Suit, suitOf } from './cards'
+import { type Atout, type Card, atoutCouleur, suitOf } from './cards'
 import { type PlayerId, type Seating, playerAtSeat, seatOf } from './players'
 import { type PlayedCard, playableCards, trickPoints, trickWinner } from './trick'
 
@@ -21,7 +21,7 @@ export interface CompletedTrick {
 }
 
 export interface PlayState {
-  trump: Suit | null
+  trump: Atout
   /** Entame du premier pli : à gauche du donneur, ou le preneur sur une générale */
   firstLeader: PlayerId
   /** Le placement de cette partie */
@@ -33,7 +33,7 @@ export interface PlayState {
 export const TRICKS_PER_DEAL = 8
 
 export const newPlay = (
-  trump: Suit | null,
+  trump: Atout,
   firstLeader: PlayerId,
   seating: Seating,
 ): PlayState => ({ trump, firstLeader, seating, current: [], completed: [] })
@@ -118,8 +118,8 @@ export function handAt(dealt: Card[], state: PlayState, player: PlayerId): Card[
 }
 
 /** Le pli a-t-il été coupé ? Utile aux statistiques, pas au décompte. */
-export function trickFlags(trick: CompletedTrick, trump: Suit | null): { cut: boolean; overcut: boolean } {
-  if (trump === null) return { cut: false, overcut: false }
+export function trickFlags(trick: CompletedTrick, trump: Atout): { cut: boolean; overcut: boolean } {
+  if (!atoutCouleur(trump)) return { cut: false, overcut: false }
   const led = suitOf(trick.plays[0].card)
   if (led === trump) return { cut: false, overcut: false }
   const trumps = trick.plays.filter((p) => suitOf(p.card) === trump)
@@ -133,8 +133,8 @@ export function trickFlags(trick: CompletedTrick, trump: Suit | null): { cut: bo
  * Cette fonction existe pour les statistiques — savoir combien de belotes
  * ont été oubliées, et par qui.
  */
-export function beloteHeld(state: PlayState, trump: Suit | null): PlayerId | null {
-  if (trump === null) return null
+export function beloteHeld(state: PlayState, trump: Atout): PlayerId | null {
+  if (!atoutCouleur(trump)) return null
   const plays = state.completed.flatMap((t) => t.plays)
   const king = plays.find((p) => p.card === `K${trump}`)
   const queen = plays.find((p) => p.card === `Q${trump}`)
@@ -152,9 +152,9 @@ export function canDeclareBelote(
   player: PlayerId,
   card: Card,
   hand: Card[],
-  trump: Suit | null,
+  trump: Atout,
 ): boolean {
-  if (trump === null) return false
+  if (!atoutCouleur(trump)) return false
   const king = `K${trump}` as Card
   const queen = `Q${trump}` as Card
   if (card !== king && card !== queen) return false

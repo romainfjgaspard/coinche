@@ -169,7 +169,7 @@ export function joueurStats(archives: Archive[]): JoueurStats[] {
         chronoEnchere = ajouterChrono(chronoEnchere, p.reflexion.encheres)
         chronoCarte = ajouterChrono(chronoCarte, p.reflexion.cartes)
       }
-      encheres.push(...p.detail.filter((d) => !d.capot && d.value <= 160).map((d) => d.value))
+      encheres.push(...p.detail.filter((d) => !d.capot && d.value <= 170).map((d) => d.value))
       base.belotesAnnoncees += p.belotesAnnoncees
       base.belotesOubliees += p.belotesOubliees
       base.etoiles += p.etoiles
@@ -219,7 +219,7 @@ export function prisesAvecForce(archives: Archive[]): PriseForce[] {
 }
 
 /** Paliers d'enchère, capot compris, pour les barres. */
-export const PALIERS = [80, 90, 100, 110, 120, 130, 140, 150, 160, 'capot'] as const
+export const PALIERS = [80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 'capot'] as const
 export type Palier = (typeof PALIERS)[number]
 
 const palierDe = (d: PriseDetail): Palier => (d.capot ? 'capot' : (d.value as Palier))

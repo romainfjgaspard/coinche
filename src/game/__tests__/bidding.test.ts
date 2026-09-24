@@ -29,13 +29,13 @@ describe('ENC-1 — ordre de parole', () => {
 })
 
 describe('ENC-3 / ENC-4 — paliers et surenchère', () => {
-  it('ouvre à 80 et monte de 10 en 10 jusqu\'à 160', () => {
-    expect(legalValues(start())).toEqual([80, 90, 100, 110, 120, 130, 140, 150, 160])
+  it('ouvre à 80 et monte de 10 en 10 jusqu\'à 170 (un 150 belotté)', () => {
+    expect(legalValues(start())).toEqual([80, 90, 100, 110, 120, 130, 140, 150, 160, 170])
   })
 
   it('n\'autorise plus que le dessus d\'une enchère existante', () => {
     const s = run({ kind: 'contrat', player: 'viv', value: 90, suit: 'h' })
-    expect(legalValues(s)).toEqual([100, 110, 120, 130, 140, 150, 160])
+    expect(legalValues(s)).toEqual([100, 110, 120, 130, 140, 150, 160, 170])
   })
 
   it('refuse une enchère égale ou inférieure', () => {

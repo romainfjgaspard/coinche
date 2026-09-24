@@ -5,6 +5,7 @@ import {
   teamOfPlayer,
 } from '../game/players'
 import DealerChip from './DealerChip.vue'
+import { OBJECTIFS } from '../firebase/partie'
 import { useSession } from '../stores/session'
 import { nomDe, useRoster } from '../stores/roster'
 import { useLargeScreen } from '../composables/useLargeScreen'
@@ -137,6 +138,38 @@ const monPartenaire = computed(() =>
       class="mt-2 h-10 w-full cursor-pointer rounded-xl border border-white/15 text-[13px] text-mist transition hover:border-white/35 hover:bg-white/5"
       @click="seating && session.chooseSeating(randomSeating(Math.random, seating))"
     >Retirer au sort</button>
+
+    <!-- Les règles de cette partie : figées à la première donne -->
+    <h2 class="mt-8 mb-3 text-[13px] font-semibold tracking-wider text-sage uppercase">La partie</h2>
+    <div class="flex items-center gap-2">
+      <span class="w-20 text-sm text-mist">En</span>
+      <button
+        v-for="o in OBJECTIFS"
+        :key="o"
+        type="button"
+        :disabled="session.busy"
+        class="h-9 grow cursor-pointer rounded-lg border text-sm font-semibold transition disabled:opacity-50"
+        :class="(session.game?.objectif ?? 1000) === o
+          ? 'border-gold bg-gold/15 text-gold'
+          : 'border-white/15 text-mist hover:border-white/35'"
+        @click="session.chooseOptions({ objectif: o })"
+      >{{ o }}</button>
+    </div>
+    <label class="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/15 px-3.5 py-2.5 transition hover:border-white/35">
+      <input
+        type="checkbox"
+        class="mt-0.5 size-4 accent-[#d9a441]"
+        :checked="session.game?.blitz ?? false"
+        :disabled="session.busy"
+        @change="session.chooseOptions({ blitz: ($event.target as HTMLInputElement).checked })"
+      />
+      <span>
+        <span class="block text-sm font-semibold">Blitz</span>
+        <span class="block text-xs text-sage">
+          Une donne non coinchée n'est pas jouée : le contrat est réputé réussi, le preneur marque sa valeur.
+        </span>
+      </span>
+    </label>
 
     <h2 class="mt-8 mb-3 text-[13px] font-semibold tracking-wider text-sage uppercase">
       Autour de la table — {{ seatedCount }} sur 4

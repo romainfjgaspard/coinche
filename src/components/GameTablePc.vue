@@ -149,6 +149,10 @@ const teams = computed(() => [
           v-if="contract.multiplier > 1"
           class="mt-2 inline-block rounded-full bg-red-card px-3 py-1 text-sm font-bold tracking-wide text-ivory"
         >{{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}</p>
+        <!-- L'historique s'ouvre juste en dessous, là où l'on a cliqué -->
+        <div v-if="session.game?.phase === 'jeu' && encheresVisibles" class="relative z-30 mt-3 w-[300px]">
+          <BiddingHistory />
+        </div>
       </div>
     </div>
 
@@ -198,7 +202,7 @@ const teams = computed(() => [
       <div :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
           :player="around.top" :dealer="session.game?.dealer === around.top"
-          :active="isActive(around.top)" :stars="starsOf(around.top)" :annonce="lastBid.get(around.top)" grand
+          :active="isActive(around.top)" :stars="starsOf(around.top)" :annonce="lastBid.get(around.top)" grand :reflechit="session.toBid === around.top"
         />
       </div>
     </div>
@@ -219,7 +223,7 @@ const teams = computed(() => [
       <div :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
           :player="around[side]" :dealer="session.game?.dealer === around[side]"
-          :active="isActive(around[side])" :stars="starsOf(around[side])" :annonce="lastBid.get(around[side])" grand
+          :active="isActive(around[side])" :stars="starsOf(around[side])" :annonce="lastBid.get(around[side])" grand :reflechit="session.toBid === around[side]"
         />
       </div>
     </div>
@@ -255,16 +259,16 @@ const teams = computed(() => [
       </div>
     </div>
 
-    <!-- L'historique des enchères, à droite du tapis comme sur la maquette -->
+    <!--
+      L'historique des enchères, en haut à gauche du tapis : à la place où le contrat
+      s'affichera, et d'où il se rouvre pendant le jeu.
+    -->
     <div
-      v-if="session.game?.phase === 'encheres' || (session.game?.phase === 'jeu' && encheresVisibles)"
+      v-if="session.game?.phase === 'encheres'"
       class="absolute z-30"
-      :style="{
-        right: px(L.width - (L.tapis.x + L.tapis.w) + L.rim + Math.round(24 * L.u)),
-        top: px(L.tapis.y + L.rim + Math.round(22 * L.u)),
-      }"
+      :style="{ left: px(L.tapis.x + L.rim + Math.round(28 * L.u)), top: px(L.tapis.y + L.rim + Math.round(24 * L.u)) }"
     >
-      <div class="w-[300px]" :style="{ zoom: L.t * 1.05 }">
+      <div class="w-[300px]" :style="{ zoom: L.t }">
         <BiddingHistory />
       </div>
     </div>

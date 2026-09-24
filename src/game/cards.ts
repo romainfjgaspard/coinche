@@ -22,7 +22,16 @@ export const DECK: Card[] = SUITS.flatMap((s) => RANKS.map((r) => `${r}${s}` as 
 export const suitOf = (card: Card): Suit => card.slice(-1) as Suit
 export const rankOf = (card: Card): Rank => card.slice(0, -1) as Rank
 
-/** ORD-1 — à l'atout : V > 9 > A > 10 > R > D > 8 > 7 */
+/**
+ * L'atout d'une donne : une couleur, tout-atout, ou rien (sans-atout). Au tout-atout,
+ * chaque couleur suit l'ordre de l'atout, sans qu'aucune ne coupe les autres.
+ */
+export type Atout = Suit | 'ta' | null
+
+/** L'atout d'une couleur précise : ni tout-atout, ni sans-atout. */
+export const atoutCouleur = (trump: Atout): trump is Suit => trump !== null && trump !== 'ta'
+
+/** ORD-1 — à l'atout (et en tout-atout) : V > 9 > A > 10 > R > D > 8 > 7 */
 const TRUMP_ORDER: Rank[] = ['J', '9', 'A', '10', 'K', 'Q', '8', '7']
 /** ORD-2 — hors atout : A > 10 > R > D > V > 9 > 8 > 7 */
 const PLAIN_ORDER: Rank[] = ['A', '10', 'K', 'Q', 'J', '9', '8', '7']
@@ -32,20 +41,26 @@ const TRUMP_VALUES: Record<Rank, number> = {
 const PLAIN_VALUES: Record<Rank, number> = {
   A: 11, '10': 10, K: 4, Q: 3, J: 2, '9': 0, '8': 0, '7': 0,
 }
+/** Tout-atout : 38 points par couleur, 152 en tout, comme à la couleur. */
+const TOUT_ATOUT_VALUES: Record<Rank, number> = {
+  J: 14, '9': 9, A: 6, '10': 5, K: 3, Q: 1, '8': 0, '7': 0,
+}
 
 /** Force d'une carte dans son propre registre. Plus c'est haut, plus c'est fort. */
-export function strength(card: Card, trump: Suit | null): number {
-  const order = trump !== null && suitOf(card) === trump ? TRUMP_ORDER : PLAIN_ORDER
+export function strength(card: Card, trump: Atout): number {
+  const order = trump === 'ta' || (trump !== null && suitOf(card) === trump) ? TRUMP_ORDER : PLAIN_ORDER
   return order.length - 1 - order.indexOf(rankOf(card))
 }
 
-export function value(card: Card, trump: Suit | null): number {
-  const table = trump !== null && suitOf(card) === trump ? TRUMP_VALUES : PLAIN_VALUES
+export function value(card: Card, trump: Atout): number {
+  const table = trump === 'ta' ? TOUT_ATOUT_VALUES
+    : trump !== null && suitOf(card) === trump ? TRUMP_VALUES : PLAIN_VALUES
   return table[rankOf(card)]
 }
 
-export const isTrump = (card: Card, trump: Suit | null): boolean =>
-  trump !== null && suitOf(card) === trump
+/** Au tout-atout, aucune couleur n'en coupe une autre : rien n'y est « atout » au sens de la coupe. */
+export const isTrump = (card: Card, trump: Atout): boolean =>
+  atoutCouleur(trump) && suitOf(card) === trump
 
 const RED: Suit[] = ['h', 'd']
 
@@ -54,9 +69,9 @@ const RED: Suit[] = ['h', 'd']
  * noir** chaque fois que la main le permet — deux couleurs de même teinte côte à côte
  * se confondent d'un coup d'œil. Chaque couleur va de la plus forte à la plus faible.
  */
-export function sortHand(hand: Card[], trump: Suit | null): Card[] {
+export function sortHand(hand: Card[], trump: Atout): Card[] {
   const present = SUITS.filter((s) => hand.some((c) => suitOf(c) === s))
-  const order: Suit[] = trump !== null && present.includes(trump) ? [trump] : []
+  const order: Suit[] = atoutCouleur(trump) && present.includes(trump) ? [trump] : []
   let rest = present.filter((s) => s !== trump)
   while (rest.length > 0) {
     const last = order.at(-1)

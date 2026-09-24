@@ -5,7 +5,7 @@
  * strictement plus de points que la défense (DEC-3). La belote entre dans cette
  * comparaison mais n'est jamais marquée (BEL-5).
  */
-import type { Card, Suit } from './cards'
+import { type Atout, type Card, atoutCouleur } from './cards'
 import { type PlayedCard, trickPoints, trickWinner } from './trick'
 import { RULES, type Rules } from './rules'
 
@@ -21,7 +21,7 @@ export interface Contract {
   takerSeat: number
   /** Valeur annoncée : 80–160, ou capotValue / generaleValue */
   value: number
-  trump: Suit | null
+  trump: Atout
   /** 1 = simple, 2 = coinché, 4 = surcoinché (CO-1, CO-2) */
   multiplier: 1 | 2 | 4
   capot: boolean
@@ -118,7 +118,7 @@ export function unannouncedCapot(result: DealResult, contract: Contract): boolea
 }
 
 /** BEL-1 — détecte Roi + Dame d'atout dans une main. */
-export function hasBelote(hand: Card[], trump: Suit | null): boolean {
-  if (trump === null) return false
+export function hasBelote(hand: Card[], trump: Atout): boolean {
+  if (!atoutCouleur(trump)) return false
   return hand.includes(`K${trump}` as Card) && hand.includes(`Q${trump}` as Card)
 }

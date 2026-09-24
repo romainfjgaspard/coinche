@@ -73,7 +73,8 @@ export function playFromEvents(
   const first = result.generale
     ? result.taker
     : nextPlayer(dealerOf(events, dealer), places)
-  let state = newPlay(result.trump, first, places)
+  // Tout-atout : l'ordre de l'atout dans chaque couleur ; `trump` seul ne le distingue pas du sans-atout.
+  let state = newPlay(result.declaration === 'ta' ? 'ta' : result.trump, first, places)
   for (const e of currentDeal(events)) {
     if (e.type !== 'carte_jouee') continue
     try {

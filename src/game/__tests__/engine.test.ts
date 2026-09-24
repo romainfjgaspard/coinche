@@ -229,3 +229,32 @@ describe('DEC-8 — capot non annoncé', () => {
     expect(unannouncedCapot(scoreDeal(tricks, c, RULES), c)).toBe(false)
   })
 })
+
+describe('tout-atout', () => {
+  const pli = (...cards: Card[]): PlayedCard[] => cards.map((card, seat) => ({ seat, card }))
+
+  it("chaque couleur suit l'ordre de l'atout : le valet bat l'as", () => {
+    expect(trickWinner(pli('As', 'Js', '9s', '10s'), 'ta')).toBe(1)
+    // En sans-atout, c'est l'as.
+    expect(trickWinner(pli('As', 'Js', '9s', '10s'), null)).toBe(0)
+  })
+
+  it("aucune couleur n'en coupe une autre : la couleur demandée l'emporte", () => {
+    expect(trickWinner(pli('7s', 'Jh', '8s', 'Jd'), 'ta')).toBe(2)
+  })
+
+  it('on doit monter dans la couleur demandée quand on le peut', () => {
+    const main: Card[] = ['9s', '7s', 'Ah']
+    // L'adversaire (siège 0) mène avec l'as : le 9 le bat, le 7 non.
+    expect(playableCards(main, pli('As'), 'ta', 1)).toEqual(['9s'])
+  })
+
+  it('les points : 38 par couleur, 152 en tout', () => {
+    expect(DECK.reduce((s, c) => s + value(c, 'ta'), 0)).toBe(152)
+    expect(strength('Jh', 'ta')).toBeGreaterThan(strength('Ah', 'ta'))
+  })
+
+  it('la main se trie dans le même ordre', () => {
+    expect(sortHand(['Ah', 'Jh', '9h', '10h'], 'ta')).toEqual(['Jh', '9h', 'Ah', '10h'])
+  })
+})

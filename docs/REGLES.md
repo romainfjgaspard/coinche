@@ -33,8 +33,8 @@
 | Id | Règle | État |
 |----|-------|------|
 | ENC-1 | Le joueur à gauche du donneur parle en premier | ✅ |
-| ENC-2 | Une enchère = un contrat (80 à 160) + une couleur d'atout | ✅ |
-| ENC-3 | Paliers de 10 : 80, 90, 100 … 160 | ✅ |
+| ENC-2 | Une enchère = un contrat (80 à 170) + une couleur d'atout | ✅ |
+| ENC-3 | Paliers de 10 : 80, 90, 100 … 170. Le 170 est un « 150 belotté » : il ne se tient qu'avec la belote (DEC-3) | ✅ |
 | ENC-4 | Toute enchère doit être strictement supérieure à la précédente | ✅ |
 | ENC-5 | **Un joueur qui a passé peut reparler** à un tour suivant. Passer n'engage que pour le tour en cours | ✅ |
 | ENC-6 | Les enchères s'arrêtent après 3 passes consécutives suivant une enchère | ✅ |

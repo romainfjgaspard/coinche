@@ -25,6 +25,14 @@ const over = computed(() => session.game?.phase === 'terminee')
  * autres : l'écran « Partie gagnée » arrivait directement, sans ses scores.
  */
 const bilanVu = ref(false)
+
+/** L'organisateur : noté sur la partie, ou à défaut le premier assis (parties d'avant). */
+const createur = computed<PlayerId>(() => {
+  if (session.game?.createur) return session.game.createur
+  const e = session.events.find((x) => x.type === 'partie_creee')
+  return e && e.type === 'partie_creee' ? (Object.keys(e.seats)[0] ?? '') : ''
+})
+const organisateur = computed(() => session.playerId !== null && session.playerId === createur.value)
 /** ENC-7 — quatre passes : la donne est annulée et le même donneur redistribue. */
 const blanche = computed(() => session.game?.phase === 'lobby')
 const final = computed(() => {
@@ -144,7 +152,10 @@ function next(): void {
             <p class="font-display text-3xl text-them">+{{ result.scores[session.myTeam === 0 ? 1 : 0] }}</p>
           </div>
         </div>
-        <p class="mt-4 text-[13px] text-mist">
+        <p v-if="result.blitz" class="mt-4 text-[13px] text-mist">
+          Blitz : donne non jouée, contrat réputé réussi.
+        </p>
+        <p v-else class="mt-4 text-[13px] text-mist">
           Aux cartes : {{ result.compared[session.myTeam] }} contre
           {{ result.compared[session.myTeam === 0 ? 1 : 0] }}
         </p>
@@ -181,10 +192,21 @@ function next(): void {
       <p v-else-if="!over" class="mt-3 text-sm text-mist">
         {{ session.game ? nomDe(session.game.dealer) : '' }} distribue.
       </p>
+      <!-- L'organisateur relance une partie : mêmes équipes, donneur suivant ; les autres suivent -->
       <button
-        v-else
+        v-else-if="organisateur"
         type="button"
-        class="mt-6 h-12 w-full rounded-xl border border-white/15 text-sm font-medium text-mist"
+        :disabled="session.busy"
+        class="mt-2.5 h-13 w-full cursor-pointer rounded-xl bg-gold py-3.5 text-base font-bold text-felt transition hover:brightness-110 disabled:opacity-40"
+        @click="session.rejouer()"
+      >{{ session.busy ? 'Nouvelle partie…' : 'Rejouer' }}</button>
+      <p v-else class="mt-3 text-sm text-mist">
+        {{ nomDe(createur) }} peut relancer une partie : vous y serez tous rebasculés.
+      </p>
+      <button
+        v-if="over && bilanVu"
+        type="button"
+        class="mt-2.5 h-12 w-full rounded-xl border border-white/15 text-sm font-medium text-mist"
         @click="session.leave()"
       >Quitter la partie</button>
     </div>
