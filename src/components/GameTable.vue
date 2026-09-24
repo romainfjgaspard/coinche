@@ -27,18 +27,18 @@ const {
 
 /** Tailles de cartes : la table double de largeur sur un écran d'ordinateur. */
 const grand = useLargeScreen()
-const largeurCarte = computed(() => (grand.value ? 78 : 54))
+const largeurCarte = computed(() => (grand.value ? 78 : 66))
 const largeurDos = computed(() => (grand.value ? 34 : 26))
-const largeurPli = computed(() => (grand.value ? 44 : 36))
+const largeurPli = computed(() => (grand.value ? 44 : 46))
 
 /**
  * Ma main, comme sur PC : de grandes cartes, coupées par le bas de l'écran comme
  * tenues en main. On n'en voit que le haut, où sont les index ; les petites cartes
- * entières d'avant se lisaient mal. Un quart de la largeur par carte, et le pas se
+ * entières d'avant se lisaient mal. Près d'un tiers de la largeur par carte, et le pas se
  * resserre pour que les huit tiennent.
  */
 const L = useTableLayout()
-const carteMain = computed(() => Math.min(104, Math.round(L.value.width * 0.25)))
+const carteMain = computed(() => Math.min(120, Math.round(L.value.width * 0.3)))
 const visibleMain = computed(() => Math.round(carteMain.value * 1.44 * 0.58))
 const main = computed(() => {
   const n = session.sortedHand.length
@@ -56,6 +56,23 @@ const basTapis = computed(() => visibleMain.value + 44)
  */
 const tapis = computed(() => `top: 11%; left: 2%; right: 2%; bottom: ${basTapis.value}px;`)
 const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapis.value + 24}px;`)
+
+/**
+ * Le pli en cours, remonté au-dessus du dernier pli : sur téléphone, le dernier pli
+ * en grand prend le bas du tapis. Tant pis s'il n'est plus centré.
+ */
+const plisBas = computed(() => basTapis.value + 30)
+const hauteurDernierPli = computed(() => 2 * Math.round(largeurPli.value * 1.44) + 5 + 44)
+const hauteurPli = computed(() => 2 * Math.round(largeurCarte.value * 1.44) + 12)
+const basPli = computed(() => plisBas.value + hauteurDernierPli.value + 6)
+const pliCourant = computed(() => ({
+  width: `${3 * largeurCarte.value + 12}px`,
+  height: `${hauteurPli.value}px`,
+  bottom: `${basPli.value}px`,
+}))
+/** Les adversaires à hauteur du pli en cours : à mi-écran, ils tombaient sur le dernier pli. */
+// Un peu sous le milieu du pli : la pastille du donneur mordait sur la carte de droite.
+const cote = computed(() => ({ bottom: `${basPli.value + hauteurPli.value / 2 - 14}px`, transform: 'translateY(50%)' }))
 </script>
 
 <template>
@@ -164,8 +181,8 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
     </div>
 
     <!-- Adversaires, sur les côtés -->
-    <div class="absolute left-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1.5 lg:left-[5%] lg:gap-3">
-      <div class="flex flex-col">
+    <div :style="grand ? undefined : cote" class="absolute left-2 flex flex-col items-center gap-1.5 lg:top-1/2 lg:-translate-y-1/2 lg:left-[5%] lg:gap-3">
+      <div class="flex flex-col max-lg:ml-3 max-lg:self-start">
         <CardBack v-for="i in remaining(around.left)" :key="i" :width="largeurDos" rotated class="-mt-2.5" />
       </div>
       <PlayerChip
@@ -174,8 +191,8 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
         :stars="starsOf(around.left)" :annonce="lastBid.get(around.left)"
       />
     </div>
-    <div class="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1.5 lg:right-[5%] lg:gap-3">
-      <div class="flex flex-col">
+    <div :style="grand ? undefined : cote" class="absolute right-2 flex flex-col items-center gap-1.5 lg:top-1/2 lg:-translate-y-1/2 lg:right-[5%] lg:gap-3">
+      <div class="flex flex-col max-lg:mr-3 max-lg:self-end">
         <CardBack v-for="i in remaining(around.right)" :key="i" :width="largeurDos" rotated class="-mt-2.5" />
       </div>
       <PlayerChip
@@ -186,7 +203,10 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
     </div>
 
     <!-- Le pli en cours -->
-    <div class="absolute left-1/2 top-1/2 size-52 -translate-x-1/2 -translate-y-1/2 lg:size-[22rem]">
+    <div
+      class="absolute left-1/2 -translate-x-1/2 lg:top-1/2 lg:size-[22rem] lg:-translate-y-1/2"
+      :style="grand ? undefined : pliCourant"
+    >
       <div class="absolute left-1/2 top-0 -translate-x-1/2">
         <PlayingCard v-if="trickAt.top" :card="trickAt.top" :width="largeurCarte" :winner="trickAt.top === trickWinnerCard" />
       </div>
@@ -209,13 +229,13 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
     <!-- Dernier pli et plis de la donne, dans le tapis en bas à droite : comme sur PC -->
     <div
       class="absolute right-[7%] flex items-end gap-3.5"
-      :style="{ bottom: `${basTapis + 30}px` }"
+      :style="{ bottom: `${plisBas}px` }"
     >
       <div class="flex flex-col gap-1">
         <span class="text-[10px] tracking-widest text-sage">DERNIER PLI</span>
         <!-- En croix : chaque carte à la place de celui qui l'a jouée -->
         <LastTrickCross v-if="session.lastTrick" :trick="session.lastTrick" :width="largeurPli" />
-        <span v-else class="flex h-[108px] w-[116px] items-center text-[11px] text-sage">aucun pli joué</span>
+        <span v-else class="flex h-[137px] w-[148px] items-center text-[11px] text-sage">aucun pli joué</span>
         <span class="h-4 text-[11px] text-mist">
           <template v-if="session.lastTrick">
             pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>

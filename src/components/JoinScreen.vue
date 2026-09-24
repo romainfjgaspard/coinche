@@ -198,6 +198,12 @@ async function ajouter(): Promise<void> {
         @click="emit('regles')"
       >Les règles</button>
     </div>
+    <a
+      href="https://github.com/romainfjgaspard/coinche"
+      target="_blank"
+      rel="noopener"
+      class="mt-4 self-center text-xs text-dusk underline underline-offset-4 transition hover:text-mist"
+    >Le code sur GitHub</a>
 
     <p v-if="session.error" class="mt-4 text-center text-sm text-red-card">{{ session.error }}</p>
   </div>

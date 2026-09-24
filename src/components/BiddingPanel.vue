@@ -29,6 +29,16 @@ const zoom = useFitZoom(
   computed(() => L.value.tapis.h - 2 * L.value.rim - Math.round(44 * L.value.u)),
 )
 
+/** Ma main dans le panneau, sur téléphone : la largeur du panneau, moins ses marges. */
+const mainEncheres = computed(() => {
+  const place = L.value.width - 40
+  const n = Math.max(1, session.sortedHand.length)
+  const carte = Math.min(90, Math.round(place * 0.27))
+  const pas = Math.min(carte - 8, (place - carte) / Math.max(1, n - 1))
+  const x0 = Math.round((place - carte - (n - 1) * pas) / 2)
+  return { carte, pas, x0, hauteur: Math.round(carte * 1.44 * 0.62) }
+})
+
 /** Ce que je m'apprête à annoncer : un palier chiffré, ou un capot, ou une générale. */
 type Level = number | 'capot' | 'generale'
 const level = ref<Level | null>(null)
@@ -194,9 +204,19 @@ const bestText = computed(() => {
   >
     <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20 lg:hidden"></div>
 
-    <!-- Sur téléphone le panneau couvre la main : on la remet sous les yeux. -->
-    <div class="mb-4 flex justify-center lg:hidden">
-      <PlayingCard v-for="card in session.sortedHand" :key="card" :card="card" :width="38" class="-ml-1.5 first:ml-0" />
+    <!--
+      Sur téléphone le panneau couvre la main : on la remet sous les yeux, en grand et
+      coupée par le bas comme la main sur la table — on n'a besoin que des index.
+    -->
+    <div class="relative mb-4 overflow-hidden lg:hidden" :style="{ height: `${mainEncheres.hauteur}px` }">
+      <div
+        v-for="(card, i) in session.sortedHand"
+        :key="card"
+        class="absolute top-0"
+        :style="{ left: `${mainEncheres.x0 + i * mainEncheres.pas}px` }"
+      >
+        <PlayingCard :card="card" :width="mainEncheres.carte" />
+      </div>
     </div>
 
     <!--
