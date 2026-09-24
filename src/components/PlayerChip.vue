@@ -2,6 +2,7 @@
 /** Pastille d'un joueur : nom, donneur, tour de jeu, étoiles de la honte. */
 import { type PlayerId } from '../game/players'
 import { nomDe } from '../stores/roster'
+import DealerChip from './DealerChip.vue'
 
 defineProps<{
   player: PlayerId
@@ -9,6 +10,8 @@ defineProps<{
   active?: boolean
   stars?: number
   me?: boolean
+  /** Pendant les enchères : sa dernière parole (« 90 ♥ », « Passe », « Coinche ») */
+  annonce?: { texte: string; passe: boolean; coinche: boolean }
 }>()
 </script>
 
@@ -20,12 +23,7 @@ defineProps<{
       ? 'border-gold bg-gold shadow-[0_0_14px_2px_rgba(217,164,65,.55)]'
       : 'border-transparent bg-black/35'"
   >
-    <span
-      v-if="dealer"
-      class="flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-      :class="active ? 'bg-felt text-gold' : 'bg-ivory text-felt'"
-      title="Donneur"
-    >D</span>
+    <DealerChip v-if="dealer" :size="16" />
     <!-- Le texte suit la transition du fond : sinon, le temps qu'elle dure, le nom foncé
          se posait sur un fond encore sombre et disparaissait -->
     <span class="text-xs font-semibold transition-colors" :class="active ? 'text-felt' : 'text-mist'">
@@ -37,5 +35,10 @@ defineProps<{
       :class="active ? 'text-felt' : 'text-gold'"
       title="Étoiles de la honte"
     >★<span v-if="stars > 1">{{ stars }}</span></span>
+    <span
+      v-if="annonce"
+      class="text-xs font-bold transition-colors"
+      :class="active ? 'text-felt' : annonce.coinche ? 'text-[#f0a293]' : annonce.passe ? 'font-medium text-sage' : 'text-gold'"
+    >{{ annonce.texte }}</span>
   </div>
 </template>

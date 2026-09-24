@@ -13,6 +13,8 @@ import { computed, ref } from 'vue'
 import PlayingCard from './PlayingCard.vue'
 import CardBack from './CardBack.vue'
 import PlayerChip from './PlayerChip.vue'
+import QuitGame from './QuitGame.vue'
+import CoincheButton from './CoincheButton.vue'
 import { SUIT_GLYPH, isRed } from '../game/display'
 
 import { nomDe } from '../stores/roster'
@@ -24,7 +26,7 @@ const emit = defineEmits<{ stats: [] }>()
 
 const {
   session, me, around, remaining, contract, contractLabel, trickAt, trickOrder,
-  trickWinnerCard, isTrump, canPlay, starsOf, isActive,
+  trickWinnerCard, isTrump, canPlay, starsOf, isActive, lastBid,
 } = useTableState()
 const L = useTableLayout()
 
@@ -84,7 +86,8 @@ const teams = computed(() => [
           </span>
           <span class="text-base font-semibold text-them">Eux</span>
         </div>
-        <div class="flex w-40 justify-end">
+        <div class="flex w-40 justify-end gap-2">
+          <QuitGame grand />
           <button
             type="button"
             class="cursor-pointer rounded-lg border border-white/20 px-3.5 py-1.5 text-sm font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
@@ -191,7 +194,7 @@ const teams = computed(() => [
       <div :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
           :player="around.top" :dealer="session.game?.dealer === around.top"
-          :active="isActive(around.top)" :stars="starsOf(around.top)"
+          :active="isActive(around.top)" :stars="starsOf(around.top)" :annonce="lastBid.get(around.top)"
         />
       </div>
     </div>
@@ -212,7 +215,7 @@ const teams = computed(() => [
       <div :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
           :player="around[side]" :dealer="session.game?.dealer === around[side]"
-          :active="isActive(around[side])" :stars="starsOf(around[side])"
+          :active="isActive(around[side])" :stars="starsOf(around[side])" :annonce="lastBid.get(around[side])"
         />
       </div>
     </div>
@@ -240,9 +243,23 @@ const teams = computed(() => [
       :style="{ left: '50%', top: px(L.meY) }"
     >
       <div class="flex items-center gap-3" :style="{ zoom: L.t * 1.35 }">
-        <PlayerChip :player="me" :dealer="session.game?.dealer === me" :active="isActive(me)" :stars="starsOf(me)" me />
+        <PlayerChip
+          :player="me" :dealer="session.game?.dealer === me" :active="isActive(me)" :stars="starsOf(me)" me
+          :annonce="lastBid.get(me)"
+        />
         <span v-if="session.myPlayTurn" class="text-sm font-semibold text-gold">à toi de jouer</span>
         <span v-else-if="session.myBidTurn" class="text-sm font-semibold text-gold">à toi de parler</span>
+      </div>
+    </div>
+
+    <!-- Coincher, hors du panneau d'enchères : toujours sous la main, sans attendre son tour -->
+    <div
+      class="absolute z-40 -translate-y-1/2"
+      :style="{ left: `calc(50% + ${Math.round(190 * L.t)}px)`, top: px(L.meY) }"
+    >
+      <!-- Le zoom sur un conteneur intérieur : posé sur le bloc positionné, il décalait aussi sa place -->
+      <div :style="{ zoom: L.t * 1.1 }">
+        <CoincheButton compact />
       </div>
     </div>
 

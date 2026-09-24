@@ -101,6 +101,23 @@ export function momentum(list: DealSummary[]): { deal: number; team: Team; point
     }))
 }
 
+/**
+ * Le momentum en cascade : l'écart cumulé (nous − eux) avant et après chaque donne.
+ * Chaque barre part de là où la précédente s'est arrêtée : on lit d'un coup d'œil qui
+ * mène, et de combien, en plus de ce que chaque donne a rapporté.
+ */
+export function cascade(
+  bars: { deal: number; team: Team; points: number }[],
+  nous: Team,
+): { deal: number; nous: boolean; points: number; avant: number; apres: number }[] {
+  let ecart = 0
+  return bars.map((b) => {
+    const avant = ecart
+    ecart += b.team === nous ? b.points : -b.points
+    return { deal: b.deal, nous: b.team === nous, points: b.points, avant, apres: ecart }
+  })
+}
+
 export interface Tally {
   prises: number
   reussies: number

@@ -110,13 +110,14 @@ export async function startBot(
   /** Ce que le bot a à faire, et l'empreinte de l'état correspondant. */
   function aFaire(g: GameDoc): { quoi: Action; cle: string } | null {
     const cle = `${g.phase}|${g.dealNumber}|${moveCount(events)}`
-    if (cle === dernierActe || g.phase === 'terminee') return null
+    if (cle === dernierActe || g.phase === 'terminee' || g.phase === 'annulee') return null
 
     if (g.phase === 'lobby' || g.phase === 'decompte') {
-      // La toute première donne part seule ; après une donne jouée — ou blanche, qui
-      // ramène la partie en « lobby » — on attend qu'un humain ait lu ce qui s'est passé.
-      const premiere = g.phase === 'lobby' && g.dealNumber === 0
-      const feuVert = premiere || !mayDealNext || mayDealNext(g.dealNumber)
+      // Un bot donneur attend toujours le feu vert d'un humain de son onglet, y compris
+      // pour la première donne : partie seule, elle sautait le salon, et avec lui le
+      // choix des équipes. Après une donne jouée — ou blanche, qui ramène la partie en
+      // « lobby » — c'est le temps de lire ce qui s'est passé.
+      const feuVert = !mayDealNext || mayDealNext(g.dealNumber)
       return g.dealer === player && allSeatsTaken(g) && g.dealNumber !== derniereDonne && feuVert
         ? { quoi: 'distribuer', cle }
         : null

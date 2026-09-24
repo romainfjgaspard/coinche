@@ -97,6 +97,15 @@ async function ajouter(): Promise<void> {
       <p class="mt-1 text-center text-sm text-sage">{{ sousTitre }}</p>
     </div>
 
+    <p
+      v-if="session.avis"
+      role="status"
+      class="mt-8 flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-mist"
+    >
+      <span class="grow">{{ session.avis }}</span>
+      <button type="button" class="cursor-pointer text-sage hover:text-mist" aria-label="Fermer" @click="session.avis = null">✕</button>
+    </p>
+
     <h2 class="mt-12 mb-4 [@media(max-height:820px)]:mt-7 text-[15px] font-semibold text-mist">Qui es-tu ?</h2>
 
     <div class="flex flex-col gap-3">

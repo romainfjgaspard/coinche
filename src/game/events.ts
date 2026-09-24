@@ -82,6 +82,8 @@ export type GameEvent = Base &
     /** DEC-9 — trois étoiles dans la même partie : la honte complète. */
     | { type: 'honte_complete'; player: PlayerId; stars: number }
     | { type: 'partie_terminee'; scores: [number, number]; winner: 0 | 1; deals: number }
+    /** Un joueur arrête la partie pour tous : elle n'est pas archivée. */
+    | { type: 'partie_annulee'; player: PlayerId }
     | { type: 'joueur_connecte'; player: PlayerId }
     | { type: 'joueur_deconnecte'; player: PlayerId }
     | { type: 'message_chat'; player: PlayerId; text: string }

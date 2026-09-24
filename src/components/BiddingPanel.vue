@@ -320,8 +320,12 @@ const bestText = computed(() => {
       <span v-else>Enchères closes</span>
     </p>
 
-    <!-- CO-3 : la coinche se prend à la volée, sans attendre son tour -->
-    <div v-if="session.mayCoinche || session.maySurcoinche" class="mt-3">
+    <!--
+      CO-3 : la coinche se prend à la volée, sans attendre son tour. Sur PC le bouton est
+      sorti du panneau (à côté de ma pastille) ; sur téléphone, le panneau est la zone
+      d'action et il y reste.
+    -->
+    <div v-if="!grand && (session.mayCoinche || session.maySurcoinche)" class="mt-3">
       <button
         v-if="session.mayCoinche"
         type="button"

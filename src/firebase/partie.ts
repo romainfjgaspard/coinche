@@ -28,7 +28,7 @@ import { type Archive, buildArchive } from '../game/archive'
 import { isGameOver, RULES } from '../game/rules'
 
 
-export type Phase = 'lobby' | 'encheres' | 'jeu' | 'decompte' | 'terminee'
+export type Phase = 'lobby' | 'encheres' | 'jeu' | 'decompte' | 'terminee' | 'annulee'
 
 export interface GameDoc {
   /** playerId → compte anonyme qui occupe le siège, et s'il est tenu par un bot */
@@ -593,6 +593,19 @@ export const watchEvents = (
   onSnapshot(query(eventsRef(code, c), orderBy('seq')), (s) =>
     cb(s.docs.map((d) => d.data() as GameEvent)),
   )
+
+/**
+ * Arrête la partie pour les quatre : chacun revient à l'accueil. Rien n'est archivé,
+ * elle ne compte donc pas dans les statistiques. Une partie finie ne s'annule plus.
+ */
+export async function cancelGame(code: string, player: PlayerId, c: Client = mainClient): Promise<void> {
+  await appendWith(c, code, { type: 'partie_annulee', player }, undefined, {
+    game: { phase: 'annulee' },
+    verifier: (g) => {
+      if (g.phase === 'terminee') throw new Error('La partie est déjà terminée')
+    },
+  })
+}
 
 /** Change le placement avant la première donne : au hasard, ou choisi. */
 export async function setSeating(

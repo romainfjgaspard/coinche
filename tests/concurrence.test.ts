@@ -12,7 +12,8 @@ import { describe, expect, it } from 'vitest'
 import { getDoc } from 'firebase/firestore'
 import { type Client, makeClient } from '../src/firebase/app'
 import {
-  ConcurrentWrite, type GameDoc, createGame, deal, gameRef, readEvents, readJournal, signIn, takeSeat,
+  ConcurrentWrite, type GameDoc, archiveRef, cancelGame, createGame, deal, gameRef, readEvents, readJournal, signIn,
+  takeSeat,
 } from '../src/firebase/partie'
 import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId } from '../src/game/players'
 import { addPlayer, readRoster } from '../src/firebase/joueurs'
@@ -123,4 +124,19 @@ describe('table formée par les arrivées', () => {
     expect((await readRoster(c)).map((x) => x.id)).toContain(j.id)
     await expect(addPlayer(nom, c)).rejects.toThrow('existe déjà')
   })
+})
+
+describe('annulation', () => {
+  it('un joueur annule : la partie passe en « annulée » pour tous, sans archive', async () => {
+    const clients = await quatreClients()
+    const code = await nouvellePartie(clients)
+    for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
+    await deal(code, null, clients.benel)
+    await cancelGame(code, 'viv', clients.viv)
+    const game = (await getDoc(gameRef(code, clients.roux))).data() as GameDoc
+    expect(game.phase).toBe('annulee')
+    const evts = await readEvents(code, clients.roux)
+    expect(evts.at(-1)).toMatchObject({ type: 'partie_annulee', player: 'viv' })
+    expect((await getDoc(archiveRef(code, clients.roux))).exists()).toBe(false)
+  }, 30_000)
 })

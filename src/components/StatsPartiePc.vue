@@ -7,7 +7,7 @@
 import { computed } from 'vue'
 import { type PlayerId, teamOfPlayer } from '../game/players'
 import { nomDe } from '../stores/roster'
-import { bilan, enchereMoyenne, teamTallies } from '../game/stats'
+import { bilan, cascade, enchereMoyenne, teamTallies } from '../game/stats'
 import { useSession } from '../stores/session'
 
 const session = useSession()
@@ -62,15 +62,27 @@ const courbe = computed(() => {
   }
 })
 
-// --- Momentum : la barre monte pour nous, descend pour eux
-const barres = computed(() => {
-  const list = session.momentumBars
-  const max = Math.max(1, ...list.map((b) => b.points))
-  return list.map((b) => {
-    const h = `${Math.round((b.points / max) * 120)}px`
-    const haut = b.team === nousTeam.value
-    return { n: `D${b.deal}`, hHaut: haut ? h : '0px', hBas: haut ? '0px' : h, titre: `Donne ${b.deal} : ${b.points} points` }
-  })
+// --- Momentum en cascade : chaque barre part de la fin de la précédente
+const HAUTEUR_MOMENTUM = 240
+const momentum = computed(() => {
+  const c = cascade(session.momentumBars, nousTeam.value)
+  const hi = Math.max(0, ...c.map((b) => Math.max(b.avant, b.apres)))
+  const lo = Math.min(0, ...c.map((b) => Math.min(b.avant, b.apres)))
+  const y = (v: number) => ((hi - v) / Math.max(1, hi - lo)) * HAUTEUR_MOMENTUM
+  return {
+    zero: y(0),
+    barres: c.map((b) => {
+      const haut = y(Math.max(b.avant, b.apres))
+      return {
+        n: `D${b.deal}`,
+        nous: b.nous,
+        points: b.points,
+        top: haut,
+        height: Math.max(2, y(Math.min(b.avant, b.apres)) - haut),
+        titre: `Donne ${b.deal} : ${b.points} points pour ${b.nous ? 'nous' : 'eux'}`,
+      }
+    }),
+  }
 })
 
 // --- Par équipe
@@ -211,18 +223,33 @@ const faits = computed(() => {
       </svg>
 
       <h2 class="mt-4 mb-0.5 text-[13px] font-semibold">Momentum</h2>
-      <p class="mb-2 text-[11px] text-sage">Points gagnés par donne — vers le haut pour nous, vers le bas pour eux</p>
-      <p v-if="!barres.length" class="text-sm text-sage">Aucune donne terminée.</p>
-      <div v-else class="flex h-[270px] items-stretch gap-1">
-        <div v-for="b in barres" :key="b.n" class="flex max-w-[88px] grow flex-col items-center" :title="b.titre">
-          <div class="flex w-full grow basis-0 items-end justify-center">
-            <div class="w-[70%] rounded-t bg-gold" :style="{ height: b.hHaut }"></div>
+      <p class="mb-2 text-[11px] text-sage">
+        Points gagnés par donne, en cascade : chaque barre part de la fin de la précédente —
+        vers le haut pour nous, vers le bas pour eux
+      </p>
+      <p v-if="!momentum.barres.length" class="text-sm text-sage">Aucune donne terminée.</p>
+      <div v-else>
+        <div class="relative mt-5 mb-5" :style="{ height: `${HAUTEUR_MOMENTUM}px` }">
+          <!-- Le zéro : au-dessus, nous menons ; en dessous, eux -->
+          <div class="absolute inset-x-0 h-px bg-white/18" :style="{ top: `${momentum.zero}px` }"></div>
+          <div class="absolute inset-0 flex gap-1">
+            <div v-for="b in momentum.barres" :key="b.n" class="relative max-w-[88px] grow" :title="b.titre">
+              <div
+                class="absolute left-[15%] w-[70%] rounded-sm"
+                :class="b.nous ? 'bg-gold' : 'bg-them'"
+                :style="{ top: `${b.top}px`, height: `${b.height}px` }"
+              ></div>
+              <!-- Les points au bout de la barre : au-dessus quand elle monte, dessous quand elle descend -->
+              <span
+                class="absolute inset-x-0 text-center text-[11px] font-semibold tabular-nums"
+                :class="b.nous ? 'text-gold' : 'text-them'"
+                :style="b.nous ? { top: `${b.top - 17}px` } : { top: `${b.top + b.height + 3}px` }"
+              >{{ b.points }}</span>
+            </div>
           </div>
-          <div class="h-px w-full bg-white/18"></div>
-          <div class="flex w-full grow basis-0 items-start justify-center">
-            <div class="w-[70%] rounded-b bg-them" :style="{ height: b.hBas }"></div>
-          </div>
-          <span class="mt-1 text-[11px] text-dusk">{{ b.n }}</span>
+        </div>
+        <div class="flex gap-1">
+          <span v-for="b in momentum.barres" :key="b.n" class="max-w-[88px] grow text-center text-[11px] text-dusk">{{ b.n }}</span>
         </div>
       </div>
     </section>

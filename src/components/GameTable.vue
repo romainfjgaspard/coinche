@@ -7,6 +7,7 @@ import { computed } from 'vue'
 import PlayingCard from './PlayingCard.vue'
 import CardBack from './CardBack.vue'
 import PlayerChip from './PlayerChip.vue'
+import QuitGame from './QuitGame.vue'
 import { SUIT_GLYPH } from '../game/display'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableState } from '../composables/useTableState'
@@ -17,7 +18,7 @@ const emit = defineEmits<{ stats: [] }>()
 
 const {
   session, me, around, remaining, contract, contractLabel, trickAt, trickWinnerCard,
-  isTrump, canPlay, starsOf,
+  isTrump, canPlay, starsOf, lastBid,
 } = useTableState()
 
 /** Tailles de cartes : la table double de largeur sur un écran d'ordinateur. */
@@ -72,10 +73,13 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
 
     <!-- Bandeau : donne, scores -->
     <header class="absolute inset-x-0 top-0 flex h-14 items-center gap-3 bg-felt-dark px-4 lg:h-16 lg:px-8">
-      <span class="text-xs font-medium tracking-wider text-sage">
+      <QuitGame />
+      <!-- Le numéro de donne passe au-dessus des scores : à gauche, la place va à « Quitter » -->
+      <div class="flex grow flex-col items-center">
+      <span class="text-[10px] font-medium tracking-wider text-sage">
         DONNE {{ session.game?.dealNumber ?? 0 }}
       </span>
-      <div class="flex grow items-baseline justify-center gap-2.5">
+      <div class="flex items-baseline justify-center gap-2.5">
         <span class="text-[13px] font-semibold text-gold">Nous</span>
         <span class="font-display text-2xl leading-none">
           {{ session.game?.scores[session.myTeam] ?? 0 }}
@@ -85,6 +89,7 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
           {{ session.game?.scores[session.myTeam === 0 ? 1 : 0] ?? 0 }}
         </span>
         <span class="text-[13px] font-semibold text-them">Eux</span>
+      </div>
       </div>
       <button
         type="button"
@@ -118,7 +123,7 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
       <PlayerChip
         :player="around.top" :dealer="session.game?.dealer === around.top"
         :active="session.toPlay === around.top || session.toBid === around.top"
-        :stars="starsOf(around.top)"
+        :stars="starsOf(around.top)" :annonce="lastBid.get(around.top)"
       />
     </div>
 
@@ -130,7 +135,7 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
       <PlayerChip
         :player="around.left" :dealer="session.game?.dealer === around.left"
         :active="session.toPlay === around.left || session.toBid === around.left"
-        :stars="starsOf(around.left)"
+        :stars="starsOf(around.left)" :annonce="lastBid.get(around.left)"
       />
     </div>
     <div class="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1.5 lg:right-[5%] lg:gap-3">
@@ -140,7 +145,7 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
       <PlayerChip
         :player="around.right" :dealer="session.game?.dealer === around.right"
         :active="session.toPlay === around.right || session.toBid === around.right"
-        :stars="starsOf(around.right)"
+        :stars="starsOf(around.right)" :annonce="lastBid.get(around.right)"
       />
     </div>
 
@@ -211,7 +216,7 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
     >
       <PlayerChip
         :player="me" :dealer="session.game?.dealer === me" :active="session.myPlayTurn"
-        :stars="starsOf(me)" me
+        :stars="starsOf(me)" me :annonce="lastBid.get(me)"
       />
       <span v-if="session.myPlayTurn" class="text-[13px] font-semibold text-gold">à toi de jouer</span>
     </div>

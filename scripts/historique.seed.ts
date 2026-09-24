@@ -10,7 +10,8 @@
  * Chacun a un tempérament pour que les statistiques aient du relief : Benel prudent,
  * Viv et Romain audacieux. Quelques coinches, surcoinches et belotes oubliées au passage.
  *
- * Lancement : npm run emu, puis npm run seed:stats ($env:PARTIES pour le nombre, 8 par défaut).
+ * Lancement : npm run emu, puis npm run seed:stats ($env:PARTIES pour le nombre, 8 par défaut ;
+ * $env:PARTENAIRES pour ne jouer que certaines affiches, voir placementEquilibre).
  * Vraie base : $env:SEED_CONFIRME='coinche-e708b'; npm run seed:stats:prod
  */
 import { describe, it } from 'vitest'
@@ -108,10 +109,15 @@ function afficheDe(seating: Seating): string {
 
 async function placementEquilibre(c: Client): Promise<Seating> {
   const autres = PLAYER_IDS.filter((p) => p !== 'romain')
-  const affiches: Seating[] = autres.map((partenaire) => {
-    const [a, b] = autres.filter((p) => p !== partenaire)
-    return ['romain', a, partenaire, b] as const
-  })
+  // $env:PARTENAIRES="benel,roux" : seulement les affiches où Romain joue avec eux,
+  // pour rattraper des appariements en retard ailleurs (en prod, par exemple).
+  const voulus = (process.env.PARTENAIRES ?? '').split(',').map((p) => p.trim()).filter(Boolean)
+  const affiches: Seating[] = autres
+    .filter((partenaire) => voulus.length === 0 || voulus.includes(partenaire))
+    .map((partenaire) => {
+      const [a, b] = autres.filter((p) => p !== partenaire)
+      return ['romain', a, partenaire, b] as const
+    })
   const jouees = new Map<string, number>()
   for (const archive of await readArchives(c)) {
     const cle = afficheDe(archive.seating)

@@ -7,6 +7,8 @@ import { computed } from 'vue'
 import type { Card } from '../game/cards'
 import { HAND_SIZE } from '../game/deal'
 import { type PlayerId, playerAtSeat, seatOf } from '../game/players'
+import { SUIT_GLYPH } from '../game/display'
+import { currentDeal } from '../game/replay'
 import { useSession } from '../stores/session'
 
 export type Place = 'me' | 'left' | 'top' | 'right'
@@ -89,8 +91,34 @@ export function useTableState() {
   /** Qui doit agir maintenant, pour mettre sa pastille en évidence. */
   const isActive = (p: PlayerId): boolean => session.toPlay === p || session.toBid === p
 
+  /**
+   * Pendant les enchères, la dernière parole de chacun, à côté de son nom autour de la
+   * table : l'historique complet reste dans le panneau, mais on lit d'un coup d'œil où
+   * en est chacun. Une coinche l'emporte sur l'annonce qui la précède.
+   */
+  const lastBid = computed(() => {
+    const out = new Map<PlayerId, { texte: string; passe: boolean; coinche: boolean }>()
+    if (session.game?.phase !== 'encheres') return out
+    for (const e of currentDeal(session.events)) {
+      if (e.type === 'coinche' || e.type === 'surcoinche') {
+        out.set(e.player, { texte: e.type === 'coinche' ? 'Coinche' : 'Surcoinche', passe: false, coinche: true })
+      } else if (e.type === 'enchere') {
+        const b = e.entry
+        const d = b.kind === 'contrat' ? SUIT_GLYPH[b.suit]
+          : b.kind === 'capot' || b.kind === 'generale'
+            ? (b.declaration === 'sa' || b.declaration === 'ta' ? b.declaration.toUpperCase() : SUIT_GLYPH[b.declaration])
+            : ''
+        const texte = b.kind === 'passe' ? 'Passe'
+          : b.kind === 'contrat' ? `${b.value} ${d}`
+            : b.kind === 'capot' ? `Capot ${d}` : b.kind === 'generale' ? `Générale ${d}` : ''
+        if (texte) out.set(e.player, { texte, passe: b.kind === 'passe', coinche: false })
+      }
+    }
+    return out
+  })
+
   return {
     session, me, around, remaining, contract, contractLabel,
-    trickAt, trickOrder, trickWinnerCard, isTrump, canPlay, starsOf, isActive,
+    trickAt, trickOrder, trickWinnerCard, isTrump, canPlay, starsOf, isActive, lastBid,
   }
 }

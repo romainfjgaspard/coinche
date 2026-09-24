@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GameEvent } from '../events'
 import { DEFAULT_SEATING } from '../players'
 import {
+  cascade,
   bilan, deals, dealsPlayed, enchereMoyenne, momentum, runningScores, tallies,
 } from '../stats'
 
@@ -121,5 +122,25 @@ describe('compte par joueur', () => {
   it('ne compte rien pour la donne en cours', () => {
     const avec = tallies(deals([...PARTIE, ...donne({ n: 5, taker: 'romain', value: 160 })]), DEFAULT_SEATING)
     expect(avec.get('romain')!.prises).toBe(0)
+  })
+})
+
+describe('momentum en cascade', () => {
+  it('chaque barre part de la fin de la précédente', () => {
+    const c = cascade(
+      [
+        { deal: 1, team: 0, points: 90 },
+        { deal: 2, team: 1, points: 160 },
+        { deal: 4, team: 0, points: 100 },
+      ],
+      0,
+    )
+    expect(c.map((b) => [b.avant, b.apres])).toEqual([[0, 90], [90, -70], [-70, 30]])
+    expect(c.map((b) => b.nous)).toEqual([true, false, true])
+  })
+
+  it("se lit depuis l'autre camp en miroir", () => {
+    const c = cascade([{ deal: 1, team: 0, points: 90 }], 1)
+    expect(c[0]).toMatchObject({ avant: 0, apres: -90, nous: false })
   })
 })

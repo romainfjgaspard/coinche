@@ -9,7 +9,7 @@ import { getDoc } from 'firebase/firestore'
 import { type Card, sortHand } from '../game/cards'
 import type { PlayerId } from '../game/players'
 import {
-  type GameDoc, allSeatsTaken, createGame, deal, gameRef, placeBid, playCard, readArchives,
+  type GameDoc, allSeatsTaken, cancelGame, createGame, deal, gameRef, placeBid, playCard, readArchives,
   setSeating, signIn, takeSeat, watchEvents, watchGame, watchHand,
 } from '../firebase/partie'
 import type { Archive } from '../game/archive'
@@ -26,6 +26,7 @@ import { type Impasse, impasseTallies, impassesOfGame } from '../game/impasses'
 import type { BotLevel } from '../game/bot'
 import { type BotHandle, type PublicFeed, startBot } from '../firebase/botRunner'
 import { type Client, makeClient } from '../firebase/app'
+import { nomDe } from './roster'
 
 const STORE_KEY = 'coinche.session'
 
@@ -334,6 +335,33 @@ export const useSession = defineStore('session', () => {
     persist({ playerId: playerId.value, code: null })
   }
 
+  /** Un mot pour l'accueil quand on y revient sans l'avoir choisi : partie annulée. */
+  const avis = ref<string | null>(null)
+
+  /** Arrête la partie pour les quatre, puis retour à l'accueil. */
+  async function cancel(): Promise<void> {
+    if (!code.value || !playerId.value) return
+    const fait = await run(async () => {
+      await cancelGame(code.value!, playerId.value!)
+      return true
+    })
+    if (fait) leave()
+  }
+
+  // Annulée par quelqu'un d'autre : chacun revient à l'accueil, avec le nom de qui l'a fait.
+  watch(
+    () => game.value?.phase,
+    (phase) => {
+      if (phase !== 'annulee') return
+      const par = [...events.value].reverse().find((e) => e.type === 'partie_annulee')
+      const qui = par && par.type === 'partie_annulee' ? par.player : null
+      if (qui !== playerId.value) {
+        avis.value = qui ? `${nomDe(qui)} a annulé la partie.` : 'La partie a été annulée.'
+      }
+      leave()
+    },
+  )
+
   /** Reprise après rafraîchissement : on se rebranche sur la partie mémorisée. */
   async function resume(): Promise<void> {
     if (!code.value || !playerId.value) return
@@ -351,6 +379,7 @@ export const useSession = defineStore('session', () => {
     lastTrick, trickCounts, stars, shame, lastStar, sortedHand, heldTrick, shownTrick,
     dealSummaries, scoreCurve, momentumBars, playerTallies, impasses, impasseCounts,
     peek, create, join, chooseSeating, startDeal, bid, playTheCard, leave, resume, loadArchives,
+    avis, cancel,
     bots, addBot, stopBots, botDealerHere, dealAcknowledged, continueToNextDeal,
   }
 })
