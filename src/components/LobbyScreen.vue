@@ -60,7 +60,7 @@ const monPartenaire = computed(() =>
   <!-- Sur PC la colonne est mise à l'échelle et centrée : à 2560 px elle faisait un sixième de l'écran -->
   <div class="flex min-h-full">
   <div
-    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 max-lg:min-h-full lg:my-auto lg:py-10"
+    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 [@media(max-height:820px)]:pt-8 max-lg:min-h-full lg:my-auto lg:py-10"
     ref="contenu"
     :style="grand ? { zoom } : undefined"
   >

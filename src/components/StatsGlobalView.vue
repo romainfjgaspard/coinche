@@ -15,8 +15,8 @@ onMounted(() => { void session.loadArchives() })
 
 const BON = '#52a884'
 const MAUVAIS = '#cc6b4a'
-/* Le panache n'est pas une réussite : il ne porte donc ni le vert ni l'orange du statut */
-const TEMPERAMENT = '#a98ada'
+const OR = '#d9a441'
+const CLAIR = '#cfe0d8'
 
 /**
  * Les parties où un bot a tenu un siège sont écartées par défaut : un score
@@ -45,32 +45,63 @@ const fondTaux = (v: number): string => {
   return `rgba(82,168,132,${(0.08 + a * 0.42).toFixed(2)})`
 }
 
+/** Un nombre à une décimale, virgule française, signe toujours écrit — comme sur PC. */
+const signe = (v: number): string =>
+  v === 0 ? '0' : `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(1).replace('.', ',')}`
+/** Le bilan net par donne : points marqués en prenant, moins points offerts en chutant. */
+const parDonne = (x: { marques: number; offerts: number; donnes: number }): number =>
+  x.donnes ? (x.marques - x.offerts) / x.donnes : 0
+
+/** Les mêmes quatre repères que sur PC, avec les mêmes détails. */
 const reperes = computed(() => {
   if (duos.value.length === 0 || joueurs.value.length === 0) return []
   const dTri = [...duos.value].sort((a, b) => taux(b.gagnees, b.parties) - taux(a.gagnees, a.parties))
   const jTri = [...joueurs.value].sort((a, b) => taux(b.gagnees, b.parties) - taux(a.gagnees, a.parties))
   const carte = (etiquette: string, qui: string, v: number, detail: string, bon: boolean) => ({
     etiquette, qui, valeur: `${v} %`, detail, couleur: bon ? BON : MAUVAIS,
+    fond: bon ? 'rgba(82,168,132,.14)' : 'rgba(204,107,74,.12)',
+    bord: bon ? BON : 'rgba(204,107,74,.5)',
   })
+  const victoires = (g: number, p: number) => `${g} victoire${g > 1 ? 's' : ''} sur ${p}`
+  const gagnees = (g: number, p: number) =>
+    `${g} partie${g > 1 ? 's' : ''} gagnée${g > 1 ? 's' : ''} sur ${p}`
   const d0 = dTri[0]
   const dn = dTri[dTri.length - 1]
   const j0 = jTri[0]
   const jn = jTri[jTri.length - 1]
   return [
     carte('MEILLEUR DUO', nomPaire(d0.paire), taux(d0.gagnees, d0.parties),
-      `${d0.gagnees} sur ${d0.parties}`, true),
+      `${victoires(d0.gagnees, d0.parties)} · ${signe(parDonne(d0))} point par donne`, true),
     carte('PIRE DUO', nomPaire(dn.paire), taux(dn.gagnees, dn.parties),
-      `${dn.gagnees} sur ${dn.parties}`, false),
+      `${victoires(dn.gagnees, dn.parties)} · ${signe(parDonne(dn))} point par donne`, false),
     carte('MEILLEUR JOUEUR', nom(j0.joueur), taux(j0.gagnees, j0.parties),
-      `${j0.gagnees} partie${j0.gagnees > 1 ? 's' : ''} sur ${j0.parties}`, true),
+      `${gagnees(j0.gagnees, j0.parties)} · ${taux(j0.reussies, j0.prises)} % de contrats tenus`, true),
     carte('PIRE JOUEUR', nom(jn.joueur), taux(jn.gagnees, jn.parties),
-      // Les étoiles quand il y en a ; sinon le bilan des parties, comme pour le meilleur.
-      jn.etoiles > 0
-        ? `${jn.etoiles} étoile${jn.etoiles > 1 ? 's' : ''} de la honte`
-        : `${jn.gagnees} partie${jn.gagnees > 1 ? 's' : ''} sur ${jn.parties}`,
-      false),
+      `${gagnees(jn.gagnees, jn.parties)} · ${jn.etoiles} étoile${jn.etoiles > 1 ? 's' : ''} de la honte`, false),
   ]
 })
+
+/** Belotes, impasses et étoiles : une carte par joueur, comme sur PC. */
+const details = computed(() =>
+  joueurs.value.map((j) => {
+    const reussite = j.impasses ? taux(j.impassesReussies, j.impasses) : null
+    return {
+      id: j.joueur,
+      nom: nom(j.joueur),
+      lignes: [
+        { quoi: 'Belotes annoncées', valeur: String(j.belotesAnnoncees), couleur: CLAIR },
+        { quoi: 'Belotes oubliées', valeur: String(j.belotesOubliees), couleur: j.belotesOubliees ? MAUVAIS : CLAIR },
+        { quoi: 'Impasses tentées', valeur: String(j.impasses), couleur: CLAIR },
+        {
+          quoi: 'Impasses réussies',
+          valeur: reussite === null ? '—' : `${reussite} %`,
+          couleur: reussite === null ? CLAIR : reussite >= 55 ? BON : reussite < 45 ? MAUVAIS : CLAIR,
+        },
+        { quoi: 'Étoiles de la honte', valeur: String(j.etoiles), couleur: OR },
+      ],
+    }
+  }),
+)
 
 /** Filtre du graphe par palier : tous, un duo, ou un joueur. */
 /** Le choix est retenu par son nom : la liste des joueurs dépend des archives chargées. */
@@ -111,13 +142,14 @@ const panaches = computed(() => {
     .map((j) => {
       const part = (Math.abs(j.panache!) / max) * 50
       const positif = j.panache! > 0
+      // Les couleurs de la maquette validée : plus audacieux que le groupe en orange,
+      // plus prudent en vert — comme sur PC.
       return {
         nom: nom(j.joueur),
-        couleur: TEMPERAMENT,
+        couleur: positif ? MAUVAIS : BON,
         left: `${(positif ? 50 : 50 - part).toFixed(1)}%`,
         width: `${part.toFixed(1)}%`,
-        // Un panache nul s'écrit 0 : « −0 » laissait croire à une valeur négative.
-        valeur: j.panache === 0 ? '0' : `${positif ? '+' : '−'}${Math.abs(j.panache!)}`,
+        valeur: signe(j.panache!),
       }
     })
 })
@@ -170,7 +202,7 @@ const panaches = computed(() => {
           v-for="r in reperes"
           :key="r.etiquette"
           class="rounded-xl border px-3.5 py-3"
-          :style="{ borderColor: r.couleur, background: `${r.couleur}22` }"
+          :style="{ borderColor: r.bord, background: r.fond }"
         >
           <p class="text-[9px] tracking-widest" :style="{ color: r.couleur }">{{ r.etiquette }}</p>
           <p class="mt-1 font-display text-lg leading-tight">{{ r.qui }}</p>
@@ -206,7 +238,7 @@ const panaches = computed(() => {
             <td class="py-2 text-right tabular-nums text-mist px-2">{{ d.gagnees }}</td>
             <td class="py-2 text-right px-2">
               <span
-                class="inline-block rounded px-1.5 py-0.5 font-semibold tabular-nums"
+                class="inline-block rounded px-1.5 py-0.5 font-semibold whitespace-nowrap tabular-nums"
                 :style="{ background: fondTaux(taux(d.gagnees, d.parties)) }"
               >{{ taux(d.gagnees, d.parties) }} %</span>
             </td>
@@ -217,7 +249,7 @@ const panaches = computed(() => {
             <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">{{ d.prises }}</td>
             <td class="hidden py-2 text-right lg:table-cell px-2">
               <span
-                class="inline-block rounded px-1.5 py-0.5 font-semibold tabular-nums"
+                class="inline-block rounded px-1.5 py-0.5 font-semibold whitespace-nowrap tabular-nums"
                 :style="{ background: fondTaux(taux(d.reussies, d.prises)) }"
               >{{ taux(d.reussies, d.prises) }} %</span>
             </td>
@@ -245,8 +277,6 @@ const panaches = computed(() => {
             <th class="pb-1.5 text-right font-semibold px-2">PRISES</th>
             <th class="pb-1.5 text-right font-semibold px-2">RÉUSS.</th>
             <th class="pb-1.5 text-right font-semibold px-2">%</th>
-            <th class="pb-1.5 text-right font-semibold px-2">★</th>
-            <th class="pb-1.5 text-right font-semibold px-2" title="impasses réussies sur tentées">IMPASSES</th>
             <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">COINCHES</th>
             <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2" title="annoncées · oubliées">BELOTES</th>
             <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">MARQUÉS</th>
@@ -254,7 +284,7 @@ const panaches = computed(() => {
             <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">MOYEN</th>
             <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">PIRE</th>
             <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">PANACHE</th>
-            <th class="pb-1.5 text-right font-semibold px-2">BILAN</th>
+            <th class="pb-1.5 text-right font-semibold px-2" title="net par donne : marqué en prenant, moins offert en chutant">BILAN</th>
           </tr>
         </thead>
         <tbody>
@@ -268,19 +298,9 @@ const panaches = computed(() => {
             <td class="py-2 text-right tabular-nums text-mist px-2">{{ j.reussies }}</td>
             <td class="py-2 text-right px-2">
               <span
-                class="inline-block rounded px-1.5 py-0.5 font-semibold tabular-nums"
+                class="inline-block rounded px-1.5 py-0.5 font-semibold whitespace-nowrap tabular-nums"
                 :style="{ background: fondTaux(taux(j.reussies, j.prises)) }"
               >{{ taux(j.reussies, j.prises) }} %</span>
-            </td>
-            <td class="py-2 text-right tabular-nums text-gold px-2">{{ j.etoiles }}</td>
-            <td class="py-2 text-right tabular-nums px-2">
-              <template v-if="j.impasses">
-                <span class="text-good">{{ j.impassesReussies }}</span>
-                <span class="text-dusk">/</span>
-                <span class="text-bad">{{ j.impassesRatees }}</span>
-                <span class="text-sage"> sur {{ j.impasses }}</span>
-              </template>
-              <span v-else class="text-dusk">—</span>
             </td>
             <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">{{ j.coinches }}</td>
             <td class="hidden py-2 text-right tabular-nums lg:table-cell px-2">
@@ -306,11 +326,24 @@ const panaches = computed(() => {
             </td>
             <td
               class="py-2 text-right font-bold tabular-nums px-2"
-              :style="{ color: j.marques - j.offerts >= 0 ? BON : MAUVAIS }"
-            >{{ j.marques - j.offerts > 0 ? '+' : '' }}{{ j.marques - j.offerts }}</td>
+              :style="{ color: parDonne(j) >= 0 ? BON : MAUVAIS }"
+            >{{ signe(parDonne(j)) }}</td>
           </tr>
         </tbody>
       </table>
+      </section>
+
+      <section>
+      <h2 class="mt-6 mb-2 font-display text-lg">Belotes, impasses et étoiles</h2>
+      <div class="grid grid-cols-2 gap-2.5">
+        <div v-for="d in details" :key="d.id" class="rounded-xl border border-white/8 bg-white/4 px-3 py-2.5">
+          <p class="mb-1.5 text-[13px] font-semibold">{{ d.nom }}</p>
+          <div v-for="l in d.lignes" :key="l.quoi" class="flex items-baseline gap-2 py-0.5">
+            <span class="grow text-[11px] text-sage">{{ l.quoi }}</span>
+            <span class="text-[12px] font-semibold tabular-nums" :style="{ color: l.couleur }">{{ l.valeur }}</span>
+          </div>
+        </div>
+      </div>
       </section>
 
       <section>

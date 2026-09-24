@@ -49,6 +49,8 @@ const enTete = computed(() => {
     : ` · depuis le ${new Date(r.depuis).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
   return `${pl(r.parties, 'partie')} · ${pl(r.donnes, 'donne')} · ${pl(r.prises, 'prise')}${depuis}`
 })
+/** Les donnes jouées jusqu'au bout, comme sur PC : ni la donne en cours ni les blanches. */
+const donnesJouees = computed(() => session.dealSummaries.filter((d) => d.status !== null).length)
 const ONGLETS = computed(() =>
   ([
     { id: 'partie', label: 'Partie en cours' },
@@ -100,7 +102,8 @@ const courbe = computed(() => {
     pointsNous: serie(session.myTeam),
     pointsEux: serie(eux),
     paliers: paliers.map((v) => ({ v, y: y(v) })),
-    donnes: points.map((_, i) => ({ i, x: x(i) })).filter((d) => d.i % pas === 0),
+    // Le numéro de la donne, pas son rang : une donne blanche ne laisse pas de point.
+    donnes: points.map((p, i) => ({ i, n: p.deal, x: x(i) })).filter((d) => d.i % pas === 0),
     fin: dernier
       ? { x: x(points.length - 1) + 8, nous: dernier.scores[session.myTeam], eux: dernier.scores[eux], yNous, yEux }
       : null,
@@ -241,7 +244,7 @@ const faits = computed(() => {
   <div v-else class="mx-auto h-full w-full max-w-md overflow-y-auto bg-felt-dark text-ivory">
   <!-- Sur PC le contenu suit l'échelle de l'écran : à 2560 px, les textes tombaient à 11 px -->
   <div
-    class="mx-auto px-5 pt-4 pb-8 lg:max-w-[1180px] lg:px-10 lg:pt-8"
+    class="mx-auto px-5 pt-4 pb-8 max-[380px]:px-4 lg:max-w-[1180px] lg:px-10 lg:pt-8"
     :style="grand ? { zoom: L.t * 1.2 } : undefined"
   >
     <div class="flex items-center gap-1.5">
@@ -249,7 +252,7 @@ const faits = computed(() => {
         v-for="t in ONGLETS"
         :key="t.id"
         type="button"
-        class="cursor-pointer rounded-full border px-3.5 py-1.5 text-[13px] transition"
+        class="cursor-pointer rounded-full border px-3.5 py-1.5 text-[13px] whitespace-nowrap transition max-[380px]:px-3"
         :class="onglet === t.id
           ? 'border-gold bg-gold/20 font-semibold text-gold'
           : 'border-white/15 text-sage hover:border-white/35 hover:text-mist'"
@@ -257,7 +260,7 @@ const faits = computed(() => {
       >{{ t.label }}</button>
       <button
         type="button"
-        class="ml-auto cursor-pointer rounded-lg border border-white/15 px-2.5 py-1.5 text-xs font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
+        class="ml-auto shrink-0 cursor-pointer rounded-lg border border-white/15 px-2.5 py-1.5 text-xs font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
         @click="emit('fermer')"
       >{{ retour }}</button>
     </div>
@@ -279,7 +282,7 @@ const faits = computed(() => {
         <p class="font-display text-4xl leading-none text-mist">{{ eux }}</p>
       </div>
       <p class="ml-auto text-right text-xs text-sage">
-        {{ session.dealSummaries.length }} donne{{ session.dealSummaries.length > 1 ? 's' : '' }}<br>objectif 1000
+        {{ donnesJouees }} donne{{ donnesJouees > 1 ? 's' : '' }}<br>objectif 1000
       </p>
     </div>
     </section>
@@ -304,7 +307,7 @@ const faits = computed(() => {
         v-for="d in courbe.donnes"
         :key="`d${d.i}`"
         :x="d.x" y="156" text-anchor="middle" font-size="8.5" fill="#8fb3a4"
-      >{{ d.i }}</text>
+      >{{ d.n }}</text>
       <text x="165" y="168" text-anchor="middle" font-size="7.5" fill="#6f8f82">donne</text>
       <polyline :points="courbe.nous" fill="none" :stroke="OR" stroke-width="2" stroke-linejoin="round" />
       <polyline :points="courbe.eux" fill="none" :stroke="BLEU" stroke-width="2" stroke-linejoin="round" />
@@ -355,7 +358,7 @@ const faits = computed(() => {
             <span class="mt-0.5 text-[10px] font-semibold tabular-nums text-them">{{ b.points }}</span>
           </template>
         </div>
-        <span class="mt-1 text-[10px] text-sage">{{ b.deal }}</span>
+        <span class="mt-1 text-[10px] text-sage">D{{ b.deal }}</span>
       </div>
     </div>
     <p v-else class="text-sm text-sage">Aucune donne terminée.</p>

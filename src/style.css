@@ -21,6 +21,8 @@
 }
 
 html, body, #app { height: 100%; }
+/* Barres de défilement et contrôles natifs sombres, accordés au tapis */
+html { color-scheme: dark; }
 body {
   margin: 0;
   background: var(--color-felt);

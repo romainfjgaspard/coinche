@@ -87,7 +87,7 @@ async function ajouter(): Promise<void> {
   <!-- Sur PC la colonne est mise à l'échelle et centrée : à 2560 px elle faisait un sixième de l'écran -->
   <div class="flex min-h-full">
   <div
-    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 max-lg:min-h-full lg:my-auto lg:py-10"
+    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 [@media(max-height:820px)]:pt-8 max-lg:min-h-full lg:my-auto lg:py-10"
     ref="contenu"
     :style="grand ? { zoom } : undefined"
   >
@@ -97,7 +97,7 @@ async function ajouter(): Promise<void> {
       <p class="mt-1 text-center text-sm text-sage">{{ sousTitre }}</p>
     </div>
 
-    <h2 class="mt-12 mb-4 text-[15px] font-semibold text-mist">Qui es-tu ?</h2>
+    <h2 class="mt-12 mb-4 [@media(max-height:820px)]:mt-7 text-[15px] font-semibold text-mist">Qui es-tu ?</h2>
 
     <div class="flex flex-col gap-3">
       <button
@@ -155,7 +155,7 @@ async function ajouter(): Promise<void> {
 
     <div class="grow lg:hidden"></div>
 
-    <label for="code" class="mt-10 mb-2 block text-[13px] text-sage">Code de la partie</label>
+    <label for="code" class="mt-10 mb-2 [@media(max-height:820px)]:mt-6 block text-[13px] text-sage">Code de la partie</label>
     <div class="flex gap-2.5">
       <input
         id="code"

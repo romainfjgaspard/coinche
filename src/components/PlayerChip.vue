@@ -26,7 +26,9 @@ defineProps<{
       :class="active ? 'bg-felt text-gold' : 'bg-ivory text-felt'"
       title="Donneur"
     >D</span>
-    <span class="text-xs font-semibold" :class="active ? 'text-felt' : 'text-mist'">
+    <!-- Le texte suit la transition du fond : sinon, le temps qu'elle dure, le nom foncé
+         se posait sur un fond encore sombre et disparaissait -->
+    <span class="text-xs font-semibold transition-colors" :class="active ? 'text-felt' : 'text-mist'">
       {{ nomDe(player) }}<span v-if="me" :class="active ? 'text-felt/70' : 'text-sage'"> · toi</span>
     </span>
     <span

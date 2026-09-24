@@ -10,7 +10,7 @@ import PlayerChip from './PlayerChip.vue'
 import { SUIT_GLYPH } from '../game/display'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableState } from '../composables/useTableState'
-
+import { useTableLayout } from '../composables/useTableLayout'
 import { nomDe } from '../stores/roster'
 
 const emit = defineEmits<{ stats: [] }>()
@@ -27,20 +27,30 @@ const largeurDos = computed(() => (grand.value ? 34 : 26))
 const largeurPli = computed(() => (grand.value ? 44 : 30))
 
 /**
- * Le tapis. Sur téléphone il déborde largement pour donner l'illusion d'une table
- * plus grande que l'écran ; en plein écran il devient un vrai ovale posé au centre,
- * et la main a de la place en dessous.
+ * Ma main, comme sur PC : de grandes cartes, coupées par le bas de l'écran comme
+ * tenues en main. On n'en voit que le haut, où sont les index ; les petites cartes
+ * entières d'avant se lisaient mal. Un quart de la largeur par carte, et le pas se
+ * resserre pour que les huit tiennent.
  */
-const tapis = computed(() =>
-  grand.value
-    ? 'top: 8%; left: 2%; right: 2%; bottom: 23%;'
-    : 'top: 11%; left: 2%; right: 2%; bottom: 19%;',
-)
-const liseré = computed(() =>
-  grand.value
-    ? 'top: 10.5%; left: 4%; right: 4%; bottom: 25.5%;'
-    : 'top: 14%; left: 5%; right: 5%; bottom: 22%;',
-)
+const L = useTableLayout()
+const carteMain = computed(() => Math.min(104, Math.round(L.value.width * 0.25)))
+const visibleMain = computed(() => Math.round(carteMain.value * 1.44 * 0.58))
+const main = computed(() => {
+  const n = session.sortedHand.length
+  const pas = Math.min(carteMain.value - 10, (L.value.width - 16 - carteMain.value) / Math.max(1, n - 1))
+  const total = carteMain.value + Math.max(0, n - 1) * pas
+  const x0 = Math.round(L.value.width / 2 - total / 2)
+  return { pas, cartes: session.sortedHand.map((card, i) => ({ card, left: Math.round(x0 + i * pas) })) }
+})
+/** Le bas du tapis : juste au-dessus de ma pastille, elle-même au-dessus de ma main. */
+const basTapis = computed(() => visibleMain.value + 44)
+
+/**
+ * Le tapis. Sur téléphone il déborde largement pour donner l'illusion d'une table
+ * plus grande que l'écran.
+ */
+const tapis = computed(() => `top: 11%; left: 2%; right: 2%; bottom: ${basTapis.value}px;`)
+const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapis.value + 24}px;`)
 </script>
 
 <template>
@@ -155,59 +165,31 @@ const liseré = computed(() =>
       </div>
     </div>
 
-    <!-- Moi -->
-    <div class="absolute inset-x-0 bottom-[184px] flex items-center justify-center gap-2 lg:bottom-[290px] lg:gap-3">
-      <PlayerChip
-        :player="me" :dealer="session.game?.dealer === me" :active="session.myPlayTurn"
-        :stars="starsOf(me)" me
-      />
-      <span v-if="session.myPlayTurn" class="text-[13px] font-semibold text-gold">à toi de jouer</span>
-    </div>
-
-    <div data-testid="main" class="absolute inset-x-0 bottom-[92px] flex h-32 items-end justify-center px-2 lg:bottom-[128px] lg:h-48">
-      <div v-for="card in session.sortedHand" :key="card" class="relative -ml-2.5 first:ml-0 lg:-ml-1">
-        <PlayingCard
-          :card="card"
-          :width="largeurCarte"
-          :dimmed="session.myPlayTurn && !canPlay(card)"
-          :trump="isTrump(card)"
-          :clickable="canPlay(card)"
-          @select="session.playTheCard($event)"
-        />
-        <!-- BEL-2 : l'annonce est un geste volontaire. Sans ce clic, la belote est perdue. -->
-        <button
-          v-if="canPlay(card) && session.beloteCards.includes(card)"
-          type="button"
-          :aria-label="`Jouer en annonçant la belote`"
-          title="Annoncer la belote"
-          class="absolute -top-2 -right-1 flex size-6 items-center justify-center rounded-full border border-felt bg-gold text-[11px] font-bold text-felt shadow-md"
-          @click.stop="session.playTheCard(card, true)"
-        >B</button>
-      </div>
-    </div>
-
-    <!-- Bande d'information : dernier pli et plis gagnés -->
-    <footer class="absolute inset-x-0 bottom-0 flex h-[84px] items-center gap-3.5 bg-felt-dark px-3.5 py-2.5 lg:h-[96px] lg:gap-8 lg:px-10">
-      <div class="flex flex-col gap-1.5">
-        <span class="text-[9px] tracking-widest text-dusk">DERNIER PLI</span>
-        <div v-if="session.lastTrick" class="flex items-end">
+    <!-- Dernier pli et plis de la donne, dans le tapis en bas à droite : comme sur PC -->
+    <div
+      class="absolute right-[7%] flex items-end gap-3.5"
+      :style="{ bottom: `${basTapis + 30}px` }"
+    >
+      <div class="flex flex-col gap-1">
+        <span class="text-[9px] tracking-widest text-sage">DERNIER PLI</span>
+        <div v-if="session.lastTrick" class="flex gap-0.5">
           <PlayingCard
             v-for="p in session.lastTrick.plays"
             :key="p.card"
             :card="p.card"
             :width="largeurPli"
-            class="-ml-1.5"
             :winner="p.player === session.lastTrick.winner"
           />
         </div>
-        <span v-else class="text-[10px] text-sage">aucun pli joué</span>
-        <span v-if="session.lastTrick" class="text-[10px] text-sage">
-          pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>
+        <span v-else class="flex h-[43px] items-center text-[10px] text-sage">aucun pli joué</span>
+        <span class="h-3.5 text-[10px] text-mist">
+          <template v-if="session.lastTrick">
+            pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>
+          </template>
         </span>
       </div>
-
-      <div class="flex grow flex-col gap-1.5">
-        <span class="text-[9px] tracking-widest text-dusk">PLIS DE LA DONNE</span>
+      <div class="flex flex-col gap-0.5 pb-4">
+        <span class="text-[9px] tracking-widest text-sage">PLIS</span>
         <div
           v-for="(row, i) in [
             { team: 'Nous', count: session.trickCounts[session.myTeam], color: 'text-gold' },
@@ -217,12 +199,55 @@ const liseré = computed(() =>
           class="flex items-center gap-2"
         >
           <span class="w-8 text-[11px] font-semibold" :class="row.color">{{ row.team }}</span>
-          <span class="flex">
-            <CardBack v-for="n in row.count" :key="n" :width="13" class="-ml-0.5" />
-          </span>
-          <span class="text-[13px] font-bold tabular-nums" :class="row.color">{{ row.count }}</span>
+          <span class="w-3 text-right font-display text-base leading-none tabular-nums" :class="row.color">{{ row.count }}</span>
         </div>
       </div>
-    </footer>
+    </div>
+
+    <!-- Moi, entre le tapis et ma main -->
+    <div
+      class="absolute inset-x-0 flex items-center justify-center gap-2"
+      :style="{ bottom: `${visibleMain + 10}px` }"
+    >
+      <PlayerChip
+        :player="me" :dealer="session.game?.dealer === me" :active="session.myPlayTurn"
+        :stars="starsOf(me)" me
+      />
+      <span v-if="session.myPlayTurn" class="text-[13px] font-semibold text-gold">à toi de jouer</span>
+    </div>
+
+    <!-- Ma main, tenue en main : coupée par le bas de l'écran -->
+    <div data-testid="main" class="absolute inset-x-0 bottom-0" :style="{ height: `${visibleMain}px` }">
+      <div
+        v-for="c in main.cartes"
+        :key="c.card"
+        class="absolute top-0"
+        :style="{ left: `${c.left}px` }"
+      >
+        <PlayingCard
+          :card="c.card"
+          :width="carteMain"
+          :dimmed="session.myPlayTurn && !canPlay(c.card)"
+          :trump="isTrump(c.card)"
+          :clickable="canPlay(c.card)"
+          @select="session.playTheCard($event)"
+        />
+        <!--
+          BEL-2 : l'annonce est un geste volontaire. Sans ce clic, la belote est perdue.
+          Le bouton reste dans la partie visible de la carte, comme sur PC.
+        -->
+        <button
+          v-if="canPlay(c.card) && session.beloteCards.includes(c.card)"
+          type="button"
+          aria-label="Jouer en annonçant la belote"
+          title="Jouer en annonçant la belote"
+          class="absolute left-0 flex cursor-pointer justify-center"
+          :style="{ width: `${main.pas}px`, top: `${visibleMain - 34}px` }"
+          @click.stop="session.playTheCard(c.card, true)"
+        >
+          <span class="flex h-7 items-center rounded-full border-2 border-felt bg-gold px-2 text-xs font-bold text-felt shadow-md">B</span>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
