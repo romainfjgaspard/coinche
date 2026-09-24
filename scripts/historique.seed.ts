@@ -10,13 +10,14 @@
  * Chacun a un tempérament pour que les statistiques aient du relief : Benel prudent,
  * Viv et Romain audacieux. Quelques coinches, surcoinches et belotes oubliées au passage.
  *
- * Lancement : npm run emu, puis npm run seed:stats [-- nombre de parties, 8 par défaut]
+ * Lancement : npm run emu, puis npm run seed:stats ($env:PARTIES pour le nombre, 8 par défaut).
+ * Vraie base : $env:SEED_CONFIRME='coinche-e708b'; npm run seed:stats:prod
  */
 import { describe, it } from 'vitest'
 import { getDoc } from 'firebase/firestore'
-import { type Client, makeClient, useEmulators } from '../src/firebase/app'
+import { type Client, db, makeClient, useEmulators } from '../src/firebase/app'
 import {
-  type GameDoc, createGame, deal, gameRef, handRef, placeBid, playCard, readEvents, signIn, takeSeat,
+  type GameDoc, createGame, deal, gameRef, handRef, placeBid, playCard, readJournal, signIn, takeSeat,
 } from '../src/firebase/partie'
 import { type BiddingEntry, currentBidder, highestBid, rankOf } from '../src/game/bidding'
 import { chooseBid, chooseCard } from '../src/game/bot'
@@ -38,7 +39,7 @@ async function main(c: Client, code: string, joueur: PlayerId): Promise<Card[]> 
 
 async function parler(clients: Record<PlayerId, Client>, code: string, game: GameDoc, joueur: PlayerId) {
   const c = clients[joueur]
-  const events = await readEvents(code, c)
+  const events = await readJournal(code, c)
   const etat = biddingFromEvents(events, game.dealer, game.seating)
   if (currentBidder(etat) !== joueur) return
   const coinche = etat.entries.some((e) => e.kind === 'coinche')
@@ -76,7 +77,7 @@ async function parler(clients: Record<PlayerId, Client>, code: string, game: Gam
 
 async function poser(clients: Record<PlayerId, Client>, code: string, game: GameDoc, joueur: PlayerId) {
   const c = clients[joueur]
-  const events = await readEvents(code, c)
+  const events = await readJournal(code, c)
   const etat = playFromEvents(events, game.dealer, game.seating)
   if (!etat || currentPlayer(etat) !== joueur) return
   const main_ = await main(c, code, joueur)
@@ -112,11 +113,11 @@ async function jouerUnePartie(n: number): Promise<void> {
     if (game.phase === 'lobby' || game.phase === 'decompte') {
       await deal(code, null, clients[game.dealer])
     } else if (game.phase === 'encheres') {
-      const events = await readEvents(code, clients[createur])
+      const events = await readJournal(code, clients[createur])
       const qui = currentBidder(biddingFromEvents(events, game.dealer, game.seating))
       if (qui) await parler(clients, code, game, qui)
     } else if (game.phase === 'jeu') {
-      const events = await readEvents(code, clients[createur])
+      const events = await readJournal(code, clients[createur])
       const etat = playFromEvents(events, game.dealer, game.seating)
       const qui = etat ? currentPlayer(etat) : null
       if (qui) await poser(clients, code, game, qui)
@@ -127,8 +128,12 @@ async function jouerUnePartie(n: number): Promise<void> {
 
 describe('historique fictif', () => {
   it(`joue ${PARTIES} parties complètes et dépose leurs archives`, async () => {
-    // Deux verrous valent mieux qu'un : jamais la vraie base.
-    if (!useEmulators) throw new Error('Refus : ce script ne tourne que sur l\'émulateur')
+    // La vraie base seulement sur demande explicite, en nommant le projet visé.
+    const projet = db.app.options.projectId
+    if (!useEmulators && process.env.SEED_CONFIRME !== projet) {
+      throw new Error(`Refus : vraie base (${projet}). Confirmer avec SEED_CONFIRME=${projet}`)
+    }
+    console.log(`semis de ${PARTIES} parties sur ${useEmulators ? 'l\'émulateur' : `la VRAIE base ${projet}`}`)
     for (let n = 1; n <= PARTIES; n++) await jouerUnePartie(n)
   }, 60 * 60 * 1000)
 })
