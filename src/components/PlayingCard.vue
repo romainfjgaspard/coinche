@@ -48,7 +48,7 @@ const s = computed(() => {
     inset: `${Math.round(w * 0.22)}px`,
     bigPip: `${Math.round(w * 0.46)}px`,
     smallPip: `${Math.round(w * pip)}px`,
-    band: `${Math.max(3, Math.round(w * 0.05))}px`,
+    band: `${Math.max(2, Math.round(w * 0.03))}px`,
     // Le halo du gagnant suit la taille de la carte : fixe, il débordait des vignettes.
     shadow: props.winner
       ? `0 0 0 ${Math.max(2, Math.round(w * 0.025))}px #d9a441, 0 0 ${Math.round(w * 0.15)}px ${Math.round(w * 0.03)}px rgba(217,164,65,.55)`
@@ -71,7 +71,21 @@ const s = computed(() => {
       Figure : l'illustration porte déjà ses propres index (en haut à gauche, en bas à
       droite). On n'en ajoute pas : deux index superposés rognaient le dessin.
     -->
-    <img v-if="image" :src="image" alt="" class="absolute inset-0 size-full" draggable="false" />
+    <!--
+      L'image dessine aussi son propre contour de carte : on l'agrandit un peu pour le
+      pousser hors du cadre, sinon deux bords se voyaient l'un dans l'autre. Décodage
+      synchrone (et figures préchargées au démarrage) : sans lui, une figure posée sur
+      le tapis restait blanche un instant.
+    -->
+    <img
+      v-if="image"
+      :src="image"
+      alt=""
+      decoding="sync"
+      class="absolute"
+      :style="{ left: '-2.5%', top: '-2.5%', width: '105%', height: '105%' }"
+      draggable="false"
+    />
 
     <template v-else>
       <!-- Index aux quatre coins : droits en haut, retournés en bas -->
@@ -116,11 +130,14 @@ const s = computed(() => {
       </span>
     </template>
 
-    <!-- Atout : un bandeau doré en tête de carte — l'or plein reste au gagnant du pli -->
+    <!--
+      Atout : un cadre doré tout autour, à l'intérieur de la carte. Un simple bandeau en
+      tête passait pour une bordure incomplète dans la main coupée par le bas.
+    -->
     <span
       v-if="trump"
-      class="pointer-events-none absolute inset-x-0 top-0 bg-gold"
-      :style="{ height: s.band }"
+      class="pointer-events-none absolute inset-0"
+      :style="{ borderRadius: s.radius, boxShadow: `inset 0 0 0 ${s.band} #d9a441` }"
     ></span>
 
     <!--

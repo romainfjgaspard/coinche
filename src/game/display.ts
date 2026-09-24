@@ -16,7 +16,7 @@ export const SUIT_GLYPH: Record<Suit, string> = { s: '♠', h: '♥', d: '♦', 
  * Sans elle, la quatrième carte n'apparaissait jamais : le pli se vidait à l'instant
  * où elle était posée.
  */
-export const PLI_VISIBLE_MS = 1600
+export const PLI_VISIBLE_MS = 1100
 
 /** Deux couleurs seulement, rouge et noir (décision du 23/09). */
 export const isRed = (suit: Suit): boolean => suit === 'h' || suit === 'd'
