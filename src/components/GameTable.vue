@@ -3,11 +3,12 @@
  * La table vue par le joueur : lui en bas, son partenaire en face,
  * les adversaires sur les côtés. Le tapis et les cartes suivent la maquette.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import PlayingCard from './PlayingCard.vue'
 import CardBack from './CardBack.vue'
 import PlayerChip from './PlayerChip.vue'
 import QuitGame from './QuitGame.vue'
+import BiddingHistory from './BiddingHistory.vue'
 import { SUIT_GLYPH } from '../game/display'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableState } from '../composables/useTableState'
@@ -15,6 +16,8 @@ import { useTableLayout } from '../composables/useTableLayout'
 import { nomDe } from '../stores/roster'
 
 const emit = defineEmits<{ stats: [] }>()
+/** Toucher le contrat rouvre l'historique complet des enchères de la donne. */
+const encheresVisibles = ref(false)
 
 const {
   session, me, around, remaining, contract, contractLabel, trickAt, trickWinnerCard,
@@ -100,7 +103,12 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
 
     <!-- Contrat en cours -->
     <div v-if="contract" class="absolute inset-x-0 top-16 flex justify-center">
-      <div class="flex items-center gap-2 rounded-full border border-gold/50 bg-gold/15 py-1 pl-1.5 pr-3.5">
+      <button
+        type="button"
+        class="flex cursor-pointer items-center gap-2 rounded-full border border-gold/50 bg-gold/15 py-1 pl-1.5 pr-3.5"
+        aria-label="Voir l'historique des enchères"
+        @click="encheresVisibles = true"
+      >
         <!-- Le symbole sur fond ivoire, comme sur une carte : noir sur le tapis, il disparaissait -->
         <span
           class="flex h-6 min-w-6 items-center justify-center rounded-full bg-ivory px-1 text-base leading-none font-bold"
@@ -112,8 +120,27 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
           v-if="contract.multiplier > 1"
           class="rounded-full bg-red-card px-2 py-0.5 text-[11px] font-bold tracking-wide text-ivory"
         >{{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}</span>
-      </div>
+        <span class="text-[11px] text-sage" aria-hidden="true">▾</span>
+      </button>
     </div>
+
+    <!-- L'historique des enchères, par-dessus la table, jusqu'à ce qu'on le ferme -->
+    <Teleport to="body">
+      <div
+        v-if="encheresVisibles && contract"
+        class="fixed inset-0 z-50 flex items-end justify-center bg-black/55 px-3 pb-3"
+        @click.self="encheresVisibles = false"
+      >
+        <div class="w-full max-w-sm">
+          <BiddingHistory />
+          <button
+            type="button"
+            class="mt-2 h-11 w-full cursor-pointer rounded-xl border border-white/15 bg-felt-dark text-sm font-semibold text-mist"
+            @click="encheresVisibles = false"
+          >Fermer</button>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Partenaire, en face -->
     <div class="absolute inset-x-0 top-28 flex flex-col items-center gap-1.5 lg:top-36 lg:gap-3">

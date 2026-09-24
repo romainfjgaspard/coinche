@@ -59,6 +59,8 @@ const hand = computed(() => {
   return session.sortedHand.map((card, i) => ({ card, left: x0 + i * L.value.handStep }))
 })
 const hovered = ref<Card | null>(null)
+/** En cours de jeu, l'historique des enchères se rouvre d'un clic sur le contrat. */
+const encheresVisibles = ref(false)
 /** La carte survolée se soulève en entier, et passe devant ses voisines. */
 const lift = computed(() => L.value.cardH - L.value.handVisible + Math.round(10 * L.value.u))
 
@@ -134,6 +136,14 @@ const teams = computed(() => [
           >{{ contract.trump ? SUIT_GLYPH[contract.trump] : (contract.declaration === 'sa' ? 'SA' : 'TA') }}</span>
         </div>
         <p class="mt-1.5 text-base text-mist">par <span class="font-semibold text-ivory">{{ nomDe(contract.taker) }}</span></p>
+        <!-- Qui a dit quoi, et pas seulement qui a pris : l'historique complet de la donne -->
+        <button
+          v-if="session.game?.phase === 'jeu'"
+          type="button"
+          class="mt-2 cursor-pointer text-sm text-sage underline underline-offset-4 transition hover:text-mist"
+          :aria-expanded="encheresVisibles"
+          @click="encheresVisibles = !encheresVisibles"
+        >{{ encheresVisibles ? 'Masquer les enchères' : 'Voir les enchères' }}</button>
         <p
           v-if="contract.multiplier > 1"
           class="mt-2 inline-block rounded-full bg-red-card px-3 py-1 text-sm font-bold tracking-wide text-ivory"
@@ -254,7 +264,7 @@ const teams = computed(() => [
 
     <!-- L'historique des enchères, à droite du tapis comme sur la maquette -->
     <div
-      v-if="session.game?.phase === 'encheres'"
+      v-if="session.game?.phase === 'encheres' || (session.game?.phase === 'jeu' && encheresVisibles)"
       class="absolute z-30"
       :style="{
         right: px(L.width - (L.tapis.x + L.tapis.w) + L.rim + Math.round(24 * L.u)),

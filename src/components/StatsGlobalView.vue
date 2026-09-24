@@ -100,8 +100,8 @@ const details = computed(() =>
         },
         { quoi: 'Étoiles de la honte', valeur: String(j.etoiles), couleur: OR },
         // Temps mesurés depuis le 24/09/2026 : les parties d'avant n'en ont pas.
-        { quoi: 'Temps pour annoncer', valeur: j.tempsEnchere === null ? '—' : duree(j.tempsEnchere), couleur: CLAIR },
-        { quoi: 'Temps pour jouer', valeur: j.tempsCarte === null ? '—' : duree(j.tempsCarte), couleur: CLAIR },
+        { quoi: "Temps d'annonce", valeur: j.tempsEnchere === null ? '—' : duree(j.tempsEnchere), couleur: CLAIR },
+        { quoi: 'Temps de jeu', valeur: j.tempsCarte === null ? '—' : duree(j.tempsCarte), couleur: CLAIR },
       ],
     }
   }),
@@ -339,12 +339,12 @@ const panaches = computed(() => {
 
       <section>
       <h2 class="mt-6 mb-2 font-display text-lg">Belotes, impasses, étoiles et réflexion</h2>
-      <div class="grid grid-cols-2 gap-2.5">
-        <div v-for="d in details" :key="d.id" class="rounded-xl border border-white/8 bg-white/4 px-3 py-2.5">
+      <div class="grid grid-cols-2 gap-2.5 max-[380px]:gap-2">
+        <div v-for="d in details" :key="d.id" class="rounded-xl border border-white/8 bg-white/4 px-3 py-2.5 max-[380px]:px-2">
           <p class="mb-1.5 text-[13px] font-semibold">{{ d.nom }}</p>
           <div v-for="l in d.lignes" :key="l.quoi" class="flex items-baseline gap-2 py-0.5">
             <span class="grow text-[11px] text-sage">{{ l.quoi }}</span>
-            <span class="text-[12px] font-semibold tabular-nums" :style="{ color: l.couleur }">{{ l.valeur }}</span>
+            <span class="text-[12px] font-semibold whitespace-nowrap tabular-nums" :style="{ color: l.couleur }">{{ l.valeur }}</span>
           </div>
         </div>
       </div>

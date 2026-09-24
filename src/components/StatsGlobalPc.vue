@@ -162,8 +162,8 @@ const details = computed(() =>
         },
         { quoi: 'Étoiles de la honte', valeur: String(j.etoiles), couleur: OR },
         // Temps mesurés depuis le 24/09/2026 : les parties d'avant n'en ont pas.
-        { quoi: 'Temps pour annoncer', valeur: j.tempsEnchere === null ? '—' : duree(j.tempsEnchere), couleur: CLAIR },
-        { quoi: 'Temps pour jouer', valeur: j.tempsCarte === null ? '—' : duree(j.tempsCarte), couleur: CLAIR },
+        { quoi: "Temps d'annonce", valeur: j.tempsEnchere === null ? '—' : duree(j.tempsEnchere), couleur: CLAIR },
+        { quoi: 'Temps de jeu', valeur: j.tempsCarte === null ? '—' : duree(j.tempsCarte), couleur: CLAIR },
       ],
     }
   }),
@@ -434,7 +434,7 @@ const nuages = computed(() => {
         <p class="mb-2.5 text-[15px] font-semibold">{{ d.nom }}</p>
         <div v-for="l in d.lignes" :key="l.quoi" class="flex items-baseline gap-2.5 py-[5px]">
           <span class="grow text-xs text-sage">{{ l.quoi }}</span>
-          <span class="text-sm font-semibold tabular-nums" :style="{ color: l.couleur }">{{ l.valeur }}</span>
+          <span class="text-sm font-semibold whitespace-nowrap tabular-nums" :style="{ color: l.couleur }">{{ l.valeur }}</span>
         </div>
       </div>
     </div>
