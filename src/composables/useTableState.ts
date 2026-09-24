@@ -126,8 +126,24 @@ export function useTableState() {
     return out
   })
 
+  /**
+   * BEL-2 / BEL-6 — la belote annoncée se voit à côté du nom, pour tous. Elle
+   * disparaît si la seconde tête est posée sans rebelote : la belote est alors perdue.
+   */
+  function beloteDe(p: PlayerId): 'belote' | 'rebelote' | null {
+    const st = session.play
+    const trump = contract.value?.trump
+    if (!st || session.game?.phase !== 'jeu' || !trump) return null
+    const n = session.annoncesBelote.get(p) ?? 0
+    if (n >= 2) return 'rebelote'
+    if (n === 0) return null
+    const posees = [...st.completed.flatMap((t) => t.plays), ...st.current]
+      .filter((x) => x.player === p && (x.card === `K${trump}` || x.card === `Q${trump}`)).length
+    return posees >= 2 ? null : 'belote'
+  }
+
   return {
     session, me, around, remaining, contract, contractLabel,
-    trickAt, trickOrder, trickWinnerCard, isTrump, canPlay, starsOf, isActive, lastBid,
+    trickAt, trickOrder, trickWinnerCard, isTrump, canPlay, starsOf, isActive, lastBid, beloteDe,
   }
 }

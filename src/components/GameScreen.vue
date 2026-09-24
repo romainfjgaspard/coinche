@@ -9,6 +9,7 @@ import DealResult from './DealResult.vue'
 import StatsScreen from './StatsScreen.vue'
 import RulesScreen from './RulesScreen.vue'
 import { useSession } from '../stores/session'
+import { nomDe } from '../stores/roster'
 
 const session = useSession()
 const phase = computed(() => session.game?.phase ?? 'lobby')
@@ -32,6 +33,25 @@ const grand = useLargeScreen()
         v-else-if="(phase === 'decompte' || phase === 'terminee' || phase === 'lobby') && !session.heldTrick"
         @stats="vue = 'stats'"
       />
+      <!--
+        La pause, par-dessus la table et le panneau d'enchères : plus personne ne peut
+        jouer. L'en-tête reste accessible, pour quitter ou lire les règles.
+      -->
+      <div
+        v-if="session.pause"
+        class="absolute inset-x-0 top-14 bottom-0 z-50 flex items-center justify-center bg-black/60 px-6 lg:top-16"
+      >
+        <div class="w-full max-w-xs rounded-2xl border border-white/10 bg-felt-dark px-6 py-5 text-center shadow-2xl lg:max-w-sm lg:py-7">
+          <p class="font-display text-3xl lg:text-4xl">En pause</p>
+          <p class="mt-1.5 text-sm text-sage lg:text-base">mise par {{ nomDe(session.pause.par) }}</p>
+          <button
+            type="button"
+            class="mt-5 h-12 w-full cursor-pointer rounded-xl bg-gold text-[15px] font-bold text-felt transition enabled:hover:brightness-110 disabled:opacity-40"
+            :disabled="session.busy"
+            @click="session.basculerPause()"
+          >Reprendre</button>
+        </div>
+      </div>
     </template>
     <RulesScreen v-else-if="vue === 'regles'" retour="Table" @fermer="vue = 'table'" />
     <StatsScreen v-else @fermer="vue = 'table'" />

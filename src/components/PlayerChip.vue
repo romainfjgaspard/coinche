@@ -18,6 +18,8 @@ defineProps<{
   grand?: boolean
   /** C'est à lui de parler : « réfléchit… » sous son nom, à la place de sa dernière annonce */
   reflechit?: boolean
+  /** Sa belote annoncée : « Belote » après la première tête, « Rebelote » après la seconde */
+  belote?: 'belote' | 'rebelote' | null
 }>()
 </script>
 
@@ -42,6 +44,11 @@ defineProps<{
       :class="active ? 'text-felt' : 'text-gold'"
       title="Étoiles de la honte"
     >★<span v-if="stars > 1">{{ stars }}</span></span>
+    <span
+      v-if="belote"
+      class="rounded-full px-1.5 py-px text-[10px] leading-tight font-bold tracking-wide uppercase"
+      :class="active ? 'bg-felt text-gold' : 'bg-gold text-felt'"
+    >{{ belote === 'rebelote' ? 'Rebelote' : 'Belote' }}</span>
   </div>
   <!--
     La dernière annonce, sous le nom et hors du flux : dans la pastille, elle

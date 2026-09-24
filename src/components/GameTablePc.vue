@@ -28,7 +28,7 @@ const emit = defineEmits<{ stats: []; regles: [] }>()
 
 const {
   session, me, around, remaining, contract, contractLabel, trickAt, trickOrder,
-  trickWinnerCard, isTrump, canPlay, starsOf, isActive, lastBid,
+  trickWinnerCard, isTrump, canPlay, starsOf, isActive, lastBid, beloteDe,
 } = useTableState()
 const L = useTableLayout()
 
@@ -92,6 +92,13 @@ const teams = computed(() => [
         </div>
         <div class="flex w-40 justify-end gap-2">
           <QuitGame grand />
+          <button
+            v-if="session.peutPauser && !session.pause"
+            type="button"
+            class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3.5 py-1.5 text-sm font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
+            :disabled="session.busy"
+            @click="session.basculerPause()"
+          ><svg viewBox="0 0 10 12" class="h-3 w-2.5" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="2.6" height="10" rx="0.8" /><rect x="6.4" y="1" width="2.6" height="10" rx="0.8" /></svg>Pause</button>
           <button
             type="button"
             class="cursor-pointer rounded-lg border border-white/20 px-3.5 py-1.5 text-sm font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
@@ -207,7 +214,7 @@ const teams = computed(() => [
       <div :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
           :player="around.top" :dealer="session.game?.dealer === around.top"
-          :active="isActive(around.top)" :stars="starsOf(around.top)" :annonce="lastBid.get(around.top)" grand :reflechit="session.toBid === around.top"
+          :active="isActive(around.top)" :stars="starsOf(around.top)" :belote="beloteDe(around.top)" :annonce="lastBid.get(around.top)" grand :reflechit="session.toBid === around.top"
         />
       </div>
     </div>
@@ -228,7 +235,7 @@ const teams = computed(() => [
       <div :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
           :player="around[side]" :dealer="session.game?.dealer === around[side]"
-          :active="isActive(around[side])" :stars="starsOf(around[side])" :annonce="lastBid.get(around[side])" grand :reflechit="session.toBid === around[side]"
+          :active="isActive(around[side])" :stars="starsOf(around[side])" :belote="beloteDe(around[side])" :annonce="lastBid.get(around[side])" grand :reflechit="session.toBid === around[side]"
         />
       </div>
     </div>
@@ -257,7 +264,7 @@ const teams = computed(() => [
     >
       <div class="flex items-center gap-3" :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
-          :player="me" :dealer="session.game?.dealer === me" :active="isActive(me)" :stars="starsOf(me)" me
+          :player="me" :dealer="session.game?.dealer === me" :active="isActive(me)" :stars="starsOf(me)" :belote="beloteDe(me)" me
         />
         <span v-if="session.myPlayTurn" class="text-sm font-semibold text-gold">à toi de jouer</span>
         <span v-else-if="session.myBidTurn" class="text-sm font-semibold text-gold">à toi de parler</span>
@@ -319,8 +326,8 @@ const teams = computed(() => [
         <button
           v-if="canPlay(c.card) && session.beloteCards.includes(c.card)"
           type="button"
-          aria-label="Jouer en annonçant la belote"
-          title="Jouer en annonçant la belote"
+          :aria-label="`Jouer en annonçant : ${session.beloteLabel}`"
+          :title="`Jouer en annonçant : ${session.beloteLabel}`"
           class="absolute left-0 flex cursor-pointer justify-center"
           :style="{ width: px(L.handStep), top: px(L.handVisible - Math.round(52 * L.t)) }"
           @click.stop="session.playTheCard(c.card, true)"
@@ -328,7 +335,7 @@ const teams = computed(() => [
           <span
             class="flex h-8 items-center rounded-full border-2 border-felt bg-gold px-3 text-sm font-bold text-felt shadow-md transition hover:brightness-110"
             :style="{ zoom: L.t }"
-          >Belote</span>
+          >{{ session.beloteLabel }}</span>
         </button>
       </div>
     </div>

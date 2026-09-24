@@ -105,6 +105,15 @@ export function declaredBelote(events: GameEvent[]): PlayerId | null {
   return null
 }
 
+/** Combien de fois chacun a annoncé (belote, puis rebelote) dans la donne en cours. */
+export function beloteAnnonces(events: GameEvent[]): Map<PlayerId, number> {
+  const counts = new Map<PlayerId, number>()
+  for (const e of currentDeal(events)) {
+    if (e.type === 'belote_annoncee') counts.set(e.player, (counts.get(e.player) ?? 0) + 1)
+  }
+  return counts
+}
+
 /** DEC-8 — étoiles accumulées dans la partie, par joueur. */
 export function starsInGame(events: GameEvent[]): Map<PlayerId, number> {
   const stars = new Map<PlayerId, number>()

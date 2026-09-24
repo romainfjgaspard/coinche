@@ -12,11 +12,12 @@ import { type Client, mainClient } from './app'
 import { type Card, DECK, gatherAndCut, shuffle } from '../game/cards'
 import { type PlayerId, type Seating, randomSeating } from '../game/players'
 import { dealHands } from '../game/deal'
+import type { BotLevel } from '../game/bot'
 import { ENGINE_VERSION } from '../game/rules'
 import type { GameEvent, NewEvent } from '../game/events'
 import { type BiddingEntry, apply, outcome } from '../game/bidding'
 import {
-  SHAME_THRESHOLD, biddingFromEvents, bidRound, currentDeal, declaredBelote, playFromEvents,
+  SHAME_THRESHOLD, beloteAnnonces, biddingFromEvents, bidRound, currentDeal, declaredBelote, playFromEvents,
   starsInGame,
 } from '../game/replay'
 import { nextPlayer, playerAtSeat, seatOf, teamOfPlayer } from '../game/players'
@@ -32,7 +33,7 @@ export type Phase = 'lobby' | 'encheres' | 'jeu' | 'decompte' | 'terminee' | 'an
 
 export interface GameDoc {
   /** playerId → compte anonyme qui occupe le siège, et s'il est tenu par un bot */
-  seats: Partial<Record<PlayerId, { uid: string; bot?: boolean }>>
+  seats: Partial<Record<PlayerId, { uid: string; bot?: boolean; niveau?: BotLevel }>>
   /** Dénormalisé pour que les règles Firestore restent simples et peu coûteuses */
   seatedUids: string[]
   dealer: PlayerId
@@ -56,6 +57,8 @@ export interface GameDoc {
   createur?: PlayerId
   /** « Rejouer » : le code de la partie suivante, où chacun est rebasculé. */
   suivante?: string
+  /** En pause : qui l'a mise, et depuis quand. Absent ou nul : on joue. */
+  pause?: { par: PlayerId; depuis: number } | null
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // sans I ni O, illisibles à l'écran
@@ -80,14 +83,29 @@ export const eventsRef = (code: string, c: Client = mainClient) =>
   collection(c.db, 'parties', code, 'evenements')
 
 /** Auth anonyme : le compte n'est qu'un jeton de session, jamais une identité de joueur. */
+/**
+ * Connexions en cours, par client. Plusieurs bots relancés ensemble appelaient
+ * `signInAnonymously` en même temps sur le même client : chaque appel créait un
+ * compte, le dernier écrasait les autres, et les règles refusaient les écritures
+ * faites au nom des comptes perdus.
+ */
+const connexions = new WeakMap<Client['auth'], Promise<string>>()
+
 export async function signIn(c: Client = mainClient): Promise<string> {
   if (c.auth.currentUser) return c.auth.currentUser.uid
-  const { user } = await signInAnonymously(c.auth)
-  return user.uid
+  let enCours = connexions.get(c.auth)
+  if (!enCours) {
+    enCours = signInAnonymously(c.auth).then(({ user }) => user.uid)
+    connexions.set(c.auth, enCours)
+    enCours.catch(() => connexions.delete(c.auth))
+  }
+  return enCours
 }
 
 /** Deux joueurs ont agi sur le même état : le second coup est refusé. */
 export class ConcurrentWrite extends Error {}
+/** Coup refusé parce que la partie est en pause : inutile de le retenter. */
+export class PartieEnPause extends Error {}
 
 /**
  * Les seuls événements qui traduisent une décision de joueur.
@@ -158,6 +176,11 @@ async function appendWith(
       if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
       const game = snap.data() as GameDoc
       avec?.verifier?.(game)
+      // Vérifié dans la transaction : une carte posée à l'instant où l'autre met en
+      // pause est refusée, au lieu de passer entre les deux.
+      if (game.pause && (isDecision(event.type) || event.type === 'donne_commencee')) {
+        throw new PartieEnPause('La partie est en pause')
+      }
       const coups = game.moveSeq
       if (expectedMove !== undefined && coups !== undefined && coups !== expectedMove) {
         throw new ConcurrentWrite('Quelqu\'un a joué en même temps que toi')
@@ -185,7 +208,7 @@ async function appendWith(
       return await ecrire()
     } catch (e) {
       // Une décision refusée le reste ; une course au numéro se rejoue.
-      if (e instanceof ConcurrentWrite) throw e
+      if (e instanceof ConcurrentWrite || e instanceof PartieEnPause) throw e
       derniere = e
       // Attente croissante et un peu d'aléa : deux clients refusés ensemble ne doivent
       // pas se représenter au même instant, sinon ils se refont perdre mutuellement.
@@ -244,6 +267,8 @@ export async function takeSeat(
   player: PlayerId,
   c: Client = mainClient,
   asBot = false,
+  /** Le niveau d'un bot, noté sur son siège : un autre onglet qui le reprend le retrouve. */
+  niveau?: BotLevel,
 ): Promise<void> {
   const uid = await signIn(c)
   await runTransaction(c.db, async (tx) => {
@@ -266,12 +291,37 @@ export async function takeSeat(
     // la règle `claimsSeat` refusait alors (la liste perdait quelqu'un), et ce refus
     // tombait avant que la transaction ne puisse se rejouer — le joueur restait dehors.
     tx.update(gameRef(code, c), {
-      [`seats.${player}`]: asBot ? { uid, bot: true } : { uid },
+      [`seats.${player}`]: asBot ? { uid, bot: true, ...(niveau ? { niveau } : {}) } : { uid },
       seatedUids: arrayUnion(uid),
       ...(table ? { seating: table, dealer: table[1] } : {}),
     })
   })
   await appendWith(c, code, { type: 'joueur_connecte', player })
+}
+
+/**
+ * Reprend le siège d'un bot dont l'onglet a disparu (fermé, rechargé) : sans cela, le
+ * bot « réfléchissait » pour toujours et la table restait figée. Refusé si quelqu'un
+ * l'a déjà repris depuis la lecture de `ancienUid` : un seul onglet l'emporte.
+ */
+export async function reprendreSiegeBot(
+  code: string,
+  player: PlayerId,
+  ancienUid: string,
+  c: Client = mainClient,
+): Promise<void> {
+  const uid = await signIn(c)
+  await runTransaction(c.db, async (tx) => {
+    const snap = await tx.get(gameRef(code, c))
+    if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
+    const siege = (snap.data() as GameDoc).seats[player]
+    if (!siege?.bot) throw new Error("Ce siège n'est pas tenu par un bot")
+    if (siege.uid !== ancienUid) throw new ConcurrentWrite('Ce bot a déjà été repris')
+    tx.update(gameRef(code, c), {
+      [`seats.${player}`]: { ...siege, uid },
+      seatedUids: arrayUnion(uid),
+    })
+  })
 }
 
 export const allSeatsTaken = (game: GameDoc): boolean =>
@@ -528,7 +578,8 @@ export async function playCard(
   const after = play(before, player, card, hand) // lève IllegalPlay si le coup est interdit
   // BEL-2 — vérifiée avant toute écriture : refusée après coup, elle laissait la carte au
   // journal sans la retirer de la main, ni fermer le pli.
-  if (declareBelote && !canDeclareBelote(before, player, card, hand, before.trump)) {
+  const dejaAnnoncee = (beloteAnnonces(events).get(player) ?? 0) > 0
+  if (declareBelote && !canDeclareBelote(before, player, card, hand, before.trump, dejaAnnoncee)) {
     throw new Error('Rien à annoncer avec cette carte')
   }
 
@@ -548,12 +599,12 @@ export async function playCard(
     { extraWrites: (tx) => tx.set(handRef(code, player, c), { cards: hand.filter((h) => h !== card) }) },
   )
   // BEL-2 — l'annonce est un geste volontaire, au moment de poser la carte.
+  // La donne en cours seulement : une belote d'une donne précédente faisait écrire « rebelote ».
   if (declareBelote) {
-    const already = events.some((e) => e.type === 'belote_annoncee' && e.player === player)
     await appendWith(c, code, {
       type: 'belote_annoncee',
       player,
-      half: already ? 'rebelote' : 'belote',
+      half: dejaAnnoncee ? 'rebelote' : 'belote',
     })
   }
 
@@ -667,6 +718,24 @@ export const watchEvents = (
   onSnapshot(query(eventsRef(code, c), orderBy('seq')), (s) =>
     cb(s.docs.map((d) => d.data() as GameEvent)),
   )
+
+/**
+ * Met la partie en pause, ou la reprend. N'importe quel joueur peut faire l'un ou
+ * l'autre, pendant les enchères et le jeu : c'est là que le temps de réflexion court.
+ */
+export async function setPause(code: string, player: PlayerId, enPause: boolean, c: Client = mainClient): Promise<void> {
+  await signIn(c)
+  await appendWith(c, code, { type: enPause ? 'pause' : 'reprise', player }, undefined, {
+    game: { pause: enPause ? { par: player, depuis: Date.now() } : null },
+    verifier: (g) => {
+      if (enPause && g.pause) throw new Error('La partie est déjà en pause')
+      if (!enPause && !g.pause) throw new Error("La partie n'est pas en pause")
+      if (enPause && g.phase !== 'encheres' && g.phase !== 'jeu') {
+        throw new Error('La pause se prend pendant les enchères ou le jeu')
+      }
+    },
+  })
+}
 
 /**
  * Arrête la partie pour les quatre : chacun revient à l'accueil. Rien n'est archivé,

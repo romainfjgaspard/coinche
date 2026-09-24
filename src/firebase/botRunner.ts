@@ -11,14 +11,14 @@ import type { GameEvent } from '../game/events'
 import type { PlayerId } from '../game/players'
 import { partnerOf, teamOfPlayer } from '../game/players'
 import { type BiddingEntry, currentBidder, highestBid, rankOf } from '../game/bidding'
-import { biddingFromEvents, currentDeal, playFromEvents } from '../game/replay'
+import { beloteAnnonces, biddingFromEvents, currentDeal, playFromEvents } from '../game/replay'
 import { canDeclareBelote, currentPlayer, playableFor } from '../game/play'
 import { type BotLevel, chooseBid, chooseCard } from '../game/bot'
 import { PLI_VISIBLE_MS } from '../game/display'
 import { type Client, makeClient } from './app'
 import {
-  type GameDoc, allSeatsTaken, deal, moveCount, placeBid, playCard, signIn, tableDe, takeSeat,
-  watchEvents, watchGame, watchHand,
+  type GameDoc, allSeatsTaken, deal, moveCount, placeBid, playCard, reprendreSiegeBot, signIn, tableDe,
+  takeSeat, watchEvents, watchGame, watchHand,
 } from './partie'
 
 /** Un temps de réflexion par défaut, pour que la table reste lisible par des humains. */
@@ -71,6 +71,13 @@ export interface BotOptions {
    * L'onglet hôte ne le donne que lorsqu'un humain a cliqué pour continuer.
    */
   mayDealNext?: (dealNumber: number) => boolean
+  /**
+   * Reprendre un bot dont l'onglet a disparu, plutôt que d'en asseoir un nouveau :
+   * l'uid qui tenait son siège, que la reprise remplace.
+   */
+  reprendDe?: string
+  /** Prévenu quand un autre onglet a repris ce bot : celui-ci s'est arrêté. */
+  onDetache?: () => void
 }
 
 export async function startBot(
@@ -80,12 +87,14 @@ export async function startBot(
 ): Promise<BotHandle> {
   const {
     level = 'simple', delayMs = REFLEXION_MS, feed, client, onError = defaultOnError, mayDealNext,
+    reprendDe, onDetache,
   } = options
   /** La pause après un pli suit le rythme du bot : les tests accélérés ne l'attendent pas. */
   const pausePli = Math.round((PLI_VISIBLE_MS * delayMs) / REFLEXION_MS)
   const c: Client = client ?? (await makeClient(`bot-${code}-${Date.now()}`))
-  await signIn(c)
-  await takeSeat(code, player, c, true)
+  const monUid = await signIn(c)
+  if (reprendDe) await reprendreSiegeBot(code, player, reprendDe, c)
+  else await takeSeat(code, player, c, true, level)
 
   let game: GameDoc | null = null
   let events: GameEvent[] = []
@@ -113,6 +122,8 @@ export async function startBot(
   function aFaire(g: GameDoc): { quoi: Action; cle: string } | null {
     const cle = `${g.phase}|${g.dealNumber}|${moveCount(events)}`
     if (cle === dernierActe || g.phase === 'terminee' || g.phase === 'annulee') return null
+    // En pause, on attend ; à la reprise, la réflexion repart de zéro.
+    if (g.pause) { trace = ''; return null }
 
     if (g.phase === 'lobby' || g.phase === 'decompte') {
       // Un bot donneur attend toujours le feu vert d'un humain de son onglet, y compris
@@ -138,6 +149,14 @@ export async function startBot(
 
   async function agir(): Promise<void> {
     if (!vivant || occupe || !game) return
+    // Repris par un autre onglet (celui-ci, ralenti en arrière-plan, passait pour
+    // disparu) : on s'efface, sinon deux onglets joueraient pour le même bot.
+    const siege = game.seats[player]
+    if (siege && siege.uid !== monUid) {
+      arreter()
+      onDetache?.()
+      return
+    }
     const decision = aFaire(game)
     if (!decision) return
     const { quoi, cle } = decision
@@ -214,15 +233,14 @@ export async function startBot(
    */
   const battement = setInterval(() => void agir(), Math.max(120, Math.round(delayMs / 3)))
 
-  return {
-    player,
-    level,
-    stop: () => {
-      vivant = false
-      clearInterval(battement)
-      for (const a of arrets) a()
-    },
+  function arreter(): void {
+    if (!vivant) return
+    vivant = false
+    clearInterval(battement)
+    for (const a of arrets) a()
   }
+
+  return { player, level, stop: arreter }
 }
 
 const attendre = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -298,7 +316,7 @@ async function poser(
   )
 
   // BEL-2 — un bot n'oublie jamais sa belote.
-  const annonce = canDeclareBelote(etat, player, carte, hand, etat.trump)
+  const annonce = canDeclareBelote(etat, player, carte, hand, etat.trump, (beloteAnnonces(events).get(player) ?? 0) > 0)
   await playCard(code, player, carte, annonce, c, thinkMs)
   return true
 }
