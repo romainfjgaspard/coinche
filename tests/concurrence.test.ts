@@ -157,3 +157,19 @@ describe('temps de réflexion', () => {
     expect('thinkMs' in roux).toBe(false)
   }, 30_000)
 })
+
+describe('coinche hors enchères', () => {
+  it('une fois le contrat fixé, on ne coinche plus', async () => {
+    const clients = await quatreClients()
+    const code = await nouvellePartie(clients)
+    for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
+    await deal(code, null, clients.benel)
+    await placeBid(code, { kind: 'contrat', player: 'viv', value: 80, suit: 'h' }, clients.viv)
+    await placeBid(code, { kind: 'passe', player: 'roux' }, clients.roux)
+    await placeBid(code, { kind: 'passe', player: 'romain' }, clients.romain)
+    await placeBid(code, { kind: 'passe', player: 'benel' }, clients.benel)
+    const game = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
+    expect(game.phase).toBe('jeu')
+    await expect(placeBid(code, { kind: 'coinche', player: 'benel' }, clients.benel)).rejects.toThrow('Les enchères sont closes')
+  }, 30_000)
+})

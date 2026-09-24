@@ -411,6 +411,8 @@ export async function placeBid(
   const snap = await getDoc(gameRef(code, c))
   if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
   const game = snap.data() as GameDoc
+  // Une enchère — coinche comprise — n'a de sens que pendant les enchères.
+  if (game.phase !== 'encheres') throw new Error('Les enchères sont closes')
 
   const events = await readJournal(code, c)
   const coupsVus = moveCount(events)

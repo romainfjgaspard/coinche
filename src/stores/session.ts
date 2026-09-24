@@ -104,11 +104,14 @@ export const useSession = defineStore('session', () => {
   const toBid = computed(() => (bidding.value ? currentBidder(bidding.value) : null))
   const myBidTurn = computed(() => toBid.value !== null && toBid.value === playerId.value)
   const bidValues = computed(() => (bidding.value ? legalValues(bidding.value) : []))
+  // Seulement pendant les enchères : l'historique des annonces reste lisible une fois le
+  // contrat fixé, et le bouton « Coincher », sorti du panneau, restait affiché en plein jeu.
+  const enEncheres = computed(() => game.value?.phase === 'encheres')
   const mayCoinche = computed(
-    () => Boolean(bidding.value && playerId.value && canCoinche(bidding.value, playerId.value)),
+    () => Boolean(enEncheres.value && bidding.value && playerId.value && canCoinche(bidding.value, playerId.value)),
   )
   const maySurcoinche = computed(
-    () => Boolean(bidding.value && playerId.value && canSurcoinche(bidding.value, playerId.value)),
+    () => Boolean(enEncheres.value && bidding.value && playerId.value && canSurcoinche(bidding.value, playerId.value)),
   )
 
   const play = computed(() =>
