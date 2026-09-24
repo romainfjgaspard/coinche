@@ -30,6 +30,11 @@ export interface PlayerArchive {
   marques: number
   offerts: number
   coinches: number
+  /**
+   * Coinches et surcoinches gagnées : contrat chuté pour qui coinche, tenu pour qui
+   * surcoinche. Absent des archives déposées avant le 24/09/2026.
+   */
+  coinchesGagnees?: number
   belotesAnnoncees: number
   belotesOubliees: number
   etoiles: number
@@ -52,7 +57,7 @@ export interface Archive {
 }
 
 const vide = (): PlayerArchive => ({
-  prises: 0, reussies: 0, chutes: 0, marques: 0, offerts: 0, coinches: 0,
+  prises: 0, reussies: 0, chutes: 0, marques: 0, offerts: 0, coinches: 0, coinchesGagnees: 0,
   belotesAnnoncees: 0, belotesOubliees: 0, etoiles: 0,
   impasses: 0, impassesReussies: 0, impassesRatees: 0, detail: [],
 })
@@ -95,7 +100,12 @@ export function buildArchive(
         capot: d.capot,
       })
     }
-    for (const c of d.coincheurs) players[c].coinches += 1
+    for (const c of d.coincheurs) {
+      players[c].coinches += 1
+      const chute = d.status === 'chute'
+      const campDuPreneur = d.taker !== null && teamOfPlayer(c, seating) === teamOfPlayer(d.taker, seating)
+      if (campDuPreneur ? !chute : chute) players[c].coinchesGagnees! += 1
+    }
     if (d.beloteDeclaredBy) players[d.beloteDeclaredBy].belotesAnnoncees += 1
     if (d.beloteForgottenBy) players[d.beloteForgottenBy].belotesOubliees += 1
     if (d.etoile) players[d.etoile].etoiles += 1

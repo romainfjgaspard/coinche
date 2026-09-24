@@ -17,13 +17,14 @@ import { describe, it } from 'vitest'
 import { getDoc } from 'firebase/firestore'
 import { type Client, db, makeClient, useEmulators } from '../src/firebase/app'
 import {
-  type GameDoc, createGame, deal, gameRef, handRef, placeBid, playCard, readJournal, signIn, takeSeat,
+  type GameDoc, createGame, deal, gameRef, handRef, placeBid, playCard, readArchives, readJournal, signIn,
+  takeSeat,
 } from '../src/firebase/partie'
 import { type BiddingEntry, currentBidder, highestBid, rankOf } from '../src/game/bidding'
 import { chooseBid, chooseCard } from '../src/game/bot'
 import type { Card } from '../src/game/cards'
 import { canDeclareBelote, currentPlayer, playableFor } from '../src/game/play'
-import { PLAYER_IDS, type PlayerId, partnerOf, randomSeating, teamOfPlayer } from '../src/game/players'
+import { PLAYER_IDS, type PlayerId, type Seating, partnerOf, teamOfPlayer } from '../src/game/players'
 import { biddingFromEvents, currentDeal, playFromEvents } from '../src/game/replay'
 
 const PARTIES = Number(process.env.PARTIES ?? 8)
@@ -93,8 +94,43 @@ async function poser(clients: Record<PlayerId, Client>, code: string, game: Game
   await playCard(code, joueur, carte, belote, c)
 }
 
+/**
+ * Les trois affiches possibles à quatre : Romain avec chacun des trois autres.
+ * Chaque partie prend l'affiche la moins jouée parmi les archives déjà déposées — y
+ * compris celles d'avant le semis — pour que chaque duo ait autant de matchs.
+ */
+function afficheDe(seating: Seating): string {
+  return [[seating[0], seating[2]], [seating[1], seating[3]]]
+    .map((duo) => [...duo].sort().join('+'))
+    .sort()
+    .join(' vs ')
+}
+
+async function placementEquilibre(c: Client): Promise<Seating> {
+  const autres = PLAYER_IDS.filter((p) => p !== 'romain')
+  const affiches: Seating[] = autres.map((partenaire) => {
+    const [a, b] = autres.filter((p) => p !== partenaire)
+    return ['romain', a, partenaire, b] as const
+  })
+  const jouees = new Map<string, number>()
+  for (const archive of await readArchives(c)) {
+    const cle = afficheDe(archive.seating)
+    jouees.set(cle, (jouees.get(cle) ?? 0) + 1)
+  }
+  const moins = Math.min(...affiches.map((s) => jouees.get(afficheDe(s)) ?? 0))
+  const candidates = affiches.filter((s) => (jouees.get(afficheDe(s)) ?? 0) === moins)
+  const choisie = candidates[Math.floor(Math.random() * candidates.length)]
+  // Même affiche, mais la place de chacun et le premier donneur varient d'une partie à l'autre.
+  const decalage = Math.floor(Math.random() * 4)
+  const siege = (i: number): PlayerId => choisie[(i + decalage) % 4]
+  return [siege(0), siege(1), siege(2), siege(3)]
+}
+
 async function jouerUnePartie(n: number): Promise<void> {
-  const seating = randomSeating()
+  const lecteur = await makeClient(`historique-${n}-lecteur-${Date.now()}`)
+  await signIn(lecteur)
+  const seating = await placementEquilibre(lecteur)
+  console.log(`partie ${n} : ${afficheDe(seating)}`)
   const clients = {} as Record<PlayerId, Client>
   for (const p of PLAYER_IDS) {
     clients[p] = await makeClient(`historique-${n}-${p}-${Date.now()}`)

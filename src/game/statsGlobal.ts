@@ -69,8 +69,11 @@ export function duoStats(archives: Archive[]): DuoStats[] {
         d.reussies += p.reussies
         d.marques += p.marques
         d.offerts += p.offerts
+        // Une donne gagnée : son propre contrat tenu…
         d.donnesGagnees += p.reussies
       }
+      // … ou celui de l'adversaire chuté.
+      for (const j of contre) d.donnesGagnees += a.players[j].chutes
     }
   }
 
@@ -95,6 +98,8 @@ export interface JoueurStats {
   marques: number
   offerts: number
   coinches: number
+  /** Les archives antérieures au 24/09/2026 ne le connaissent pas : compté comme 0. */
+  coinchesGagnees: number
   belotesAnnoncees: number
   belotesOubliees: number
   etoiles: number
@@ -102,6 +107,8 @@ export interface JoueurStats {
   impassesReussies: number
   impassesRatees: number
   panache: number | null
+  /** Moyenne des contrats chiffrés pris (capots et générales à part, ils fausseraient tout). */
+  enchereMoyenne: number | null
 }
 
 export function joueurStats(archives: Archive[]): JoueurStats[] {
@@ -119,9 +126,10 @@ export function joueurStats(archives: Archive[]): JoueurStats[] {
     const scores: number[] = []
     const base = {
       joueur, parties: 0, gagnees: 0, donnes: 0, prises: 0, reussies: 0, chutes: 0,
-      marques: 0, offerts: 0, coinches: 0, belotesAnnoncees: 0, belotesOubliees: 0, etoiles: 0,
-      impasses: 0, impassesReussies: 0, impassesRatees: 0,
+      marques: 0, offerts: 0, coinches: 0, coinchesGagnees: 0, belotesAnnoncees: 0, belotesOubliees: 0,
+      etoiles: 0, impasses: 0, impassesReussies: 0, impassesRatees: 0,
     }
+    const encheres: number[] = []
     for (const a of archives) {
       const team = teamOfPlayer(joueur, a.seating)
       const p = a.players[joueur]
@@ -135,6 +143,8 @@ export function joueurStats(archives: Archive[]): JoueurStats[] {
       base.marques += p.marques
       base.offerts += p.offerts
       base.coinches += p.coinches
+      base.coinchesGagnees += p.coinchesGagnees ?? 0
+      encheres.push(...p.detail.filter((d) => !d.capot && d.value <= 160).map((d) => d.value))
       base.belotesAnnoncees += p.belotesAnnoncees
       base.belotesOubliees += p.belotesOubliees
       base.etoiles += p.etoiles
@@ -148,8 +158,37 @@ export function joueurStats(archives: Archive[]): JoueurStats[] {
       scoreMoyen: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
       pireScore: scores.length ? Math.min(...scores) : null,
       panache: panacheDe(joueur, toutes),
+      enchereMoyenne: encheres.length
+        ? Math.round(encheres.reduce((s, v) => s + v, 0) / encheres.length)
+        : null,
     }
   }).sort((a, b) => b.gagnees / (b.parties || 1) - a.gagnees / (a.parties || 1))
+}
+
+/** L'en-tête de la page : combien de parties, de donnes, de prises, et depuis quand. */
+export function resumeGlobal(archives: Archive[]): {
+  parties: number
+  donnes: number
+  prises: number
+  depuis: number | null
+} {
+  return {
+    parties: archives.length,
+    donnes: archives.reduce((s, a) => s + a.deals, 0),
+    prises: archives.reduce((s, a) => s + PLAYER_IDS.reduce((t, p) => t + a.players[p].prises, 0), 0),
+    depuis: archives.length ? Math.min(...archives.map((a) => a.finishedAt)) : null,
+  }
+}
+
+/** Toutes les prises dont la force est connue, pour la référence du groupe. */
+export function prisesAvecForce(archives: Archive[]): PriseForce[] {
+  return archives.flatMap((a) =>
+    PLAYER_IDS.flatMap((p) =>
+      a.players[p].detail
+        .filter((d): d is PriseDetail & { force: number } => d.force !== null)
+        .map((d) => ({ joueur: p, force: d.force, value: d.value })),
+    ),
+  )
 }
 
 /** Paliers d'enchère, capot compris, pour les barres. */

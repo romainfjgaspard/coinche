@@ -3,10 +3,13 @@
  * Statistiques de la partie en cours, calculées depuis le journal — donc vivantes :
  * un événement arrive, les chiffres bougent.
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { PLAYER_IDS, PLAYER_NAMES, type PlayerId, teamOfPlayer } from '../game/players'
 import { bilan, enchereMoyenne } from '../game/stats'
 import StatsGlobalView from './StatsGlobalView.vue'
+import StatsPartiePc from './StatsPartiePc.vue'
+import StatsGlobalPc from './StatsGlobalPc.vue'
+import { resumeGlobal } from '../game/statsGlobal'
 import { useSession } from '../stores/session'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableLayout } from '../composables/useTableLayout'
@@ -16,6 +19,37 @@ const grand = useLargeScreen()
 const L = useTableLayout()
 const emit = defineEmits<{ fermer: [] }>()
 const onglet = ref<'partie' | 'global'>('partie')
+
+/*
+ * Sur PC, les archives sont lues ici : l'en-tête résume toutes les parties, et le
+ * choix « avec ou sans bots » s'y trouve. Rechargées à chaque ouverture.
+ */
+onMounted(() => { if (grand.value) void session.loadArchives() })
+const avecBots = ref(false)
+const partiesAvecBot = computed(() => session.archives.filter((a) => (a.bots ?? []).length > 0).length)
+const archives = computed(() =>
+  avecBots.value ? session.archives : session.archives.filter((a) => (a.bots ?? []).length === 0),
+)
+const nomCamp = (team: 0 | 1): string =>
+  PLAYER_IDS.filter((p) => teamOfPlayer(p, session.seating) === team).map((p) => PLAYER_NAMES[p]).join(' & ')
+/** La phrase à droite des onglets, comme sur la maquette. */
+const enTete = computed(() => {
+  if (onglet.value === 'partie') {
+    const n = session.dealSummaries.filter((d) => d.status !== null).length
+    const eux = session.myTeam === 0 ? 1 : 0
+    return `${nomCamp(session.myTeam)} contre ${nomCamp(eux)} · ${n} donne${n > 1 ? 's' : ''} · objectif 1000`
+  }
+  const r = resumeGlobal(archives.value)
+  const pl = (v: number, mot: string) => `${v} ${mot}${v > 1 ? 's' : ''}`
+  const depuis = r.depuis === null
+    ? ''
+    : ` · depuis le ${new Date(r.depuis).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+  return `${pl(r.parties, 'partie')} · ${pl(r.donnes, 'donne')} · ${pl(r.prises, 'prise')}${depuis}`
+})
+const ONGLETS = [
+  { id: 'partie', label: 'Partie en cours' },
+  { id: 'global', label: 'Toutes les parties' },
+] as const
 
 const OR = '#d9a441'
 const BLEU = '#7fa8c9'
@@ -156,7 +190,49 @@ const faits = computed(() => {
 </script>
 
 <template>
-  <div class="mx-auto h-full w-full max-w-md overflow-y-auto bg-felt-dark text-ivory lg:max-w-none">
+  <!-- Sur PC : les maquettes validées, dessinées pour 1920 px et mises à l'échelle de l'écran -->
+  <div v-if="grand" class="h-full w-full overflow-y-auto bg-felt-dark text-ivory">
+    <div class="px-11 pt-[22px] pb-10" :style="{ zoom: L.t }">
+      <div class="flex items-center gap-2">
+        <button
+          v-for="t in ONGLETS"
+          :key="t.id"
+          type="button"
+          class="cursor-pointer rounded-full border px-3.5 py-[7px] text-[13px] transition"
+          :class="onglet === t.id
+            ? 'border-gold bg-gold/20 font-semibold text-gold'
+            : 'border-white/14 font-medium text-sage hover:border-white/35 hover:text-mist'"
+          @click="onglet = t.id"
+        >{{ t.label }}</button>
+        <button
+          v-if="onglet === 'global' && partiesAvecBot > 0"
+          type="button"
+          class="ml-3 cursor-pointer rounded-full border px-2.5 py-0.5 text-[11px]"
+          :class="avecBots ? 'border-gold bg-gold/20 text-gold' : 'border-white/15 text-sage'"
+          @click="avecBots = !avecBots"
+        >
+          {{ avecBots ? 'avec' : 'sans' }} les {{ partiesAvecBot }} partie{{ partiesAvecBot > 1 ? 's' : '' }} à bot
+        </button>
+        <span class="ml-auto text-xs text-dusk">{{ enTete }}</span>
+        <button
+          type="button"
+          class="ml-4 cursor-pointer rounded-lg border border-white/15 px-2.5 py-1.5 text-xs font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
+          @click="emit('fermer')"
+        >Table</button>
+      </div>
+      <StatsPartiePc v-if="onglet === 'partie'" />
+      <template v-else>
+        <p v-if="!archives.length" class="mt-10 text-sm text-sage">
+          {{ partiesAvecBot > 0
+            ? 'Toutes les parties terminées avaient un bot à table : affichez-les avec le bouton ci-dessus.'
+            : "Aucune partie terminée pour l'instant." }}
+        </p>
+        <StatsGlobalPc v-else :archives="archives" />
+      </template>
+    </div>
+  </div>
+
+  <div v-else class="mx-auto h-full w-full max-w-md overflow-y-auto bg-felt-dark text-ivory">
   <!-- Sur PC le contenu suit l'échelle de l'écran : à 2560 px, les textes tombaient à 11 px -->
   <div
     class="mx-auto px-5 pt-4 pb-8 lg:max-w-[1180px] lg:px-10 lg:pt-8"

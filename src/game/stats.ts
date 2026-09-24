@@ -162,6 +162,51 @@ export function tallies(list: DealSummary[], seating: Seating): Map<PlayerId, Ta
   return out
 }
 
+/** Une équipe sur la partie : le tableau « Par équipe » des statistiques. */
+export interface TeamTally {
+  /** Donnes où l'équipe a marqué des points */
+  donnesGagnees: number
+  prises: number
+  reussies: number
+  enchereMoyenne: number | null
+  /** Coinches et surcoinches lancées par l'équipe */
+  coinches: number
+  /** …et gagnées : contrat chuté pour qui coinche, tenu pour qui surcoinche */
+  coinchesGagnees: number
+  etoiles: number
+}
+
+export function teamTallies(list: DealSummary[], seating: Seating): [TeamTally, TeamTally] {
+  const vide = (): TeamTally & { encheres: number[] } => ({
+    donnesGagnees: 0, prises: 0, reussies: 0, enchereMoyenne: null,
+    coinches: 0, coinchesGagnees: 0, etoiles: 0, encheres: [],
+  })
+  const equipes = [vide(), vide()]
+  for (const d of list) {
+    if (d.status === null) continue
+    for (const t of [0, 1] as const) if (d.scores[t] > 0) equipes[t].donnesGagnees += 1
+    if (d.taker) {
+      const e = equipes[teamOfPlayer(d.taker, seating)]
+      e.prises += 1
+      if (d.status !== 'chute') e.reussies += 1
+      if (!d.capot && d.value <= 160) e.encheres.push(d.value)
+    }
+    for (const c of d.coincheurs) {
+      const camp = teamOfPlayer(c, seating)
+      equipes[camp].coinches += 1
+      const campDuPreneur = d.taker !== null && camp === teamOfPlayer(d.taker, seating)
+      const chute = d.status === 'chute'
+      if (campDuPreneur ? !chute : chute) equipes[camp].coinchesGagnees += 1
+    }
+    if (d.etoile) equipes[teamOfPlayer(d.etoile, seating)].etoiles += 1
+  }
+  const fin = ({ encheres, ...e }: TeamTally & { encheres: number[] }): TeamTally => ({
+    ...e,
+    enchereMoyenne: encheres.length ? Math.round(encheres.reduce((s, v) => s + v, 0) / encheres.length) : null,
+  })
+  return [fin(equipes[0]), fin(equipes[1])]
+}
+
 /** Plis remportés par équipe sur la donne en cours — pour la bande d'information. */
 export function dealsPlayed(list: DealSummary[]): number {
   return list.filter((d) => d.status !== null).length
