@@ -7,7 +7,7 @@
  */
 import { computed } from 'vue'
 import { type Card, rankOf, suitOf } from '../game/cards'
-import { RANK_LABEL, SUIT_GLYPH, cardLabel, courtImage, isRed, pipLayout } from '../game/display'
+import { RANK_LABEL, SUIT_GLYPH, cardLabel, courtCrop, courtImage, isRed, pipLayout } from '../game/display'
 
 const props = withDefaults(
   defineProps<{
@@ -30,6 +30,7 @@ const rank = computed(() => rankOf(props.card))
 const suit = computed(() => suitOf(props.card))
 const ink = computed(() => (isRed(suit.value) ? '#c0392b' : '#1f2937'))
 const image = computed(() => courtImage(props.card))
+const crop = computed(() => courtCrop(props.card))
 const pips = computed(() => pipLayout(rank.value))
 
 const s = computed(() => {
@@ -72,18 +73,21 @@ const s = computed(() => {
       droite). On n'en ajoute pas : deux index superposés rognaient le dessin.
     -->
     <!--
-      L'image dessine aussi son propre contour de carte : on l'agrandit un peu pour le
-      pousser hors du cadre, sinon deux bords se voyaient l'un dans l'autre. Décodage
-      synchrone (et figures préchargées au démarrage) : sans lui, une figure posée sur
-      le tapis restait blanche un instant.
+      L'image dessine son propre contour de carte, et un cadre intérieur à 7 à 10 unités
+      du bord selon la figure. On ne garde que l'intérieur de ce cadre (courtCrop) :
+      sinon ses traits se voyaient le long des côtés, comme un second bord. Les SVG
+      s'étirent (preserveAspectRatio="none") : l'intérieur du cadre est environ 5 %
+      plus haut que la carte, écart invisible. Décodage synchrone (et
+      figures préchargées au démarrage) : sans lui, une figure posée sur le tapis restait
+      blanche un instant.
     -->
     <img
       v-if="image"
       :src="image"
       alt=""
       decoding="sync"
-      class="absolute"
-      :style="{ left: '-2.5%', top: '-2.5%', width: '105%', height: '105%' }"
+      class="absolute max-w-none"
+      :style="crop ?? undefined"
       draggable="false"
     />
 

@@ -36,6 +36,41 @@ export function courtImage(card: Card): string | null {
   return `${import.meta.env.BASE_URL}cards/${file}`
 }
 
+/**
+ * Cadre intérieur de chaque figure, en unités du SVG (167,09 × 242,67) : marges
+ * gauche, droite, haut, bas, trait compris. Relevé dans les fichiers le 24/09.
+ */
+const COURT_FRAME: Record<string, readonly [number, number, number, number]> = {
+  Jack_of_clubs: [7.8, 7.02, 7.41, 7.41],
+  Jack_of_diamonds: [8.15, 8.07, 8.11, 8.11],
+  Jack_of_hearts: [9.03, 8.82, 8.93, 8.93],
+  Jack_of_spades: [9.16, 8.46, 8.81, 8.81],
+  King_of_clubs: [10.43, 10.17, 10.3, 10.3],
+  King_of_diamonds: [9.99, 9.73, 9.86, 9.86],
+  King_of_hearts: [10.34, 10.08, 10.21, 10.21],
+  King_of_spades: [8.14, 8.31, 8.23, 8.22],
+  Queen_of_clubs: [10.94, 10.75, 10.84, 10.85],
+  Queen_of_diamonds: [8.56, 8.36, 8.46, 8.46],
+  Queen_of_hearts: [9.63, 9.23, 9.43, 9.43],
+  Queen_of_spades: [10.04, 9.31, 9.68, 9.67],
+}
+
+/**
+ * Où placer l'image d'une figure pour que seul l'intérieur de son cadre remplisse la
+ * carte : ni le contour dessiné dans le SVG, ni les traits du cadre ne se voient le
+ * long des bords. Chaque figure a son propre cadre : un recadrage commun rognait
+ * l'index de celles dont le cadre est plus près du bord.
+ */
+export function courtCrop(card: Card): { left: string; top: string; width: string; height: string } | null {
+  const rank = rankOf(card)
+  if (!isCourt(rank)) return null
+  const [l, r, t, b] = COURT_FRAME[`${COURT_FILE[rank as 'J' | 'Q' | 'K']}_of_${SUIT_FILE[suitOf(card)]}`]
+  const w = 167.09 - l - r
+  const h = 242.67 - t - b
+  const pct = (v: number) => `${(v * 100).toFixed(3)}%`
+  return { left: pct(-l / w), top: pct(-t / h), width: pct(167.09 / w), height: pct(242.67 / h) }
+}
+
 export interface Pip {
   /** Position en pourcentage de la zone centrale */
   x: number

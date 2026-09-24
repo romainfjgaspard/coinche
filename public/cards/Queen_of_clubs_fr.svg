@@ -2,7 +2,7 @@
 <!-- Modifie : contenu comprime verticalement pour egaliser les marges du cadre. Original : svg-cards, David Bellot, LGPL 2.1+. -->
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" 
   "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns="http://www.w3.org/2000/svg" width="167.09" height="242.67" viewBox="0 0 167.09 242.67">
+<svg xmlns="http://www.w3.org/2000/svg" width="167.09" height="242.67" viewBox="0 0 167.09 242.67" preserveAspectRatio="none">
   <path fill="#fff" stroke="#000" stroke-width=".5" d="M166.84 235.55a6.89 6.89 0 0 1-6.87 6.87H7.11a6.89 6.89 0 0 1-6.86-6.87V7.12A6.89 6.89 0 0 1 7.11.25H160a6.89 6.89 0 0 1 6.87 6.87z"/>
   <g transform="matrix(1 0 0 0.95368 0 5.5627)">
   
