@@ -19,7 +19,13 @@ const grand = useLargeScreen()
 const L = useTableLayout()
 /** À l'échelle de l'écran, sans jamais dépasser sa hauteur. */
 const contenu = ref<HTMLElement | null>(null)
-const zoom = useFitZoom(contenu, computed(() => L.value.t * 1.3), computed(() => L.value.height - 24))
+// Toute la hauteur de l'écran, et au plus 60 % de sa largeur : à échelle fixe, le salon
+// flottait au milieu d'un grand vide.
+const zoom = useFitZoom(
+  contenu,
+  computed(() => Math.min(L.value.t * 2.4, (L.value.width * 0.6) / 600)),
+  computed(() => L.value.height - 16),
+)
 
 const seatedCount = computed(() => session.present.length)
 const seating = computed<Seating | null>(() => session.game?.seating ?? null)
@@ -33,6 +39,11 @@ const iAmDealer = computed(() => session.playerId !== null && session.playerId =
  */
 type Place = 'bas' | 'gauche' | 'haut' | 'droite'
 const PLACES: Place[] = ['haut', 'gauche', 'droite', 'bas']
+/** Haut et bas accrochés au bord de la table (26 % – 74 %), les côtés à mi-hauteur. */
+const placeStyle = (place: Place): Record<string, string> =>
+  place === 'haut' ? { left: '50%', bottom: '76%', transform: 'translateX(-50%)' }
+    : place === 'bas' ? { left: '50%', top: '76%', transform: 'translateX(-50%)' }
+      : { left: place === 'gauche' ? '12%' : '88%', top: '50%', transform: 'translate(-50%, -50%)' }
 const places = computed<Record<Place, PlayerId | null>>(() => {
   const moi = session.playerId
   if (seating.value && moi && seating.value.includes(moi)) {
@@ -91,59 +102,32 @@ const monPartenaire = computed(() =>
 
 <template>
   <!--
-    Une seule colonne, mise à l'échelle et centrée sur PC. Elle reste compacte : plus
-    haute que l'écran, son échelle se réduisait pour tout faire tenir, et elle avait
-    l'air d'un téléphone au milieu de l'écran.
+    Une seule colonne, centrée. Sur PC elle prend toute la hauteur de l'écran (et au
+    plus 60 % de sa largeur) : à échelle fixe, elle flottait au milieu d'un grand vide.
+    Duos côte à côte, objectif et blitz sur une ligne, absents en cases : elle reste
+    basse, donc large une fois mise à l'échelle.
   -->
   <div class="flex min-h-full">
   <div
-    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 [@media(max-height:820px)]:pt-8 max-lg:min-h-full lg:my-auto lg:py-10"
+    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 [@media(max-height:820px)]:pt-8 max-lg:min-h-full lg:my-auto lg:max-w-[600px] lg:py-3"
     ref="contenu"
     :style="grand ? { zoom } : undefined"
   >
-    <p class="text-[13px] text-sage">Code de la partie</p>
-    <div class="mt-1 flex items-baseline gap-3">
-      <span class="font-display text-5xl tracking-[0.18em] leading-none">{{ session.code }}</span>
+    <!-- Sur une ligne, sans en faire un titre : il suffit de pouvoir le lire aux autres -->
+    <div class="flex items-baseline gap-2.5">
+      <span class="text-sm text-sage">Code de la partie :</span>
+      <span class="font-display text-2xl tracking-[0.15em] leading-none">{{ session.code }}</span>
       <button
         type="button"
-        class="text-[13px] text-sage underline underline-offset-4 hover:text-mist"
+        class="ml-auto text-[13px] text-sage underline underline-offset-4 hover:text-mist"
         @click="session.leave()"
       >quitter</button>
     </div>
 
-    <h2 class="mt-7 mb-2 text-[13px] font-semibold tracking-wider text-sage uppercase">Les équipes</h2>
-    <p v-if="monPartenaire" class="mb-2 text-xs text-mist">
-      Tu joues avec <span class="font-semibold text-gold">{{ nomDe(monPartenaire) }}</span>.
-    </p>
-    <p v-if="!seating" class="text-xs text-sage">
-      Tirées au sort dès que la table est complète.
-    </p>
-    <div class="flex flex-col gap-1.5">
-      <button
-        v-for="duo in duos"
-        :key="duo.label"
-        type="button"
-        class="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-1.5 text-left transition"
-        :class="duo.actif ? 'border-gold bg-gold/15' : 'border-white/15 hover:border-white/35 hover:bg-white/5'"
-        @click="session.chooseSeating(duo.seating)"
-      >
-        <span class="grow text-xs font-semibold" :class="duo.actif ? 'text-gold' : 'text-mist'">
-          {{ duo.label }}
-        </span>
-        <span class="text-[11px] text-sage">contre {{ duo.contre }}</span>
-      </button>
-    </div>
-    <button
-      v-if="seating"
-      type="button"
-      class="mt-1.5 h-8 w-full cursor-pointer rounded-lg border border-white/15 text-xs text-mist transition hover:border-white/35 hover:bg-white/5"
-      @click="seating && session.chooseSeating(randomSeating(Math.random, seating))"
-    >Retirer au sort</button>
-
     <!-- Les règles de cette partie : figées à la première donne -->
-    <h2 class="mt-8 mb-3 text-[13px] font-semibold tracking-wider text-sage uppercase">La partie</h2>
-    <div class="flex items-center gap-2">
-      <span class="w-20 text-sm text-mist">En</span>
+    <div class="mt-5 lg:flex lg:items-stretch lg:gap-3">
+    <div class="flex items-center gap-2 lg:grow">
+      <span class="w-20 text-sm text-mist lg:w-auto">En</span>
       <button
         v-for="o in OBJECTIFS"
         :key="o"
@@ -156,7 +140,7 @@ const monPartenaire = computed(() =>
         @click="session.chooseOptions({ objectif: o })"
       >{{ o }}</button>
     </div>
-    <label class="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/15 px-3.5 py-2.5 transition hover:border-white/35">
+    <label class="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/15 px-3.5 py-2.5 transition hover:border-white/35 lg:mt-0 lg:items-center lg:rounded-lg lg:py-0">
       <input
         type="checkbox"
         class="mt-0.5 size-4 accent-[#d9a441]"
@@ -166,30 +150,29 @@ const monPartenaire = computed(() =>
       />
       <span>
         <span class="block text-sm font-semibold">Blitz</span>
-        <span class="block text-xs text-sage">
+        <span class="block text-xs text-sage lg:hidden">
           Donne non coinchée : pas jouée, le contrat compte.
         </span>
       </span>
     </label>
+    </div>
 
-    <h2 class="mt-8 mb-3 text-[13px] font-semibold tracking-wider text-sage uppercase">
-      Autour de la table — {{ seatedCount }} sur 4
-    </h2>
-
-    <!-- Les places comme à la table : moi en bas, mon partenaire en face -->
-    <div class="relative mx-auto h-[290px] w-full max-w-[400px]">
+    <!--
+      Les places comme à la table : moi en bas, mon partenaire en face. Haut et bas sont
+      accrochés au bord de la table, avec un écart : centrées sur un pourcentage, ma
+      pastille touchait le tapis.
+    -->
+    <div class="relative mx-auto mt-5 h-[270px] w-full max-w-[420px]">
       <div
-        class="absolute inset-x-[25%] inset-y-[27%] rounded-[40%] border-[7px] border-[#33241a] shadow-[inset_0_0_0_2px_rgba(217,164,65,.22),0_10px_24px_rgba(0,0,0,.45)]"
+        class="absolute inset-x-[24%] inset-y-[26%] rounded-[40%] border-[7px] border-[#33241a] shadow-[inset_0_0_0_2px_rgba(217,164,65,.22),0_10px_24px_rgba(0,0,0,.45)]"
         style="background-color: #15583f; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.028) 0 2px, transparent 2px 5px), repeating-linear-gradient(-45deg, rgba(0,0,0,.055) 0 2px, transparent 2px 5px);"
       ></div>
       <div
         v-for="place in PLACES"
         :key="place"
-        class="absolute flex w-28 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 text-center"
-        :style="{
-          left: place === 'gauche' ? '12%' : place === 'droite' ? '88%' : '50%',
-          top: place === 'haut' ? '12%' : place === 'bas' ? '86%' : '50%',
-        }"
+        class="absolute flex w-32 items-center gap-1 text-center"
+        :class="place === 'haut' ? 'flex-col-reverse' : 'flex-col'"
+        :style="placeStyle(place)"
       >
         <template v-if="places[place]">
           <span class="relative">
@@ -202,31 +185,31 @@ const monPartenaire = computed(() =>
               <DealerChip :size="26" />
             </span>
           </span>
-          <span class="text-sm leading-tight font-semibold">
-            {{ nomDe(places[place]!) }}<span v-if="places[place] === session.playerId" class="text-xs text-sage"> · toi</span>
-          </span>
-          <span v-if="estUnBot(places[place]!)" class="text-[11px] leading-none text-sage">
-            {{ niveauBot(places[place]!) === 'compteur' ? 'bot ★' : 'bot' }}
+          <span class="text-sm leading-tight font-semibold whitespace-nowrap">
+            {{ nomDe(places[place]!) }}<span v-if="places[place] === session.playerId" class="text-xs text-sage"> · toi</span><span
+              v-if="estUnBot(places[place]!)"
+              class="text-xs font-normal text-sage"
+            > · {{ niveauBot(places[place]!) === 'compteur' ? 'bot ★' : 'bot' }}</span>
           </span>
         </template>
-        <template v-else>
-          <span class="flex size-11 items-center justify-center rounded-full border-2 border-dashed border-white/25 text-sm text-dusk">?</span>
-          <span class="text-xs text-dusk">place libre</span>
-        </template>
+        <span
+          v-else
+          class="flex size-11 items-center justify-center rounded-full border-2 border-dashed border-white/25 text-sm text-dusk"
+        >?</span>
       </div>
     </div>
 
     <!-- Les absents : on peut confier leur place à un bot -->
-    <div v-if="absents.length" class="mt-3 flex flex-col gap-2">
+    <div v-if="absents.length" class="mt-4 flex flex-col gap-2 lg:grid lg:grid-cols-3">
       <div
         v-for="p in absents"
         :key="p"
-        class="flex min-h-11 items-center gap-3 rounded-xl border border-dashed border-white/15 px-3.5"
+        class="flex min-h-11 items-center gap-3 rounded-xl border border-dashed border-white/15 px-3.5 lg:flex-wrap lg:gap-x-2 lg:gap-y-1.5 lg:px-3 lg:py-2"
       >
         <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-mist">
           {{ nomDe(p).charAt(0) }}
         </span>
-        <span class="grow text-sm font-semibold text-dusk">{{ nomDe(p) }}</span>
+        <span class="grow text-sm font-semibold text-dusk lg:basis-[calc(100%-2.5rem)]">{{ nomDe(p) }}</span>
         <button
           type="button"
           :disabled="session.busy"
@@ -243,10 +226,40 @@ const monPartenaire = computed(() =>
         >+ bot ★</button>
       </div>
     </div>
-    <p v-if="seatedCount < 4" class="mt-2.5 text-xs text-sage">
+    <p v-if="seatedCount < 4" class="mt-2.5 text-center text-xs text-sage">
       <span class="font-semibold text-mist">bot</span> : ne voit que sa main ·
       <span class="font-semibold text-mist">bot ★</span> : retient aussi les cartes tombées
     </p>
+    <p v-if="!seating" class="mt-2 text-center text-xs text-sage">
+      Équipes tirées au sort dès que la table est complète.
+    </p>
+
+    <!-- La table complète : les équipes, sous la table, à choisir ou à retirer au sort -->
+    <template v-if="seating">
+      <p v-if="monPartenaire" class="mt-5 mb-2 text-xs text-mist">
+        Tu joues avec <span class="font-semibold text-gold">{{ nomDe(monPartenaire) }}</span>.
+      </p>
+      <div class="flex flex-col gap-1.5 lg:grid lg:grid-cols-3">
+        <button
+          v-for="duo in duos"
+          :key="duo.label"
+          type="button"
+          class="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-1.5 text-left transition lg:flex-col lg:items-start lg:gap-0"
+          :class="duo.actif ? 'border-gold bg-gold/15' : 'border-white/15 hover:border-white/35 hover:bg-white/5'"
+          @click="session.chooseSeating(duo.seating)"
+        >
+          <span class="grow text-xs font-semibold" :class="duo.actif ? 'text-gold' : 'text-mist'">
+            {{ duo.label }}
+          </span>
+          <span class="text-[11px] text-sage">contre {{ duo.contre }}</span>
+        </button>
+      </div>
+      <button
+        type="button"
+        class="mt-1.5 h-8 w-full cursor-pointer rounded-lg border border-white/15 text-xs text-mist transition hover:border-white/35 hover:bg-white/5"
+        @click="seating && session.chooseSeating(randomSeating(Math.random, seating))"
+      >Retirer au sort</button>
+    </template>
 
     <div class="grow lg:hidden"></div>
 
@@ -256,14 +269,14 @@ const monPartenaire = computed(() =>
         v-if="iAmDealer || session.botDealerHere"
         type="button"
         :disabled="session.busy || (!iAmDealer && session.dealAcknowledged === 0)"
-        class="mt-8 h-14 cursor-pointer rounded-xl bg-gold text-base font-bold text-felt transition enabled:hover:brightness-110 disabled:opacity-40"
+        class="mt-6 h-14 cursor-pointer rounded-xl bg-gold text-base font-bold text-felt transition enabled:hover:brightness-110 disabled:opacity-40"
         @click="iAmDealer ? session.startDeal() : session.continueToNextDeal()"
       >{{ iAmDealer ? 'Distribuer' : `Lancer la partie — ${dealer ? nomDe(dealer) : ''} distribue` }}</button>
-      <p v-else class="mt-8 text-center text-sm text-mist">
+      <p v-else class="mt-6 text-center text-sm text-mist">
         Tout le monde est là. {{ dealer ? nomDe(dealer) : '' }} distribue.
       </p>
     </template>
-    <p v-else class="mt-8 text-center text-sm text-sage">
+    <p v-else class="mt-6 text-center text-sm text-sage">
       En attente de {{ 4 - seatedCount }} joueur{{ 4 - seatedCount > 1 ? 's' : '' }}…
     </p>
 

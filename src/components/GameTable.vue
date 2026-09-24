@@ -29,7 +29,7 @@ const {
 const grand = useLargeScreen()
 const largeurCarte = computed(() => (grand.value ? 78 : 54))
 const largeurDos = computed(() => (grand.value ? 34 : 26))
-const largeurPli = computed(() => (grand.value ? 44 : 30))
+const largeurPli = computed(() => (grand.value ? 44 : 36))
 
 /**
  * Ma main, comme sur PC : de grandes cartes, coupées par le bas de l'écran comme
@@ -212,18 +212,18 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
       :style="{ bottom: `${basTapis + 30}px` }"
     >
       <div class="flex flex-col gap-1">
-        <span class="text-[9px] tracking-widest text-sage">DERNIER PLI</span>
+        <span class="text-[10px] tracking-widest text-sage">DERNIER PLI</span>
         <!-- En croix : chaque carte à la place de celui qui l'a jouée -->
         <LastTrickCross v-if="session.lastTrick" :trick="session.lastTrick" :width="largeurPli" />
-        <span v-else class="flex h-[89px] w-[96px] items-center text-[10px] text-sage">aucun pli joué</span>
-        <span class="h-3.5 text-[10px] text-mist">
+        <span v-else class="flex h-[108px] w-[116px] items-center text-[11px] text-sage">aucun pli joué</span>
+        <span class="h-4 text-[11px] text-mist">
           <template v-if="session.lastTrick">
             pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>
           </template>
         </span>
       </div>
       <div class="flex flex-col gap-0.5 pb-4">
-        <span class="text-[9px] tracking-widest text-sage">PLIS</span>
+        <span class="text-[10px] tracking-widest text-sage">PLIS</span>
         <div
           v-for="(row, i) in [
             { team: 'Nous', count: session.trickCounts[session.myTeam], color: 'text-gold' },
@@ -232,8 +232,8 @@ const liseré = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${basTapi
           :key="i"
           class="flex items-center gap-2"
         >
-          <span class="w-8 text-[11px] font-semibold" :class="row.color">{{ row.team }}</span>
-          <span class="w-3 text-right font-display text-base leading-none tabular-nums" :class="row.color">{{ row.count }}</span>
+          <span class="w-9 text-xs font-semibold" :class="row.color">{{ row.team }}</span>
+          <span class="w-4 text-right font-display text-xl leading-none tabular-nums" :class="row.color">{{ row.count }}</span>
         </div>
       </div>
     </div>

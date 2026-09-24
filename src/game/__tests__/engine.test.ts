@@ -258,3 +258,22 @@ describe('tout-atout', () => {
     expect(sortHand(['Ah', 'Jh', '9h', '10h'], 'ta')).toEqual(['Jh', '9h', 'Ah', '10h'])
   })
 })
+
+describe('les exemples de la page des règles', () => {
+  // Le preneur fait X points de cartes sur 162 ; la défense fait le reste. Sa belote
+  // compte pour lui dans les deux conditions.
+  const reussit = (x: number, contrat: number, belote: boolean) =>
+    isContractMade(x + (belote ? 20 : 0), 162 - x, contrat)
+  const seuil = (contrat: number, belote: boolean) => {
+    for (let x = 0; x <= 162; x++) if (reussit(x, contrat, belote)) return x
+    return null
+  }
+
+  it('sans belote : 82 à 80, 90 à 90, 100 à 100', () => {
+    expect([80, 90, 100].map((c) => seuil(c, false))).toEqual([82, 90, 100])
+  })
+
+  it('avec la belote : 72 à 80, 72 à 90, 80 à 100', () => {
+    expect([80, 90, 100].map((c) => seuil(c, true))).toEqual([72, 72, 80])
+  })
+})

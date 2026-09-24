@@ -185,15 +185,16 @@ async function ajouter(): Promise<void> {
       @click="creer"
     >{{ enCours === 'creer' ? 'Création de la partie…' : 'Créer une nouvelle partie' }}</button>
 
-    <div class="mt-5 flex justify-center gap-5">
+    <!-- Soulignés : on voit tout de suite que ce sont des liens -->
+    <div class="mt-5 flex justify-between gap-5">
       <button
         type="button"
-        class="cursor-pointer text-[13px] text-sage underline-offset-4 transition hover:text-mist hover:underline"
+        class="cursor-pointer text-[13px] text-sage underline underline-offset-4 transition hover:text-mist"
         @click="emit('stats')"
       >Statistiques de toutes les parties</button>
       <button
         type="button"
-        class="cursor-pointer text-[13px] text-sage underline-offset-4 transition hover:text-mist hover:underline"
+        class="cursor-pointer text-[13px] text-sage underline underline-offset-4 transition hover:text-mist"
         @click="emit('regles')"
       >Les règles</button>
     </div>

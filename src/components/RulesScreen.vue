@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * Les règles de la maison, pour les joueurs : ce qui est dans docs/REGLES.md, sans les
- * identifiants techniques, avec les options de partie. Accessible depuis l'accueil et
- * depuis la table.
+ * Les règles de la maison, pour les joueurs : seulement ce qui distingue notre coinche
+ * (docs/REGLES.md fait foi) — ce qui vaut dans toute coinche n'y est pas répété.
+ * Accessible depuis l'accueil et depuis la table.
  */
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableLayout } from '../composables/useTableLayout'
@@ -12,66 +12,49 @@ defineProps<{ retour?: string }>()
 const grand = useLargeScreen()
 const L = useTableLayout()
 
-const SECTIONS: { titre: string; points: string[] }[] = [
+const SECTIONS: { titre: string; points: string[]; exemples?: boolean }[] = [
   {
-    titre: 'La table',
+    titre: 'La distribution',
     points: [
-      '32 cartes (du 7 à l\'as), 4 joueurs, 2 équipes : les partenaires se font face.',
-      'On joue dans le sens des aiguilles d\'une montre ; le donneur change à chaque donne, d\'un joueur vers la gauche.',
-      'Distribution en 3-2-3. On ne rebat pas : on ramasse les plis dans l\'ordre où ils ont été gagnés, puis on coupe.',
+      "On ne rebat pas : on ramasse les plis dans l'ordre où ils ont été gagnés, on coupe, et on distribue en 3-2-3.",
     ],
   },
   {
-    titre: 'Les cartes',
+    titre: 'Capot et générale',
     points: [
-      'À l\'atout : Valet (20), 9 (14), As (11), 10 (10), Roi (4), Dame (3), 8, 7.',
-      'Hors atout : As (11), 10 (10), Roi (4), Dame (3), Valet (2), 9, 8, 7.',
-      '152 points aux cartes, plus 10 pour le dernier pli (« dix de der ») : 162 en tout.',
-      'Tout-atout : chaque couleur suit l\'ordre de l\'atout (Valet, 9, As, 10, Roi, Dame, 8, 7), et aucune n\'en coupe une autre.',
-    ],
-  },
-  {
-    titre: 'Les enchères',
-    points: [
-      'Le joueur à gauche du donneur parle en premier.',
-      'Une enchère : un contrat de 80 à 170, par paliers de 10, et une couleur d\'atout. Toujours plus haut que la précédente.',
-      'Le 170 est un « 150 belotté » : il ne se tient qu\'avec la belote.',
       'Capot (tous les plis) et générale (tous les plis, sans son partenaire) valent 250. En générale, on entame soi-même.',
-      'Sans-atout et tout-atout ne s\'annoncent qu\'en capot ou en générale.',
-      'Un joueur qui a passé peut reparler au tour suivant. Trois passes après une enchère : elle est retenue. Quatre passes d\'emblée : même donneur, on redistribue.',
+      "Sans-atout et tout-atout ne s'annoncent qu'en capot ou en générale.",
     ],
   },
   {
     titre: 'Coinche et surcoinche',
     points: [
-      'Un adversaire du preneur peut coincher (×2), à tout moment des enchères, sans attendre son tour.',
+      "Un adversaire du preneur peut coincher (×2), à tout moment des enchères, sans attendre son tour.",
       'Une coinche ferme les enchères : seul le camp du preneur peut encore surcoincher (×4).',
     ],
   },
   {
-    titre: 'Le jeu de la carte',
+    titre: 'Belote-Rebelote',
     points: [
-      'Fournir la couleur demandée ; à l\'atout, monter si on le peut.',
-      'Sans la couleur : couper si l\'adversaire est maître, et monter sur une coupe adverse. Si on ne peut pas monter, on sous-coupe quand même.',
-      'Si le partenaire est maître, on se défausse librement.',
-      'Le pli va au plus fort atout, sinon à la plus forte carte de la couleur demandée.',
-    ],
-  },
-  {
-    titre: 'La belote',
-    points: [
-      'Roi et Dame d\'atout dans la même main : 20 points, à annoncer en posant le Roi puis en posant la Dame. Oubliée, elle est perdue.',
-      'Elle ne sert qu\'à atteindre le contrat et à départager : elle n\'est jamais marquée. Elle ne compte pas pour la défense.',
+      "Belote-Rebelote doit être annoncée en cliquant sur l'icône de la carte pour être prise en compte : en posant le Roi, puis en posant la Dame.",
+      "Ses 20 points ne sont jamais marqués : ils aident seulement le preneur à réussir son contrat (voir ci-dessous). Ils ne comptent pas pour la défense.",
       'Pas de déclarations (tierce, cinquante, cent, carré).',
     ],
   },
   {
-    titre: 'Le décompte : on ne compte que les enchères',
+    titre: 'Réussir son contrat',
     points: [
-      'Réussi : le preneur marque la valeur de son enchère, la défense 0. Chuté : la défense marque cette valeur, le preneur 0.',
-      'Pour réussir, il faut atteindre son contrat et avoir plus de points que la défense, belote comprise. À égalité, on chute.',
+      'On ne compte que les enchères : contrat réussi, le preneur marque sa valeur et la défense 0 ; contrat chuté, la défense marque cette valeur.',
+      "Pour réussir, il faut deux choses : atteindre la valeur annoncée, et faire plus de points que la défense (sur les 162 de la donne). Quand le preneur a la belote, ses 20 points comptent dans les deux.",
+      'À égalité (81 partout), le preneur chute.',
       'Coinché, la valeur est doublée ; surcoinché, quadruplée.',
-      'Un capot fait sans l\'avoir annoncé ne rapporte rien de plus, mais vaut une étoile de la honte. Trois étoiles dans une partie : la honte complète.',
+    ],
+    exemples: true,
+  },
+  {
+    titre: 'Les étoiles de la honte',
+    points: [
+      "Un capot fait sans l'avoir annoncé ne rapporte rien de plus, mais vaut une étoile de la honte. Trois étoiles dans une partie : la honte complète.",
     ],
   },
   {
@@ -82,6 +65,17 @@ const SECTIONS: { titre: string; points: string[] }[] = [
     ],
   },
 ]
+
+/**
+ * Points de cartes qu'il faut au preneur (sur 162). Sans belote : la valeur annoncée,
+ * et au moins 82 pour être devant. Avec la belote : 20 de moins, et au moins 72
+ * (72 + 20 = 92, contre 90 pour la défense).
+ */
+const EXEMPLES = [80, 90, 100].map((contrat) => ({
+  contrat,
+  sans: Math.max(contrat, 82),
+  avec: Math.max(contrat - 20, 72),
+}))
 </script>
 
 <template>
@@ -98,7 +92,7 @@ const SECTIONS: { titre: string; points: string[] }[] = [
           @click="emit('fermer')"
         >{{ retour ?? 'Retour' }}</button>
       </div>
-      <p class="mt-2 text-sm text-sage">Les règles de la maison, validées le 23 septembre 2026.</p>
+      <p class="mt-2 text-sm text-sage">Ce qui distingue notre coinche. Le reste se joue comme partout.</p>
 
       <section v-for="s in SECTIONS" :key="s.titre" class="mt-7">
         <h2 class="mb-2 font-display text-xl">{{ s.titre }}</h2>
@@ -108,6 +102,32 @@ const SECTIONS: { titre: string; points: string[] }[] = [
             <span>{{ p }}</span>
           </li>
         </ul>
+
+        <!-- Les points de cartes qu'il faut au preneur, sans et avec la belote -->
+        <div v-if="s.exemples" class="mt-4 rounded-xl border border-white/10 bg-white/4 px-4 py-3">
+          <p class="mb-2 text-sm font-semibold">Combien de points de cartes faut-il au preneur ?</p>
+          <table class="w-full border-collapse text-sm">
+            <thead>
+              <tr class="text-xs tracking-wider text-sage">
+                <th class="pb-1.5 text-left font-semibold">CONTRAT</th>
+                <th class="pb-1.5 text-right font-semibold">SANS LA BELOTE</th>
+                <th class="pb-1.5 text-right font-semibold">AVEC LA BELOTE</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="e in EXEMPLES" :key="e.contrat" class="border-t border-white/8">
+                <td class="py-1.5 font-display text-lg text-gold">{{ e.contrat }}</td>
+                <td class="py-1.5 text-right tabular-nums text-mist">{{ e.sans }}</td>
+                <td class="py-1.5 text-right tabular-nums text-mist">{{ e.avec }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="mt-2 text-xs leading-relaxed text-sage">
+            À 80 sans belote, il faut 82 : 80 ne suffit pas, il faut aussi être devant la défense (82 contre 80).
+            Avec la belote, 72 suffisent : 72 + 20 = 92, et la défense n'a que 90. À 90, il faut 90 sans belote,
+            72 avec. À 100, il faut 100 sans belote, 80 avec (80 + 20 = 100).
+          </p>
+        </div>
       </section>
     </div>
   </div>

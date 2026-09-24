@@ -172,22 +172,22 @@ const teams = computed(() => [
     >
       <div class="flex items-start gap-7" :style="{ zoom: L.t }">
         <!-- Largeur fixe : le bloc ne doit pas bouger quand arrive le premier pli -->
-        <div class="w-[168px]">
-          <p class="mb-2.5 text-xs font-semibold tracking-widest text-sage">DERNIER PLI</p>
+        <div class="w-[208px]">
+          <p class="mb-2.5 text-sm font-semibold tracking-widest text-sage">DERNIER PLI</p>
           <!-- En croix : chaque carte à la place de celui qui l'a jouée -->
-          <LastTrickCross v-if="session.lastTrick" :trick="session.lastTrick" :width="52" />
-          <p v-else class="flex h-[155px] items-center text-sm text-sage">aucun pli joué</p>
-          <p class="mt-1.5 h-5 text-sm text-mist">
+          <LastTrickCross v-if="session.lastTrick" :trick="session.lastTrick" :width="64" />
+          <p v-else class="flex h-[190px] items-center text-base text-sage">aucun pli joué</p>
+          <p class="mt-1.5 h-6 text-base text-mist">
             <template v-if="session.lastTrick">
               pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>
             </template>
           </p>
         </div>
         <div>
-          <p class="mb-1.5 text-xs font-semibold tracking-widest text-sage">PLIS</p>
-          <div v-for="t in teams" :key="t.label" class="flex h-7 items-center gap-2.5">
-            <span class="w-10 text-sm font-semibold" :class="t.color">{{ t.label }}</span>
-            <span class="w-5 text-right font-display text-2xl leading-none tabular-nums" :class="t.color">{{ t.count }}</span>
+          <p class="mb-1.5 text-sm font-semibold tracking-widest text-sage">PLIS</p>
+          <div v-for="t in teams" :key="t.label" class="flex h-10 items-center gap-3">
+            <span class="w-12 text-base font-semibold" :class="t.color">{{ t.label }}</span>
+            <span class="w-6 text-right font-display text-3xl leading-none tabular-nums" :class="t.color">{{ t.count }}</span>
           </div>
         </div>
       </div>
