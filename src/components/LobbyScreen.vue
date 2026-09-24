@@ -90,13 +90,18 @@ const monPartenaire = computed(() =>
 </script>
 
 <template>
-  <!-- Sur PC la colonne est mise à l'échelle et centrée : à 2560 px elle faisait un sixième de l'écran -->
+  <!--
+    Sur PC, deux colonnes comme sur la maquette : à gauche le code, les équipes et les
+    règles, à droite la table. En une seule colonne, le salon devenait plus haut que
+    l'écran, l'échelle se réduisait pour tout faire tenir, et il avait l'air d'un téléphone.
+  -->
   <div class="flex min-h-full">
   <div
-    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 [@media(max-height:820px)]:pt-8 max-lg:min-h-full lg:my-auto lg:py-10"
+    class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 [@media(max-height:820px)]:pt-8 max-lg:min-h-full lg:my-auto lg:grid lg:max-w-[980px] lg:grid-cols-2 lg:items-start lg:gap-x-20 lg:py-10"
     ref="contenu"
     :style="grand ? { zoom } : undefined"
   >
+    <section class="flex flex-col">
     <p class="text-[13px] text-sage">Code de la partie</p>
     <div class="mt-1 flex items-baseline gap-3">
       <span class="font-display text-5xl tracking-[0.18em] leading-none">{{ session.code }}</span>
@@ -170,8 +175,10 @@ const monPartenaire = computed(() =>
         </span>
       </span>
     </label>
+    </section>
 
-    <h2 class="mt-8 mb-3 text-[13px] font-semibold tracking-wider text-sage uppercase">
+    <section class="flex grow flex-col">
+    <h2 class="mt-8 mb-3 text-[13px] font-semibold tracking-wider text-sage uppercase lg:mt-0">
       Autour de la table — {{ seatedCount }} sur 4
     </h2>
 
@@ -267,6 +274,7 @@ const monPartenaire = computed(() =>
     </p>
 
     <p v-if="session.error" class="mt-4 text-center text-sm text-red-card">{{ session.error }}</p>
+    </section>
   </div>
   </div>
 </template>
