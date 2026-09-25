@@ -57,6 +57,7 @@ npm run typecheck    # vue-tsc
 npm test             # moteur de règles et composants, sans réseau
 npm run test:rules   # règles Firestore, parcours, concurrence — lance son propre émulateur
 npm run coverage     # couverture des tests
+npm run tournoi      # bots contre bots, donnes jouées deux fois ($env:A, $env:B : base, expert, hasard)
 ```
 
 Les tests ne parlent **jamais** à la vraie base : `vite.config.ts` et `src/firebase/app.ts` forcent
