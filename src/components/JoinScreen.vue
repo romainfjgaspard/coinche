@@ -241,25 +241,30 @@ async function ajouter(): Promise<void> {
       @click="creer"
     >{{ enCours === 'creer' ? 'Création de la partie…' : 'Créer une nouvelle partie' }}</button>
 
-    <!-- Soulignés : on voit tout de suite que ce sont des liens -->
-    <div class="mt-5 flex justify-between gap-5">
-      <button
-        type="button"
-        class="cursor-pointer text-[13px] text-sage underline underline-offset-4 transition hover:text-mist"
-        @click="emit('stats')"
-      >Statistiques de toutes les parties</button>
+    <!-- Les liens, l'un sous l'autre et centrés. Soulignés : on voit tout de suite que ce sont des liens. -->
+    <div class="mt-5 flex flex-col items-center gap-2.5">
       <button
         type="button"
         class="cursor-pointer text-[13px] text-sage underline underline-offset-4 transition hover:text-mist"
         @click="emit('regles')"
       >Les règles</button>
+      <button
+        type="button"
+        class="cursor-pointer text-[13px] text-sage underline underline-offset-4 transition hover:text-mist"
+        @click="emit('stats')"
+      >Statistiques de toutes les parties</button>
+      <a
+        href="https://github.com/romainfjgaspard/coinche"
+        target="_blank"
+        rel="noopener"
+        class="flex items-center gap-1.5 text-[13px] text-sage underline underline-offset-4 transition hover:text-mist"
+      >
+        <svg viewBox="0 0 16 16" class="size-3.5" fill="currentColor" aria-hidden="true">
+          <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
+        </svg>
+        Star on GitHub
+      </a>
     </div>
-    <a
-      href="https://github.com/romainfjgaspard/coinche"
-      target="_blank"
-      rel="noopener"
-      class="mt-4 self-center text-xs text-dusk underline underline-offset-4 transition hover:text-mist"
-    >Le code sur GitHub</a>
 
     <p v-if="session.error" class="mt-4 text-center text-sm text-red-card">{{ session.error }}</p>
   </div>

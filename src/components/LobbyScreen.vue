@@ -70,6 +70,8 @@ function ajouterBot(niveau: NiveauBot): void {
 const lien = computed(() => `${location.origin}${import.meta.env.BASE_URL}?code=${session.code ?? ''}`)
 /** Copié : oui, non (on affiche alors le lien à copier à la main), ou rien à dire. */
 const lienCopie = ref<boolean | null>(null)
+/** La bulle d'aide du blitz, ouverte au toucher sur téléphone. */
+const aideBlitz = ref(false)
 /** Sur téléphone, le menu de partage du système ; sinon, le lien copié. */
 async function partager(): Promise<void> {
   const texte = `Rejoins ma partie de coinche (code ${session.code})`
@@ -182,7 +184,11 @@ const monPartenaire = computed(() =>
         @click="session.chooseOptions({ objectif: o })"
       >{{ o }}</button>
     </div>
-    <label class="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/15 px-3.5 py-2.5 transition hover:border-white/35 lg:mt-0 lg:items-center lg:rounded-lg lg:py-0">
+    <!-- Blitz : ce que c'est, dans une bulle — au survol sur PC, au toucher du « ? » sur téléphone -->
+    <label
+      class="group relative mt-3 flex cursor-pointer items-center gap-3 rounded-xl border border-white/15 px-3.5 py-2.5 transition hover:border-white/35 lg:mt-0 lg:rounded-lg lg:py-0"
+      @mouseleave="aideBlitz = false"
+    >
       <input
         type="checkbox"
         class="mt-0.5 size-4 accent-[#d9a441]"
@@ -190,11 +196,21 @@ const monPartenaire = computed(() =>
         :disabled="session.busy"
         @change="session.chooseOptions({ blitz: ($event.target as HTMLInputElement).checked })"
       />
-      <span>
-        <span class="block text-sm font-semibold">Blitz</span>
-        <span class="block text-xs text-sage lg:hidden">
-          Donne non coinchée : pas jouée, le contrat compte.
-        </span>
+      <span class="grow text-sm font-semibold">Blitz</span>
+      <button
+        type="button"
+        class="flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/25 text-[11px] font-bold text-sage transition hover:border-white/50 hover:text-mist"
+        aria-label="Qu'est-ce que le blitz ?"
+        :aria-expanded="aideBlitz"
+        @click.prevent.stop="aideBlitz = !aideBlitz"
+      >?</button>
+      <span
+        role="tooltip"
+        class="absolute top-full right-0 z-20 mt-2 w-64 rounded-xl border border-white/15 bg-felt-dark px-3.5 py-2.5 text-left text-xs leading-relaxed font-normal text-mist shadow-xl lg:group-hover:block"
+        :class="aideBlitz ? 'block' : 'hidden'"
+      >
+        <b class="text-ivory">Blitz</b> : une donne qui n'est pas coinchée ne se joue pas. Le contrat est réputé
+        réussi : le preneur marque sa valeur, et on passe à la donne suivante. Seules les donnes coinchées se jouent.
       </span>
     </label>
     </div>
@@ -241,29 +257,29 @@ const monPartenaire = computed(() =>
       </div>
     </div>
 
-    <!-- Une place libre : on la confie à un bot, sans nom -->
-    <div v-if="seatedCount < 4" class="mt-4 flex gap-2.5">
-      <button
-        type="button"
-        :disabled="session.busy"
-        class="h-11 grow cursor-pointer rounded-xl border border-dashed border-white/25 text-sm font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
-        title="Un bot qui ne voit que sa propre main"
-        @click="ajouterBot('simple')"
-      >+ bot</button>
-      <button
-        type="button"
-        :disabled="session.busy"
-        class="h-11 grow cursor-pointer rounded-xl border border-dashed border-white/25 text-sm font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
-        title="Le même, mais il retient les cartes déjà tombées"
-        @click="ajouterBot('compteur')"
-      >+ bot ★</button>
+    <!-- Une place libre : on la confie à un bot, sans nom. Chaque bouton porte son explication. -->
+    <div v-if="seatedCount < 4" class="mt-4 grid grid-cols-2 gap-2.5">
+      <div class="flex flex-col items-center gap-1">
+        <button
+          type="button"
+          :disabled="session.busy"
+          class="h-11 w-full cursor-pointer rounded-xl border border-dashed border-white/25 text-sm font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
+          @click="ajouterBot('simple')"
+        >+ bot</button>
+        <span class="text-center text-xs text-sage">ne voit que sa main</span>
+      </div>
+      <div class="flex flex-col items-center gap-1">
+        <button
+          type="button"
+          :disabled="session.busy"
+          class="h-11 w-full cursor-pointer rounded-xl border border-dashed border-white/25 text-sm font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
+          @click="ajouterBot('compteur')"
+        >+ bot ★</button>
+        <span class="text-center text-xs text-sage">retient aussi les cartes tombées</span>
+      </div>
     </div>
-    <p v-if="seatedCount < 4" class="mt-2.5 text-center text-xs text-sage">
-      <span class="font-semibold text-mist">bot</span> : ne voit que sa main ·
-      <span class="font-semibold text-mist">bot ★</span> : retient aussi les cartes tombées
-    </p>
-    <p v-if="!seating" class="mt-2 text-center text-xs text-sage">
-      Équipes tirées au sort dès que la table est complète.
+    <p v-if="!seating" class="mt-3 text-center text-xs text-sage">
+      Équipes tirées au sort ou choisies dès que la table est complète.
     </p>
 
     <!-- La table complète : les équipes, sous la table, à choisir ou à retirer au sort -->
