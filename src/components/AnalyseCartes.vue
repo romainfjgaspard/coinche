@@ -9,7 +9,7 @@ import type { DonneRevue } from '../game/revue'
 import type { CarteJugee, Qualite } from '../game/analyseJoueur'
 import { type PlayerId, type Seating, partnerOf, playerAtSeat, seatOf, teamOfPlayer } from '../game/players'
 import type { Card } from '../game/cards'
-import { SUIT_GLYPH } from '../game/display'
+import CarteTexte from './CarteTexte.vue'
 import { nomDe } from '../stores/roster'
 import { ECHANTILLONS, useAnalyseCartes } from '../composables/useAnalyseCartes'
 
@@ -26,12 +26,6 @@ const QUALITES: Record<Qualite, { label: string; couleur: string; symbole: strin
 }
 const ORDRE_QUALITES: Qualite[] = ['meilleure', 'bonne', 'imprecision', 'erreur', 'gaffe']
 
-const glyphe = (c: Card): { texte: string; rouge: boolean } => {
-  const couleur = c.slice(-1) as 's' | 'h' | 'd' | 'c'
-  const rang = c.slice(0, -1)
-  const noms: Record<string, string> = { J: 'V', Q: 'D', K: 'R', A: 'A' }
-  return { texte: `${noms[rang] ?? rang}${SUIT_GLYPH[couleur]}`, rouge: couleur === 'h' || couleur === 'd' }
-}
 const couleurNom = (p: PlayerId): string => (teamOfPlayer(p, props.seating) === props.nous ? 'text-gold' : 'text-them')
 
 /** Moi, mon partenaire, puis les deux autres. */
@@ -146,14 +140,14 @@ const chancesDe = (j: CarteJugee, c: Card): number => Math.round(j.options.find(
         <p class="text-xs font-semibold text-sage">Pli {{ p.numero }}</p>
         <div v-for="j in p.cartes" :key="j.carte" class="flex items-baseline gap-2 border-b border-white/5 py-1 text-[13px]">
           <span class="w-16 shrink-0 truncate font-semibold" :class="couleurNom(j.joueur)">{{ nomDe(j.joueur) }}</span>
-          <span class="w-8 shrink-0 font-semibold" :class="glyphe(j.carte).rouge ? 'text-[#e8786a]' : 'text-ivory'">{{ glyphe(j.carte).texte }}</span>
+          <span class="w-9 shrink-0"><CarteTexte :carte="j.carte" /></span>
           <span
             class="shrink-0 rounded-full px-1.5 text-[11px] font-bold"
             :style="{ color: QUALITES[j.qualite].couleur, background: `${QUALITES[j.qualite].couleur}22` }"
           >{{ QUALITES[j.qualite].label }}</span>
           <span v-if="j.meilleure" class="min-w-0 text-xs text-mist">
             mieux :
-            <b :class="glyphe(j.meilleure).rouge ? 'text-[#e8786a]' : 'text-ivory'">{{ glyphe(j.meilleure).texte }}</b>
+            <CarteTexte :carte="j.meilleure" />
             <span v-if="chancesDe(j, j.meilleure) !== chancesDe(j, j.carte)" class="text-sage"> · contrat {{ chancesDe(j, j.meilleure) }} % au lieu de {{ chancesDe(j, j.carte) }} %</span>
             <span v-else class="text-sage"> · {{ Math.round(j.pertePoints) }} point{{ Math.round(j.pertePoints) > 1 ? 's' : '' }} de plus en moyenne</span>
           </span>

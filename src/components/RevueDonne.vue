@@ -5,7 +5,6 @@
  */
 import { computed, onBeforeUnmount, ref, toRaw } from 'vue'
 import type { Analyse } from '../game/analyse'
-import type { Card } from '../game/cards'
 import type { DonneRevue } from '../game/revue'
 import { type PlayerId, partnerOf, playerAtSeat, seatOf, teamOfPlayer } from '../game/players'
 import { SUIT_GLYPH, isRed } from '../game/display'
@@ -15,6 +14,7 @@ import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableLayout } from '../composables/useTableLayout'
 import PlayingCard from './PlayingCard.vue'
 import AnalyseCartes from './AnalyseCartes.vue'
+import CarteTexte from './CarteTexte.vue'
 
 const props = defineProps<{ donne: DonneRevue }>()
 const emit = defineEmits<{ fermer: [] }>()
@@ -57,12 +57,6 @@ const equipeDuPreneur = computed(() => {
   const s = session.seating
   return `${nomDe(t)} et ${nomDe(partnerOf(t, s))}`
 })
-const glyphe = (c: Card): string => {
-  const couleur = c.slice(-1) as 's' | 'h' | 'd' | 'c'
-  const rang = c.slice(0, -1)
-  const noms: Record<string, string> = { J: 'V', Q: 'D', K: 'R', A: 'A' }
-  return `${noms[rang] ?? rang}${SUIT_GLYPH[couleur]}`
-}
 
 /** Nous d'abord (moi, mon partenaire), puis eux, dans l'ordre de la table. */
 const ordre = computed<PlayerId[]>(() => {
@@ -212,9 +206,9 @@ const atout = (card: string): boolean => {
                 <p class="mt-3 text-mist">
                   Il a échappé au <b class="text-ivory">pli {{ analyse.tournant.pli }}</b> :
                   {{ nomDe(analyse.tournant.joueur) }} a joué
-                  <b :class="['h', 'd'].includes(analyse.tournant.carte.slice(-1)) ? 'text-[#e8786a]' : 'text-ivory'">{{ glyphe(analyse.tournant.carte) }}</b> ;
+                  <CarteTexte :carte="analyse.tournant.carte" /> ;
                   avec
-                  <b :class="['h', 'd'].includes(analyse.tournant.mieux.slice(-1)) ? 'text-[#e8786a]' : 'text-ivory'">{{ glyphe(analyse.tournant.mieux) }}</b>,
+                  <CarteTexte :carte="analyse.tournant.mieux" />,
                   il restait faisable.
                 </p>
                 <div class="mt-3 flex items-end gap-3">

@@ -8,8 +8,7 @@ import { computed, ref } from 'vue'
 import type { GameEvent } from '../game/events'
 import type { CarteJugee, Qualite } from '../game/analyseJoueur'
 import { type PlayerId, type Seating, partnerOf, playerAtSeat, seatOf, teamOfPlayer } from '../game/players'
-import type { Card } from '../game/cards'
-import { SUIT_GLYPH } from '../game/display'
+import CarteTexte from './CarteTexte.vue'
 import { revoirDonne } from '../game/revue'
 import { nomDe } from '../stores/roster'
 import { useAnalyseCartes } from '../composables/useAnalyseCartes'
@@ -77,12 +76,6 @@ const tournants = computed(() =>
     .sort((a, b) => b.perteChances - a.perteChances)
     .slice(0, 5),
 )
-const glyphe = (c: Card): { texte: string; rouge: boolean } => {
-  const couleur = c.slice(-1) as 's' | 'h' | 'd' | 'c'
-  const rang = c.slice(0, -1)
-  const noms: Record<string, string> = { J: 'V', Q: 'D', K: 'R', A: 'A' }
-  return { texte: `${noms[rang] ?? rang}${SUIT_GLYPH[couleur]}`, rouge: couleur === 'h' || couleur === 'd' }
-}
 const couleurNom = (p: PlayerId): string => (teamOfPlayer(p, props.seating) === props.nous ? 'text-gold' : 'text-them')
 </script>
 
@@ -136,10 +129,10 @@ const couleurNom = (p: PlayerId): string => (teamOfPlayer(p, props.seating) === 
       <div v-for="t in tournants" :key="`${t.donne}-${t.carte}`" class="flex items-baseline gap-2 border-t border-white/8 py-1.5 text-[13px]">
         <span class="w-14 shrink-0 text-xs text-sage">D{{ t.donne }} · pli {{ t.pli }}</span>
         <span class="w-14 shrink-0 truncate font-semibold" :class="couleurNom(t.joueur)">{{ nomDe(t.joueur) }}</span>
-        <span class="shrink-0 font-semibold" :class="glyphe(t.carte).rouge ? 'text-[#e8786a]' : ''">{{ glyphe(t.carte).texte }}</span>
+        <span class="shrink-0"><CarteTexte :carte="t.carte" /></span>
         <span class="shrink-0 text-xs font-bold" :style="{ color: COULEUR[t.qualite] }">−{{ Math.round(t.perteChances) }} %</span>
         <span v-if="t.meilleure" class="min-w-0 truncate text-xs text-mist">
-          mieux : <b :class="glyphe(t.meilleure).rouge ? 'text-[#e8786a]' : 'text-ivory'">{{ glyphe(t.meilleure).texte }}</b>
+          mieux : <CarteTexte :carte="t.meilleure" />
         </span>
       </div>
       <p class="mt-2 text-[11px] text-dusk">« −20 % » : la carte a fait perdre 20 points de chances à son camp (réussir le contrat, ou le faire chuter).</p>
