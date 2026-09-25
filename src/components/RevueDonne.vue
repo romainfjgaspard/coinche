@@ -14,6 +14,7 @@ import { useSession } from '../stores/session'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableLayout } from '../composables/useTableLayout'
 import PlayingCard from './PlayingCard.vue'
+import AnalyseCartes from './AnalyseCartes.vue'
 
 const props = defineProps<{ donne: DonneRevue }>()
 const emit = defineEmits<{ fermer: [] }>()
@@ -137,7 +138,7 @@ const atout = (card: string): boolean => {
 
         <div class="mx-5 mt-3 grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
           <button
-            v-for="o in [{ id: 'mains', label: 'Mains' }, { id: 'plis', label: 'Les 8 plis' }, { id: 'analyse', label: 'Aurait-on pu ?' }] as const"
+            v-for="o in [{ id: 'mains', label: 'Mains' }, { id: 'plis', label: 'Les 8 plis' }, { id: 'analyse', label: 'Analyse' }] as const"
             :key="o.id"
             type="button"
             class="h-9 cursor-pointer rounded-lg text-sm font-semibold transition"
@@ -233,6 +234,7 @@ const atout = (card: string): boolean => {
                 Calcul à cartes ouvertes : chacun voit les quatre mains et joue parfaitement. Une indication, pas un reproche —
                 en vrai, personne ne voit les cartes des autres.
               </p>
+              <AnalyseCartes :donne="donne" :seating="session.seating" :moi="session.playerId" :nous="session.myTeam" />
             </template>
           </div>
         </div>
