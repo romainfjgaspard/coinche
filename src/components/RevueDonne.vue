@@ -3,7 +3,9 @@
  * Revoir une donne : les mains telles que distribuées, puis les huit plis dans l'ordre.
  * De quoi refaire la donne après coup, et comprendre une chute.
  */
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, toRaw } from 'vue'
+import type { Analyse } from '../game/analyse'
+import type { Card } from '../game/cards'
 import type { DonneRevue } from '../game/revue'
 import { type PlayerId, partnerOf, playerAtSeat, seatOf, teamOfPlayer } from '../game/players'
 import { SUIT_GLYPH, isRed } from '../game/display'
@@ -19,7 +21,47 @@ const session = useSession()
 const grand = useLargeScreen()
 const L = useTableLayout()
 
-const vue = ref<'mains' | 'plis'>('mains')
+const vue = ref<'mains' | 'plis' | 'analyse'>('mains')
+
+// --- « Aurait-on pu gagner ? » : calculé à la demande, dans un fil à part.
+const analyse = ref<Analyse | null>(null)
+const calcul = ref(false)
+let fil: Worker | null = null
+function analyser(): void {
+  if (analyse.value || calcul.value) return
+  calcul.value = true
+  fil = new Worker(new URL('../game/analyse.worker.ts', import.meta.url), { type: 'module' })
+  fil.onmessage = (e: MessageEvent<Analyse>) => {
+    analyse.value = e.data
+    calcul.value = false
+    fil?.terminate()
+    fil = null
+  }
+  fil.onerror = () => {
+    analyse.value = { impossible: 'Le calcul a échoué.' }
+    calcul.value = false
+  }
+  // Des objets simples : le fil ne reçoit pas les proxys réactifs.
+  fil.postMessage(JSON.parse(JSON.stringify({ donne: toRaw(props.donne), seating: toRaw(session.seating) })))
+}
+onBeforeUnmount(() => fil?.terminate())
+function ouvrir(id: 'mains' | 'plis' | 'analyse'): void {
+  vue.value = id
+  if (id === 'analyse') analyser()
+}
+const unite = computed(() => (analyse.value?.objectif === 'plis' ? 'plis' : 'points'))
+const equipeDuPreneur = computed(() => {
+  const t = props.donne.contrat?.taker
+  if (!t) return ''
+  const s = session.seating
+  return `${nomDe(t)} et ${nomDe(partnerOf(t, s))}`
+})
+const glyphe = (c: Card): string => {
+  const couleur = c.slice(-1) as 's' | 'h' | 'd' | 'c'
+  const rang = c.slice(0, -1)
+  const noms: Record<string, string> = { J: 'V', Q: 'D', K: 'R', A: 'A' }
+  return `${noms[rang] ?? rang}${SUIT_GLYPH[couleur]}`
+}
 
 /** Nous d'abord (moi, mon partenaire), puis eux, dans l'ordre de la table. */
 const ordre = computed<PlayerId[]>(() => {
@@ -93,14 +135,14 @@ const atout = (card: string): boolean => {
           >✕</button>
         </div>
 
-        <div class="mx-5 mt-3 grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
+        <div class="mx-5 mt-3 grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
           <button
-            v-for="o in [{ id: 'mains', label: 'Mains de départ' }, { id: 'plis', label: 'Les 8 plis' }] as const"
+            v-for="o in [{ id: 'mains', label: 'Mains' }, { id: 'plis', label: 'Les 8 plis' }, { id: 'analyse', label: 'Aurait-on pu ?' }] as const"
             :key="o.id"
             type="button"
             class="h-9 cursor-pointer rounded-lg text-sm font-semibold transition"
             :class="vue === o.id ? 'bg-gold text-felt' : 'text-mist hover:bg-white/5'"
-            @click="vue = o.id"
+            @click="ouvrir(o.id)"
           >{{ o.label }}</button>
         </div>
 
@@ -146,6 +188,52 @@ const atout = (card: string): boolean => {
                 <span v-if="pli.numero === 8" class="block text-[10px] text-sage">dont dix de der</span>
               </p>
             </div>
+          </div>
+
+          <!-- À cartes ouvertes : le contrat était-il faisable, et où a-t-il échappé ? -->
+          <div v-else-if="vue === 'analyse'" class="text-[14px] leading-relaxed">
+            <p v-if="calcul" class="py-6 text-center text-sm text-sage">Calcul en cours… (quelques secondes)</p>
+            <p v-else-if="analyse?.impossible" class="py-6 text-center text-sm text-sage">{{ analyse.impossible }}</p>
+            <template v-else-if="analyse">
+              <p
+                class="rounded-xl px-4 py-3 font-semibold"
+                :class="analyse.faisable ? 'bg-gold/15 text-gold' : 'bg-white/5 text-mist'"
+              >
+                {{ analyse.faisable ? 'Le contrat était faisable.' : 'Le contrat n\u2019était pas faisable.' }}
+              </p>
+              <p class="mt-3 text-mist">
+                À cartes ouvertes, {{ equipeDuPreneur }} pouvaient garantir
+                <b class="text-ivory">{{ analyse.garanti }} {{ unite }}</b>
+                face à une défense parfaite ; il en fallait <b class="text-ivory">{{ analyse.requis }}</b>
+                <template v-if="analyse.belote"> (belote comprise : 20 points de moins à faire)</template>.
+              </p>
+              <template v-if="analyse.tournant">
+                <p class="mt-3 text-mist">
+                  Il a échappé au <b class="text-ivory">pli {{ analyse.tournant.pli }}</b> :
+                  {{ nomDe(analyse.tournant.joueur) }} a joué
+                  <b :class="['h', 'd'].includes(analyse.tournant.carte.slice(-1)) ? 'text-[#e8786a]' : 'text-ivory'">{{ glyphe(analyse.tournant.carte) }}</b> ;
+                  avec
+                  <b :class="['h', 'd'].includes(analyse.tournant.mieux.slice(-1)) ? 'text-[#e8786a]' : 'text-ivory'">{{ glyphe(analyse.tournant.mieux) }}</b>,
+                  il restait faisable.
+                </p>
+                <div class="mt-3 flex items-end gap-3">
+                  <div class="flex flex-col items-center gap-1">
+                  <PlayingCard :card="analyse.tournant.carte" :width="largeurPli" :dimmed="true" />
+                    <span class="text-[11px] text-sage">joué</span>
+                  </div>
+                  <span class="pb-8 text-sage">→</span>
+                  <div class="flex flex-col items-center gap-1">
+                    <PlayingCard :card="analyse.tournant.mieux" :width="largeurPli" :winner="true" />
+                    <span class="text-[11px] text-gold">il fallait</span>
+                  </div>
+                </div>
+              </template>
+              <p v-else-if="analyse.faisable" class="mt-3 text-mist">Et il a été fait.</p>
+              <p class="mt-4 text-xs text-dusk">
+                Calcul à cartes ouvertes : chacun voit les quatre mains et joue parfaitement. Une indication, pas un reproche —
+                en vrai, personne ne voit les cartes des autres.
+              </p>
+            </template>
           </div>
         </div>
       </div>
