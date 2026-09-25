@@ -174,3 +174,44 @@ describe('au-delà des quatre du départ', () => {
     expect(resumeGlobal(AVEC_JEAN).prises).toBe(8)
   })
 })
+
+describe('bots regroupés, soirées, enchères et temps', () => {
+  it('deux « Bot » d\'une même partie n\'en font qu\'un, avec leurs chiffres additionnés', async () => {
+    const { regrouperBots, joueursDe: jd } = await import('../statsGlobal')
+    const a = partie({
+      code: 'BOTS', seating: ['romain', 'bot-simple-1', 'bot-etoile-1', 'bot-simple-2'], scores: [1000, 500],
+      joueurs: {
+        'bot-simple-1': { prises: 2, annonces: { passe: 3, '80': 1 } },
+        'bot-simple-2': { prises: 1, annonces: { passe: 2 } },
+      },
+    })
+    const [r] = regrouperBots([{ ...a, bots: ['bot-simple-1', 'bot-etoile-1', 'bot-simple-2'] }])
+    expect(r.seating).toEqual(['romain', 'bot-simple', 'bot-etoile', 'bot-simple'])
+    expect(r.bots.sort()).toEqual(['bot-etoile', 'bot-simple'])
+    expect(r.players['bot-simple']).toMatchObject({ prises: 3, annonces: { passe: 5, '80': 1 } })
+    expect(jd([r])).toEqual(['romain', 'bot-simple', 'bot-etoile'])
+  })
+
+  it('les soirées réunissent les parties enchaînées, les plus récentes d\'abord', async () => {
+    const { soirees } = await import('../statsGlobal')
+    const x = (code: string, soiree: string | undefined, finishedAt: number, scores: [number, number]) =>
+      ({ ...partie({ code, seating: A, scores }), finishedAt, ...(soiree ? { soiree } : {}) })
+    const s = soirees([x('P1', 'P1', 10, [1000, 0]), x('P2', 'P1', 20, [0, 1000]), x('P3', 'P1', 30, [1000, 0]), x('Q1', undefined, 100, [0, 1000])])
+    expect(s.map((v) => v.cle)).toEqual(['Q1', 'P1'])
+    expect(s[1].parties.map((p) => p.code)).toEqual(['P1', 'P2', 'P3'])
+    expect(s[1].victoires[0]).toMatchObject({ gagnees: 2 })
+  })
+
+  it('additionne rôles, écarts et temps d\'une partie à l\'autre', async () => {
+    const { rolesGlobaux, ecartsGlobaux, tempsGlobaux, annoncesGlobales } = await import('../statsGlobal')
+    const arch = [
+      partie({ code: 'R1', seating: A, scores: [1000, 0], joueurs: { romain: { roles: { lanceur: 1, suiveur: 0, seul: 2 }, ecarts: { reussis: [10], chutes: [] }, temps: { encheres: [1.2], cartes: [3] }, annonces: { '90': 1 } } } }),
+      partie({ code: 'R2', seating: A, scores: [1000, 0], joueurs: { romain: { roles: { lanceur: 2, suiveur: 1, seul: 0 }, ecarts: { reussis: [], chutes: [-20] }, temps: { encheres: [4], cartes: [] }, annonces: { '90': 2, passe: 1 } } } }),
+    ]
+    expect(rolesGlobaux(arch).get('romain')).toEqual({ lanceur: 3, suiveur: 1, seul: 2 })
+    expect(ecartsGlobaux(arch).get('romain')).toEqual({ reussis: [10], chutes: [-20] })
+    expect(tempsGlobaux(arch).get('romain')).toEqual({ encheres: [1.2, 4], cartes: [3] })
+    expect(annoncesGlobales(arch).get('romain')).toEqual({ '90': 3, passe: 1 })
+    expect(rolesGlobaux(arch).get('viv')).toBeUndefined()
+  })
+})

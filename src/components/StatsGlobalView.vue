@@ -7,12 +7,23 @@ import { duree } from '../game/display'
 import { computed, onMounted, ref } from 'vue'
 import type { PlayerId } from '../game/players'
 import { nomDe } from '../stores/roster'
-import { clePaire, duoStats, joueursDe, joueurStats, pairesJouees, parPalier } from '../game/statsGlobal'
+import {
+  annoncesGlobales, clePaire, duoStats, ecartsGlobaux, joueursDe, joueurStats, pairesJouees, parPalier, rolesGlobaux,
+  tempsGlobaux,
+} from '../game/statsGlobal'
 import { useSession } from '../stores/session'
+import { useFiltreArchives } from '../composables/useFiltreArchives'
+import { couleursDe } from '../composables/couleursJoueurs'
+import FiltreBots from './FiltreBots.vue'
+import SousOnglets from './SousOnglets.vue'
+import StatsEncheres from './StatsEncheres.vue'
+import StatsEcarts from './StatsEcarts.vue'
+import StatsTemps from './StatsTemps.vue'
+import StatsParties from './StatsParties.vue'
 
 const session = useSession()
 // Rechargé à chaque ouverture : une partie finie depuis la dernière visite doit apparaître.
-onMounted(() => { void session.loadArchives() })
+onMounted(() => { void session.loadArchives(); void chargerNonFinies() })
 
 const BON = '#52a884'
 const MAUVAIS = '#cc6b4a'
@@ -20,17 +31,27 @@ const OR = '#d9a441'
 const CLAIR = '#cfe0d8'
 
 /**
- * Les parties où un bot a tenu un siège sont écartées par défaut : un score
- * d'équipe obtenu avec un partenaire artificiel n'a pas sa place dans les
- * classements. Elles restent consultables d'un clic.
+ * Les parties retenues : sans bot par défaut (un score obtenu avec un partenaire
+ * artificiel n'a pas sa place dans les classements), avec bot sur demande, ou les
+ * deux. Les bots d'un même niveau n'y font qu'un joueur.
  */
-const avecBots = ref(false)
-const archives = computed(() =>
-  avecBots.value ? session.archives : session.archives.filter((a) => (a.bots ?? []).length === 0),
-)
-const partiesAvecBot = computed(
-  () => session.archives.filter((a) => (a.bots ?? []).length > 0).length,
-)
+const { archives, nonFinies, chargerNonFinies } = useFiltreArchives()
+
+const SOUS_ONGLETS = [
+  { id: 'duos', label: 'Duos' },
+  { id: 'joueurs', label: 'Joueurs' },
+  { id: 'encheres', label: 'Enchères' },
+  { id: 'temps', label: 'Temps' },
+  { id: 'parties', label: 'Parties' },
+] as const
+const vue = ref<string>('duos')
+
+const lesJoueurs = computed(() => joueursDe(archives.value))
+const couleurs = computed(() => couleursDe(lesJoueurs.value))
+const annonces = computed(() => annoncesGlobales(archives.value))
+const roles = computed(() => rolesGlobaux(archives.value))
+const ecarts = computed(() => ecartsGlobaux(archives.value))
+const temps = computed(() => tempsGlobaux(archives.value))
 
 const duos = computed(() => duoStats(archives.value))
 const joueurs = computed(() => joueurStats(archives.value))
@@ -165,41 +186,21 @@ const panaches = computed(() => {
       Aucune partie terminée pour l'instant. Les statistiques apparaîtront après la première.
     </p>
 
-    <!--
-      Toutes les parties terminées ont un bot : elles sont écartées par défaut, mais le
-      bouton pour les revoir doit rester là — sinon elles devenaient introuvables.
-    -->
-    <div v-else-if="total === 0" class="mt-8 flex flex-col items-center gap-3 text-center">
-      <p class="text-sm text-sage">
-        {{ partiesAvecBot > 1
-          ? `Les ${partiesAvecBot} parties terminées avaient un bot à table : elles sont écartées des classements.`
-          : 'La seule partie terminée avait un bot à table : elle est écartée des classements.' }}
-      </p>
-      <button
-        type="button"
-        class="cursor-pointer rounded-full border border-gold/60 px-4 py-1.5 text-[13px] font-semibold text-gold transition hover:bg-gold/15"
-        @click="avecBots = true"
-      >{{ partiesAvecBot > 1 ? 'Les afficher quand même' : 'L\'afficher quand même' }}</button>
-    </div>
-
     <template v-else>
-      <div>
-      <section>
-
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <p class="text-xs text-dusk">
+        <FiltreBots />
+        <p class="ml-auto text-xs text-dusk">
           {{ total }} partie{{ total > 1 ? 's' : '' }} terminée{{ total > 1 ? 's' : '' }}
         </p>
-        <button
-          v-if="partiesAvecBot > 0"
-          type="button"
-          class="rounded-full border px-2.5 py-0.5 text-[11px]"
-          :class="avecBots ? 'border-gold bg-gold/20 text-gold' : 'border-white/15 text-sage'"
-          @click="avecBots = !avecBots"
-        >
-          {{ avecBots ? 'avec' : 'sans' }} les {{ partiesAvecBot }} partie{{ partiesAvecBot > 1 ? 's' : '' }} à bot
-        </button>
       </div>
+      <SousOnglets v-model="vue" :options="SOUS_ONGLETS" class="mt-3" />
+
+      <p v-if="total === 0 && vue !== 'parties'" class="mt-8 text-center text-sm text-sage">
+        Aucune partie terminée dans cette sélection : changez les interrupteurs ci-dessus.
+      </p>
+      <template v-else>
+      <div>
+      <section v-if="vue === 'duos'">
 
       <div class="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
         <div
@@ -216,7 +217,7 @@ const panaches = computed(() => {
       </div>
       </section>
 
-      <section>
+      <section v-if="vue === 'duos'">
       <h2 class="mt-6 mb-2 font-display text-lg">Duo par duo</h2>
       <table class="w-full border-collapse text-[12px] [&_td:first-child]:pl-0 [&_th:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:last-child]:pr-0">
         <thead>
@@ -270,7 +271,7 @@ const panaches = computed(() => {
       </table>
       </section>
 
-      <section>
+      <section v-if="vue === 'joueurs'">
       <h2 class="mt-6 mb-2 font-display text-lg">Joueur par joueur</h2>
       <table class="w-full border-collapse text-[12px] [&_td:first-child]:pl-0 [&_th:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:last-child]:pr-0">
         <thead>
@@ -337,7 +338,7 @@ const panaches = computed(() => {
       </table>
       </section>
 
-      <section>
+      <section v-if="vue === 'joueurs'">
       <h2 class="mt-6 mb-2 font-display text-lg">Belotes, impasses, étoiles et réflexion</h2>
       <div class="grid grid-cols-2 gap-2.5 max-[380px]:gap-2">
         <div v-for="d in details" :key="d.id" class="rounded-xl border border-white/8 bg-white/4 px-3 py-2.5 max-[380px]:px-2">
@@ -350,7 +351,7 @@ const panaches = computed(() => {
       </div>
       </section>
 
-      <section>
+      <section v-if="vue === 'joueurs'">
       <h2 class="mt-6 mb-1 font-display text-lg">Jusqu'où chacun peut monter</h2>
       <p class="mb-2 text-[11px] text-sage">
         Hauteur de la barre = contrats pris à ce palier · part dorée = contrats passés
@@ -397,7 +398,7 @@ const panaches = computed(() => {
       <p v-else class="text-sm text-sage">Aucune prise pour cette sélection.</p>
       </section>
 
-      <section>
+      <section v-if="vue === 'joueurs'">
       <h2 class="mt-6 mb-1 font-display text-lg">Le panache</h2>
       <p class="mb-3 text-[11px] leading-relaxed text-sage">
         Écart moyen entre ce qu'un joueur annonce et ce que <em>les autres</em> annoncent
@@ -425,7 +426,15 @@ const panaches = computed(() => {
         Pas encore assez de prises pour comparer les tempéraments.
       </p>
       </section>
+
+      <template v-if="vue === 'encheres'">
+        <StatsEncheres :joueurs="lesJoueurs" :couleurs="couleurs" :annonces="annonces" :roles="roles" />
+        <StatsEcarts :joueurs="lesJoueurs" :couleurs="couleurs" :ecarts="ecarts" />
+      </template>
+      <StatsTemps v-if="vue === 'temps'" :joueurs="lesJoueurs" :couleurs="couleurs" :temps="temps" />
+      <StatsParties v-if="vue === 'parties'" :archives="archives" :non-finies="nonFinies" />
       </div>
+      </template>
     </template>
   </div>
 </template>

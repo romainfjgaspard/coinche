@@ -118,3 +118,17 @@ describe('un joueur absent remplacé par un bot', () => {
     await expect(reprendreMaPlace(code, 'viv', viv)).rejects.toThrow(/pas tenue par un bot/)
   })
 })
+
+describe('parties non finies', () => {
+  it('une partie commencée et non terminée est listée, avec ses joueurs et ses donnes', async () => {
+    const { readPartiesNonFinies } = await import('../src/firebase/partie')
+    await signIn()
+    const code = await createGame('benel', DEFAULT_SEATING)
+    for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p)
+    await deal(code)
+    const liste = await readPartiesNonFinies()
+    const la = liste.find((p) => p.code === code)
+    expect(la).toMatchObject({ donnes: 1, annulee: false })
+    expect(la!.joueurs.sort()).toEqual(['benel', 'romain', 'roux', 'viv'])
+  })
+})
