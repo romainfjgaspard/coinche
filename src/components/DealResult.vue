@@ -8,6 +8,9 @@ import { SHAME_THRESHOLD } from '../game/replay'
 import { useSession } from '../stores/session'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableLayout } from '../composables/useTableLayout'
+import { pointsDesPlis, revoirDonne } from '../game/revue'
+import { LAST_TRICK_BONUS } from '../game/scoring'
+import RevueDonne from './RevueDonne.vue'
 
 const session = useSession()
 const grand = useLargeScreen()
@@ -72,6 +75,27 @@ const beloteEnDefense = computed(() => {
 const waitingForBot = computed(
   () => session.botDealerHere && session.dealAcknowledged === session.game?.dealNumber,
 )
+/** La donne qui s'achève, relue dans le journal : les points pli par pli. */
+const donne = computed(() =>
+  result.value ? revoirDonne(session.events, result.value.dealNumber, session.seating) : null,
+)
+const nous = computed(() => session.myTeam)
+const eux = computed<0 | 1>(() => (session.myTeam === 0 ? 1 : 0))
+/** Le détail des points faits, replié par défaut. */
+const detail = ref(false)
+/** La belote qui compte : celle du preneur (BEL-3), 20 points dans « points faits ». */
+const beloteCompte = computed(() => Boolean(result.value?.beloteDeclaredBy && !beloteEnDefense.value))
+const equipeDe = (p: PlayerId): 0 | 1 => teamOfPlayer(p, session.seating)
+/** Tous les plis sont là (sinon, donne jouée avant le détail : on n'invente rien). */
+const detailComplet = computed(() => {
+  const d = donne.value
+  const r = result.value
+  if (!d || !r || d.plis.length !== 8) return false
+  const [a, b] = pointsDesPlis(d)
+  return a === r.cardPoints[0] && b === r.cardPoints[1]
+})
+const revue = ref(false)
+
 function next(): void {
   if (iAmDealer.value) void session.startDeal()
   else session.continueToNextDeal()
@@ -79,7 +103,7 @@ function next(): void {
 </script>
 
 <template>
-  <div class="absolute inset-0 z-50 flex items-center justify-center bg-black/70 px-5">
+  <div class="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 px-5 py-4">
     <div
       class="w-full max-w-sm rounded-2xl border border-white/10 bg-felt-dark p-6 text-center"
       :style="grand ? { zoom: L.t * 1.3 } : undefined"
@@ -142,22 +166,69 @@ function next(): void {
             class="rounded-full bg-red-card px-2 py-0.5 text-[11px] font-bold tracking-wide text-ivory"
           >{{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}</span>
         </p>
-        <div class="mt-5 flex justify-center gap-8">
-          <div>
-            <p class="text-xs text-sage">Nous</p>
-            <p class="font-display text-3xl text-gold">+{{ result.scores[session.myTeam] }}</p>
-          </div>
-          <div>
-            <p class="text-xs text-sage">Eux</p>
-            <p class="font-display text-3xl text-them">+{{ result.scores[session.myTeam === 0 ? 1 : 0] }}</p>
-          </div>
-        </div>
+        <!--
+          Points faits (cartes, dix de der, belote du preneur) et points marqués, pour
+          nous et pour eux. La flèche déplie le détail : chaque pli, le dix de der, la belote.
+        -->
+        <table class="mt-5 w-full border-collapse text-[15px] tabular-nums">
+          <thead>
+            <tr class="text-xs">
+              <th class="w-[42%]"></th>
+              <th class="pb-1 font-semibold text-gold">Nous</th>
+              <th class="pb-1 font-semibold text-them">Eux</th>
+              <th class="w-8"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="!result.blitz" class="border-t border-white/10">
+              <td class="py-1.5 text-left text-[13px] text-sage">Points faits</td>
+              <td class="py-1.5">{{ result.compared[nous] }}</td>
+              <td class="py-1.5">{{ result.compared[eux] }}</td>
+              <td class="py-1.5 text-right">
+                <button
+                  v-if="detailComplet"
+                  type="button"
+                  class="inline-flex size-7 cursor-pointer items-center justify-center rounded-full border border-white/15 text-xs text-mist transition hover:border-white/35"
+                  :aria-label="detail ? 'Replier le détail' : 'Voir le détail des points'"
+                  :aria-expanded="detail"
+                  @click="detail = !detail"
+                ><span class="transition" :class="detail ? 'rotate-180' : ''">▼</span></button>
+              </td>
+            </tr>
+            <template v-if="detail && detailComplet && donne">
+              <tr v-for="pli in donne.plis" :key="pli.numero" class="text-[13px] text-mist">
+                <td class="py-0.5 pl-3 text-left">
+                  Pli {{ pli.numero }} <span class="text-dusk">· {{ nomDe(pli.gagnant) }}</span>
+                </td>
+                <td class="py-0.5">{{ pli.equipe === nous ? pli.points : '' }}</td>
+                <td class="py-0.5">{{ pli.equipe === eux ? pli.points : '' }}</td>
+                <td></td>
+              </tr>
+              <tr class="text-[13px] text-mist">
+                <td class="py-0.5 pl-3 text-left">Dix de der</td>
+                <td class="py-0.5">{{ donne.der === nous ? LAST_TRICK_BONUS : '' }}</td>
+                <td class="py-0.5">{{ donne.der === eux ? LAST_TRICK_BONUS : '' }}</td>
+                <td></td>
+              </tr>
+              <tr v-if="result.beloteDeclaredBy" class="text-[13px] text-mist">
+                <td class="py-0.5 pl-3 text-left">
+                  Belote <span class="text-dusk">· {{ nomDe(result.beloteDeclaredBy) }}</span>
+                </td>
+                <td class="py-0.5">{{ beloteCompte && equipeDe(result.beloteDeclaredBy) === nous ? 20 : equipeDe(result.beloteDeclaredBy) === nous ? '—' : '' }}</td>
+                <td class="py-0.5">{{ beloteCompte && equipeDe(result.beloteDeclaredBy) === eux ? 20 : equipeDe(result.beloteDeclaredBy) === eux ? '—' : '' }}</td>
+                <td></td>
+              </tr>
+            </template>
+            <tr class="border-t border-white/10">
+              <td class="pt-2 text-left text-[13px] text-sage">Points marqués</td>
+              <td class="pt-2 font-display text-3xl leading-none text-gold">+{{ result.scores[nous] }}</td>
+              <td class="pt-2 font-display text-3xl leading-none text-them">+{{ result.scores[eux] }}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
         <p v-if="result.blitz" class="mt-4 text-[13px] text-mist">
           Blitz : donne non jouée, contrat réputé réussi.
-        </p>
-        <p v-else class="mt-4 text-[13px] text-mist">
-          Aux cartes : {{ result.compared[session.myTeam] }} contre
-          {{ result.compared[session.myTeam === 0 ? 1 : 0] }}
         </p>
         <p v-if="result.beloteDeclaredBy" class="mt-1.5 text-[13px] text-sage">
           {{ `Belote annoncée par ${nomDe(result.beloteDeclaredBy)}${beloteEnDefense ? ' — en défense, elle ne compte pas' : ''}` }}
@@ -167,11 +238,21 @@ function next(): void {
         </p>
       </template>
 
-      <button
-        type="button"
-        class="mt-6 h-11 w-full rounded-xl border border-white/15 text-sm font-medium text-mist"
-        @click="emit('stats')"
-      >Voir les statistiques</button>
+      <div class="mt-6 flex gap-2.5">
+        <!-- Les mains de départ et les huit plis : de quoi refaire la donne -->
+        <button
+          v-if="result && !result.blitz && !blanche && donne?.mains"
+          type="button"
+          class="h-11 grow cursor-pointer rounded-xl border border-white/15 text-sm font-medium text-mist transition hover:border-white/35"
+          @click="revue = true"
+        >Revoir la donne</button>
+        <button
+          type="button"
+          class="h-11 grow cursor-pointer rounded-xl border border-white/15 text-sm font-medium text-mist transition hover:border-white/35"
+          @click="emit('stats')"
+        >Statistiques</button>
+      </div>
+      <RevueDonne v-if="revue && donne" :donne="donne" @fermer="revue = false" />
 
       <button
         v-if="over && !bilanVu"
