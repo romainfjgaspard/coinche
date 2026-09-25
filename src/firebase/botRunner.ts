@@ -9,11 +9,12 @@
 import type { Card } from '../game/cards'
 import type { GameEvent } from '../game/events'
 import type { PlayerId } from '../game/players'
-import { partnerOf, teamOfPlayer } from '../game/players'
-import { type BiddingEntry, currentBidder, highestBid, rankOf } from '../game/bidding'
+import { teamOfPlayer } from '../game/players'
+import { type BiddingEntry, canCoinche, currentBidder } from '../game/bidding'
 import { beloteAnnonces, biddingFromEvents, currentDeal, playFromEvents } from '../game/replay'
 import { canDeclareBelote, currentPlayer, playableFor } from '../game/play'
-import { type BotLevel, chooseBid, chooseCard } from '../game/bot'
+import { type BotLevel, type BotView, chooseBid, chooseCard, doitCoincher } from '../game/bot'
+import { carteExpert } from '../game/botExpertFil'
 import { PLI_VISIBLE_MS } from '../game/display'
 import { type Client, makeClient } from './app'
 import {
@@ -312,18 +313,16 @@ async function parler(
   const etat = biddingFromEvents(events, game.dealer, tableDe(game))
   if (currentBidder(etat) !== player) return false
 
-  const meilleure = highestBid(etat)
-  const plancher = meilleure ? rankOf(meilleure) : 0
-  const partenaireTient = meilleure?.player === partnerOf(player, tableDe(game))
-  // Dernier à parler après trois passes : on se lance plutôt que de redistribuer.
-  const dernierAParler = etat.entries.length === 3 && meilleure === null
-
   // CO-5 — coinché, le preneur ne peut plus surenchérir : il laisse jouer.
   const coinche = etat.entries.some((e) => e.kind === 'coinche')
-  const choix = coinche ? null : chooseBid(hand, plancher, partenaireTient, dernierAParler)
-  const entry: BiddingEntry = choix
-    ? { kind: 'contrat', player, value: choix.value, suit: choix.trump }
-    : { kind: 'passe', player }
+  // CO-1 — le bot coinche à son tour de parole quand il tient de quoi faire chuter.
+  const coincher = !coinche && canCoinche(etat, player) && doitCoincher(hand, etat, player)
+  const choix = coinche || coincher ? null : chooseBid(hand, etat, player)
+  const entry: BiddingEntry = coincher
+    ? { kind: 'coinche', player }
+    : choix
+      ? { kind: 'contrat', player, value: choix.value, suit: choix.trump }
+      : { kind: 'passe', player }
 
   await placeBid(code, entry, c, thinkMs)
   return true
@@ -351,29 +350,31 @@ async function poser(
   const contrat = [...currentDeal(events)].reverse().find((e) => e.type === 'contrat_fixe')
   const preneur = contrat && contrat.type === 'contrat_fixe' ? contrat.taker : player
 
-  const carte = chooseCard(
-    {
-      me: player,
-      seating: tableDe(game),
-      hand,
-      trump: etat.trump,
-      taker: preneur,
-      current: etat.current,
-      completed: etat.completed,
-    },
-    jouables,
-    level,
-  )
+  const vue: BotView = {
+    me: player,
+    seating: tableDe(game),
+    hand,
+    trump: etat.trump,
+    taker: preneur,
+    current: etat.current,
+    completed: etat.completed,
+  }
+  // Le bot ★ réfléchit avec le solveur, sur ce qu'il sait seulement ; le bot de base suit ses règles.
+  const annonces = beloteAnnonces(events)
+  const carte =
+    level === 'compteur' && contrat && contrat.type === 'contrat_fixe'
+      ? await carteExpert(
+          {
+            ...vue,
+            contrat: { value: contrat.value, capot: contrat.capot, generale: contrat.generale },
+            beloteAnnoncee: [...annonces.keys()][0] ?? null,
+          },
+          jouables,
+        )
+      : chooseCard(vue, jouables)
 
   // BEL-2 — un bot n'oublie jamais sa belote.
-  const annonce = canDeclareBelote(
-    etat,
-    player,
-    carte,
-    hand,
-    etat.trump,
-    (beloteAnnonces(events).get(player) ?? 0) > 0,
-  )
+  const annonce = canDeclareBelote(etat, player, carte, hand, etat.trump, (annonces.get(player) ?? 0) > 0)
   await playCard(code, player, carte, annonce, c, thinkMs)
   return true
 }

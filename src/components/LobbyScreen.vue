@@ -312,7 +312,7 @@ const monPartenaire = computed(() =>
           >
             + bot
           </button>
-          <span class="text-center text-xs text-sage">ne voit que sa main</span>
+          <span class="text-center text-xs text-sage">soutient, tire l'atout, compte les cartes</span>
         </div>
         <div class="flex flex-col items-center gap-1">
           <button
@@ -323,7 +323,7 @@ const monPartenaire = computed(() =>
           >
             + bot ★
           </button>
-          <span class="text-center text-xs text-sage">retient aussi les cartes tombées</span>
+          <span class="text-center text-xs text-sage">réfléchit à chaque carte, sans voir vos jeux</span>
         </div>
       </div>
       <p v-if="!seating" class="mt-3 text-center text-xs text-sage">

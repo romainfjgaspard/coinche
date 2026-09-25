@@ -66,7 +66,6 @@ async function parler(clients: Record<PlayerId, Client>, code: string, game: Gam
   const meilleure = highestBid(etat)
   const plancher = meilleure ? rankOf(meilleure) : 0
   const partenaire = meilleure?.player === partnerOf(joueur, tableDe(game))
-  const dernier = etat.entries.length === 3 && meilleure === null
   const main_ = await main(c, code, joueur)
 
   // Un adversaire du preneur qui se sent fort coinche parfois.
@@ -81,7 +80,7 @@ async function parler(clients: Record<PlayerId, Client>, code: string, game: Gam
     return
   }
 
-  const choix = chooseBid(main_, plancher, partenaire, dernier)
+  const choix = chooseBid(main_, etat, joueur)
   if (!choix) {
     await placeBid(code, { kind: 'passe', player: joueur }, c)
     return
@@ -111,7 +110,6 @@ async function poser(clients: Record<PlayerId, Client>, code: string, game: Game
       completed: etat.completed,
     },
     jouables,
-    'compteur',
   )
   // BEL-2 : la belote s'annonce… sauf quand on l'oublie.
   const belote = canDeclareBelote(etat, joueur, carte, main_, etat.trump) && hasard(0.8)
