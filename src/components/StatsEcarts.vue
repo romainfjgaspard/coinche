@@ -44,15 +44,17 @@ const series = computed<SerieCourbe[]>(() =>
 
 <template>
   <section>
-    <h2 class="mt-6 text-[13px] font-semibold lg:text-[15px]">Écart à l'annonce</h2>
-    <p class="mb-2 text-xs text-sage">
+    <h2 class="mt-6 text-[15px] font-semibold lg:text-[15px]">Écart à l'annonce</h2>
+    <p class="mb-2 text-[13px] lg:text-xs text-sage">
       Points faits par le preneur (cartes, dix de der, belote) moins son annonce. Capots et générales à part.
     </p>
-    <p v-if="!lignes.length" class="py-3 text-center text-sm text-sage">Aucun contrat joué pour l'instant.</p>
+    <p v-if="!lignes.length" class="py-3 text-center text-[15px] lg:text-sm text-sage">
+      Aucun contrat joué pour l'instant.
+    </p>
     <template v-else>
-      <table class="w-full border-collapse text-[13px] tabular-nums">
+      <table class="w-full border-collapse text-[15px] lg:text-[13px] tabular-nums">
         <thead>
-          <tr class="text-xs text-sage">
+          <tr class="text-[13px] lg:text-xs text-sage">
             <th class="pb-1 text-left font-semibold">Preneur</th>
             <th class="pb-1 text-right font-semibold">Réussis</th>
             <th class="pb-1 text-right font-semibold">Chutés</th>
@@ -63,16 +65,16 @@ const series = computed<SerieCourbe[]>(() =>
             <td class="py-1.5 font-semibold" :style="{ color: couleurs[p] }">{{ nomDe(p) }}</td>
             <td class="py-1.5 text-right">
               {{ signe(moyenneDe(e.reussis)) }}
-              <span class="text-[11px] text-dusk">({{ e.reussis.length }})</span>
+              <span class="text-[13px] lg:text-[11px] text-dusk">({{ e.reussis.length }})</span>
             </td>
             <td class="py-1.5 text-right">
               {{ signe(moyenneDe(e.chutes)) }}
-              <span class="text-[11px] text-dusk">({{ e.chutes.length }})</span>
+              <span class="text-[13px] lg:text-[11px] text-dusk">({{ e.chutes.length }})</span>
             </td>
           </tr>
         </tbody>
       </table>
-      <p class="mt-1 text-[11px] text-dusk">Écart moyen (nombre de contrats).</p>
+      <p class="mt-1 text-[13px] lg:text-[11px] text-dusk">Écart moyen (nombre de contrats).</p>
       <div class="mt-3">
         <CourbesDistribution :series="series" :categories="categories" />
       </div>

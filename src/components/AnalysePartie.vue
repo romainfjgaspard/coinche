@@ -105,9 +105,9 @@ const couleurNom = (p: PlayerId): string =>
 
 <template>
   <section class="mt-4 rounded-xl border border-white/10 bg-white/4 px-4 py-3">
-    <h2 class="text-[13px] font-semibold lg:text-[15px]">Analyse de la partie</h2>
+    <h2 class="text-[15px] font-semibold lg:text-[15px]">Analyse de la partie</h2>
     <template v-if="!resultats">
-      <p class="mt-1 text-xs leading-relaxed text-sage">
+      <p class="mt-1 text-[13px] lg:text-xs leading-relaxed text-sage">
         Chaque carte de chaque donne jugée avec ce que le joueur savait, comme aux échecs : qui joue le plus
         juste, et quelles cartes ont coûté le plus cher.
       </p>
@@ -115,7 +115,7 @@ const couleurNom = (p: PlayerId): string =>
         v-if="!enCours"
         type="button"
         :disabled="!donnes.length"
-        class="mt-3 h-10 w-full cursor-pointer rounded-xl bg-gold text-sm font-bold text-felt transition enabled:hover:brightness-110 disabled:opacity-40"
+        class="mt-3 h-10 w-full cursor-pointer rounded-xl bg-gold text-[15px] lg:text-sm font-bold text-felt transition enabled:hover:brightness-110 disabled:opacity-40"
         @click="analyser"
       >
         {{
@@ -131,14 +131,16 @@ const couleurNom = (p: PlayerId): string =>
             :style="{ width: `${(100 * (donneEnCours - 1 + (total ? fait / total : 0))) / donnes.length}%` }"
           ></div>
         </div>
-        <p class="mt-1.5 text-center text-xs text-sage">Donne {{ donneEnCours }} sur {{ donnes.length }}…</p>
+        <p class="mt-1.5 text-center text-[13px] lg:text-xs text-sage">
+          Donne {{ donneEnCours }} sur {{ donnes.length }}…
+        </p>
       </div>
     </template>
 
     <template v-else>
-      <table class="mt-2 w-full border-collapse text-[13px] tabular-nums">
+      <table class="mt-2 w-full border-collapse text-[15px] lg:text-[13px] tabular-nums">
         <thead>
-          <tr class="text-[11px] text-sage">
+          <tr class="text-[13px] lg:text-[11px] text-sage">
             <th class="pb-1 text-left font-semibold">Joueur</th>
             <th
               v-for="q in ORDRE"
@@ -166,32 +168,38 @@ const couleurNom = (p: PlayerId): string =>
           </tr>
         </tbody>
       </table>
-      <p class="mt-1 text-[11px] text-dusk">
+      <p class="mt-1 text-[13px] lg:text-[11px] text-dusk">
         ! meilleure · ✓ bonne · ?! imprécision · ? erreur · ?? gaffe · cartes forcées non comptées.
       </p>
 
-      <h3 class="mt-3 text-[13px] font-semibold">Les tournants de la partie</h3>
-      <p v-if="!tournants.length" class="mt-1 text-xs text-sage">
+      <h3 class="mt-3 text-[15px] lg:text-[13px] font-semibold">Les tournants de la partie</h3>
+      <p v-if="!tournants.length" class="mt-1 text-[13px] lg:text-xs text-sage">
         Aucune carte n'a coûté plus de 12 % de chances à son camp.
       </p>
       <div
         v-for="t in tournants"
         :key="`${t.donne}-${t.carte}`"
-        class="flex items-baseline gap-2 border-t border-white/8 py-1.5 text-[13px]"
+        class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-t border-white/8 py-1.5 text-[15px] lg:flex-nowrap lg:text-[13px]"
       >
-        <span class="w-14 shrink-0 text-xs text-sage">D{{ t.donne }} · pli {{ t.pli }}</span>
-        <span class="w-14 shrink-0 truncate font-semibold" :class="couleurNom(t.joueur)">{{
+        <span class="w-[76px] shrink-0 lg:w-14 text-[13px] lg:text-xs text-sage"
+          >D{{ t.donne }} · pli {{ t.pli }}</span
+        >
+        <span class="w-16 shrink-0 truncate lg:w-14 font-semibold" :class="couleurNom(t.joueur)">{{
           nomDe(t.joueur)
         }}</span>
         <span class="shrink-0"><CarteTexte :carte="t.carte" /></span>
-        <span class="shrink-0 text-xs font-bold" :style="{ color: COULEUR[t.qualite] }"
+        <span class="shrink-0 text-[13px] lg:text-xs font-bold" :style="{ color: COULEUR[t.qualite] }"
           >−{{ Math.round(t.perteChances) }} %</span
         >
-        <span v-if="t.meilleure" class="min-w-0 truncate text-xs text-mist">
+        <!-- Sur téléphone, « mieux : » passe sous la ligne plutôt que d'être tronqué -->
+        <span
+          v-if="t.meilleure"
+          class="w-full min-w-0 truncate pl-[84px] text-[13px] text-mist lg:w-auto lg:pl-0 lg:text-xs"
+        >
           mieux : <CarteTexte :carte="t.meilleure" />
         </span>
       </div>
-      <p class="mt-2 text-[11px] text-dusk">
+      <p class="mt-2 text-[13px] lg:text-[11px] text-dusk">
         « −20 % » : la carte a fait perdre 20 points de chances à son camp (réussir le contrat, ou le faire
         chuter).
       </p>

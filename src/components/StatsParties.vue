@@ -32,9 +32,11 @@ const equipes = (p: PartieNonFinie): string =>
 
 <template>
   <section>
-    <h2 class="mt-5 text-[13px] font-semibold lg:text-[15px]">Les soirées</h2>
-    <p class="mb-2 text-xs text-sage">Les parties enchaînées avec « Rejouer » forment une soirée.</p>
-    <p v-if="!liste.length" class="py-3 text-center text-sm text-sage">
+    <h2 class="mt-5 text-[15px] font-semibold lg:text-[15px]">Les soirées</h2>
+    <p class="mb-2 text-[13px] lg:text-xs text-sage">
+      Les parties enchaînées avec « Rejouer » forment une soirée.
+    </p>
+    <p v-if="!liste.length" class="py-3 text-center text-[15px] lg:text-sm text-sage">
       Aucune partie terminée pour l'instant.
     </p>
     <div v-for="s in liste" :key="s.cle" class="border-t border-white/8">
@@ -44,11 +46,11 @@ const equipes = (p: PartieNonFinie): string =>
         :aria-expanded="ouverte === s.cle"
         @click="ouverte = ouverte === s.cle ? null : s.cle"
       >
-        <span class="w-24 shrink-0 text-[13px] font-semibold">{{ jour(s.debut) }}</span>
-        <span class="shrink-0 text-xs text-sage"
+        <span class="w-24 shrink-0 text-[15px] lg:text-[13px] font-semibold">{{ jour(s.debut) }}</span>
+        <span class="shrink-0 text-[13px] lg:text-xs text-sage"
           >{{ s.parties.length }} partie{{ s.parties.length > 1 ? 's' : '' }}</span
         >
-        <span class="grow truncate text-right text-xs text-mist">
+        <span class="grow truncate text-right text-[13px] lg:text-xs text-mist">
           {{
             s.victoires
               .filter((v) => v.gagnees > 0)
@@ -56,10 +58,18 @@ const equipes = (p: PartieNonFinie): string =>
               .join(' · ')
           }}
         </span>
-        <span class="text-xs text-dusk transition" :class="ouverte === s.cle ? 'rotate-180' : ''">▼</span>
+        <span
+          class="text-[13px] lg:text-xs text-dusk transition"
+          :class="ouverte === s.cle ? 'rotate-180' : ''"
+          >▼</span
+        >
       </button>
       <div v-if="ouverte === s.cle" class="pb-3">
-        <div v-for="a in s.parties" :key="a.code" class="flex items-center gap-3 py-1 pl-3 text-[12px]">
+        <div
+          v-for="a in s.parties"
+          :key="a.code"
+          class="flex items-center gap-3 py-1 pl-3 text-[14px] lg:text-[12px]"
+        >
           <span class="w-12 shrink-0 text-sage">{{ heure(a.finishedAt) }}</span>
           <span class="grow truncate">
             <span :class="a.winner === 0 ? 'font-semibold text-ivory' : 'text-mist'">{{
@@ -77,30 +87,30 @@ const equipes = (p: PartieNonFinie): string =>
   </section>
 
   <section>
-    <h2 class="mt-6 text-[13px] font-semibold lg:text-[15px]">
+    <h2 class="mt-6 text-[15px] font-semibold lg:text-[15px]">
       Parties non finies<span v-if="nonFinies" class="font-normal text-sage"> · {{ nonFinies.length }}</span>
     </h2>
-    <p class="mb-2 text-xs text-sage">
+    <p class="mb-2 text-[13px] lg:text-xs text-sage">
       Commencées mais pas allées au bout. Elles ne comptent dans aucune autre statistique.
     </p>
-    <p v-if="nonFinies === null" class="py-3 text-center text-sm text-sage">Chargement…</p>
-    <p v-else-if="!nonFinies.length" class="py-3 text-center text-sm text-sage">
+    <p v-if="nonFinies === null" class="py-3 text-center text-[15px] lg:text-sm text-sage">Chargement…</p>
+    <p v-else-if="!nonFinies.length" class="py-3 text-center text-[15px] lg:text-sm text-sage">
       Aucune : toutes les parties sont allées au bout.
     </p>
     <div
       v-for="p in nonFinies ?? []"
       :key="p.code"
-      class="flex items-center gap-3 border-t border-white/8 py-2 text-[12px]"
+      class="flex items-center gap-3 border-t border-white/8 py-2 text-[14px] lg:text-[12px]"
     >
       <span class="w-20 shrink-0 text-sage">{{ p.creeLe ? jour(p.creeLe) : '—' }}</span>
-      <span class="grow">
+      <span class="min-w-0 grow">
         <span class="block truncate text-mist">{{ equipes(p) }}</span>
         <span class="text-dusk"
           >{{ p.donnes }} donne{{ p.donnes > 1 ? 's' : '' }} · {{ p.scores[0] }} – {{ p.scores[1] }}</span
         >
       </span>
       <span
-        class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+        class="shrink-0 rounded-full px-2 py-0.5 text-[13px] lg:text-[11px] font-semibold"
         :class="
           statut(p) === 'annulée'
             ? 'bg-red-card/25 text-[#f0a293]'
