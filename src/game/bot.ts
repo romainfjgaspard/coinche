@@ -323,7 +323,7 @@ export function chooseBid(
     const premiere = contrats.find(
       (e) => e.suit === couleur && teamOfPlayer(e.player, seating) === teamOfPlayer(me, seating),
     )!
-    // C'est moi qui ai ouvert cette couleur : son annonce était déjà un soutien.
+    // Seulement si c'est lui qui a ouvert : si c'était moi, son annonce était déjà un soutien.
     if (premiere.player === partenaire) {
       const cible = Math.min(160, premiere.value + soutien(hand, couleur))
       if (cible > plancher) aide = { value: cible, trump: couleur }

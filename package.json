@@ -8,16 +8,16 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run src",
-    "test:watch": "vitest",
+    "test:watch": "vitest src",
     "emu": "firebase emulators:start --only firestore,auth",
-    "test:rules": "firebase emulators:exec --only firestore,auth \"vitest run tests\"",
+    "test:rules": "firebase emulators:exec --only firestore,auth \"vitest run tests/ --no-file-parallelism\"",
     "test:e2e": "node tests/e2e.mjs",
     "test:apercu": "node tests/apercu.mjs",
     "test:bot": "node tests/bot.mjs",
     "dev:emu": "vite --mode emu",
-    "seed:stats": "vitest run --config vitest.seed.config.ts",
-    "tournoi": "vitest run --config vitest.tournoi.config.ts --reporter=verbose",
-    "seed:stats:prod": "vitest run --config vitest.seed.config.ts --mode semis-prod",
+    "seed:stats": "vitest run -c scripts/vitest.config.ts historique",
+    "tournoi": "vitest run -c scripts/vitest.config.ts tournoi --reporter=verbose",
+    "seed:stats:prod": "vitest run -c scripts/vitest.config.ts historique --mode semis-prod",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -27,15 +27,14 @@
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.3.3",
     "firebase": "^12.19.0",
     "pinia": "^4.0.3",
-    "tailwindcss": "^4.3.3",
     "vue": "^3.5.42"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^5.0.2",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/coverage-v8": "^5.0.2",
@@ -49,6 +48,7 @@
     "happy-dom": "^20.14.5",
     "playwright": "^1.63.0",
     "prettier": "^3.9.9",
+    "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.70.1",
     "vite": "^8.3.0",
@@ -57,5 +57,14 @@
   },
   "engines": {
     "node": ">=24"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "printWidth": 110,
+    "trailingComma": "all",
+    "arrowParens": "always",
+    "vueIndentScriptAndStyle": false,
+    "endOfLine": "auto"
   }
 }

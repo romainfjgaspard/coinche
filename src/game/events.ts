@@ -99,8 +99,6 @@ export type GameEvent = Base &
     | { type: 'message_chat'; player: PlayerId; text: string }
   )
 
-export type GameEventType = GameEvent['type']
-
 /**
  * `Omit` ne se distribue pas sur une union : `Omit<GameEvent, 'seq'>` ne garderait
  * que les champs communs à tous les événements. Ce conditionnel force la distribution.

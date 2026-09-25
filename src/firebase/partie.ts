@@ -457,21 +457,6 @@ export async function deal(
 export const watchGame = (code: string, cb: (game: GameDoc | null) => void, c: Client = mainClient) =>
   onSnapshot(gameRef(code, c), (s) => cb(s.exists() ? (s.data() as GameDoc) : null))
 
-/**
- * Lecture ponctuelle d'une main.
- *
- * Un bot s'en sert au lieu d'ouvrir une écoute permanente : le navigateur plafonne
- * le nombre de connexions par origine, et trois bots qui gardent chacun un flux
- * ouvert bloquaient leurs propres écritures — la distribution prenait 57 secondes.
- */
-export async function readHand(code: string, player: PlayerId, c: Client = mainClient): Promise<Card[]> {
-  // `getDocFromServer`, pas `getDoc` : un client sans écoute ouverte n'a rien en
-  // cache et `getDoc` se contentait de ce cache vide. Le bot croyait alors n'avoir
-  // aucune carte jouable et restait muet, sans la moindre erreur — la table gelait.
-  const snap = await getDocFromServer(handRef(code, player, c))
-  return (snap.data()?.cards as Card[]) ?? []
-}
-
 export const watchHand = (
   code: string,
   player: PlayerId,
