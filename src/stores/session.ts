@@ -10,7 +10,8 @@ import { type Card, sortHand } from '../game/cards'
 import type { PlayerId } from '../game/players'
 import {
   type GameDoc, allSeatsTaken, cancelGame, createGame, deal, gameRef, placeBid, playCard, readArchives,
-  rejouer as rejouerPartie, setOptions, setSeating, signIn, takeSeat, watchEvents, watchGame, watchHand,
+  rejouer as rejouerPartie, setOptions, setPause, setSeating, signIn, takeSeat, watchEvents, watchGame,
+  watchHand,
 } from '../firebase/partie'
 import type { Archive } from '../game/archive'
 import type { GameEvent } from '../game/events'
@@ -19,7 +20,7 @@ import {
 } from '../game/bidding'
 import { type CompletedTrick, canDeclareBelote, currentPlayer, playableFor } from '../game/play'
 import { PLI_VISIBLE_MS } from '../game/display'
-import { biddingFromEvents, currentDeal, playFromEvents, starsInGame } from '../game/replay'
+import { beloteAnnonces, biddingFromEvents, currentDeal, playFromEvents, starsInGame } from '../game/replay'
 import {
   type DealSummary, type Reflexion, type Tally, deals, momentum, reflexions, runningScores, tallies,
 } from '../game/stats'
@@ -62,6 +63,8 @@ export const useSession = defineStore('session', () => {
   const playerId = ref<PlayerId | null>(saved.playerId)
   const code = ref<string | null>(saved.code)
   const game = ref<GameDoc | null>(null)
+  /** La pause en cours : qui l'a mise. Nulle : on joue. */
+  const pause = computed(() => game.value?.pause ?? null)
   const hand = ref<Card[]>([])
   const events = ref<GameEvent[]>([])
   /** Parties terminées, pour l'onglet « toutes les parties ». */
@@ -123,13 +126,20 @@ export const useSession = defineStore('session', () => {
     play.value && playerId.value ? playableFor(play.value, playerId.value, hand.value) : [],
   )
 
+  /** Ce que chacun a annoncé de sa belote dans la donne en cours (1 : belote, 2 : rebelote). */
+  const annoncesBelote = computed(() => beloteAnnonces(events.value))
   /** BEL-2 — l'icône d'annonce n'apparaît que sur le Roi et la Dame d'atout. */
   const beloteCards = computed(() => {
     if (!play.value || !playerId.value) return []
+    const deja = (annoncesBelote.value.get(playerId.value) ?? 0) > 0
     return hand.value.filter((c) =>
-      canDeclareBelote(play.value!, playerId.value!, c, hand.value, play.value!.trump),
+      canDeclareBelote(play.value!, playerId.value!, c, hand.value, play.value!.trump, deja),
     )
   })
+  /** Le bouton dit « Rebelote » sur la seconde tête, la belote déjà annoncée. */
+  const beloteLabel = computed(() =>
+    playerId.value && (annoncesBelote.value.get(playerId.value) ?? 0) > 0 ? 'Rebelote' : 'Belote',
+  )
 
   /** Le pli qui vient de se fermer, qu'il soit encore sur le tapis ou déjà ramassé. */
   const pliFerme = computed(() => play.value?.completed.at(-1) ?? null)
@@ -270,7 +280,11 @@ export const useSession = defineStore('session', () => {
     if (game.value) dealAcknowledged.value = game.value.dealNumber
   }
   /** Un seul client Firebase pour tous les bots de l'onglet, créé à la demande. */
-  let botClient: Client | null = null
+  /**
+   * Par partie, et gardé tant que l'onglet vit : relancer plusieurs bots d'un coup
+   * créait le client en double (même nom d'application), et seul le premier démarrait.
+   */
+  const botClients = new Map<string, Promise<Client>>()
 
   /**
    * Installe un bot sur un siège libre.
@@ -278,9 +292,9 @@ export const useSession = defineStore('session', () => {
    * Il obtient sa **propre** session anonyme, donc les règles Firestore lui
    * interdisent de lire la main des autres — au même titre qu'un humain.
    */
-  async function addBot(player: PlayerId, level: BotLevel = 'simple'): Promise<void> {
+  async function addBot(player: PlayerId, level: BotLevel = 'simple', reprendDe?: string): Promise<void> {
     if (!code.value) return
-    await run(async () => {
+    const lancer = async () => {
       // `?botDelay=` permet aux tests d'accélérer la table sans toucher au jeu.
       const delayMs = Number(new URLSearchParams(location.search).get('botDelay')) || undefined
       // L'onglet écoute déjà la partie et le journal : les bots s'y branchent au
@@ -289,21 +303,111 @@ export const useSession = defineStore('session', () => {
         cb(game.value, events.value)
         return watch([game, events], () => cb(game.value, events.value), { deep: false })
       }
-      botClient ??= await makeClient(`bots-${code.value}`)
+      const cle = code.value!
+      if (!botClients.has(cle)) botClients.set(cle, makeClient(`bots-${cle}`))
+      const botClient = await botClients.get(cle)!
       bots.value.push(
         await startBot(code.value!, player, {
           level, delayMs, feed, client: botClient,
           mayDealNext: (n) => dealAcknowledged.value === n,
+          reprendDe,
+          onDetache: () => { bots.value = bots.value.filter((b) => b.player !== player) },
         }),
       )
-    })
+    }
+    // Une reprise se fait sans bruit : perdue face à un autre onglet, elle n'est pas une erreur.
+    if (!reprendDe) { await run(lancer); return }
+    try { await lancer() } catch (e) { console.warn('[reprise]', player, e) }
   }
 
   function stopBots(): void {
     for (const b of bots.value) b.stop()
     bots.value = []
-    botClient = null
   }
+
+  // --- Des bots qui survivent à leur onglet.
+  //
+  // Un bot tourne dans l'onglet de celui qui l'a ajouté. Onglet fermé ou rechargé, le
+  // bot « réfléchissait » pour toujours et la table restait figée : il fallait vider
+  // le cache pour s'en sortir. Deux parades : l'onglet rechargé relance ses bots, et
+  // tout autre onglet reprend un bot qui ne joue plus.
+
+  /**
+   * Les bots que cet onglet fait tourner : de quoi les relancer s'il est rechargé.
+   * Dans `sessionStorage`, propre à l'onglet : partagée, la mémoire faisait reprendre
+   * par un second onglet les bots qu'un premier faisait encore tourner.
+   */
+  const BOTS_KEY = 'coinche.bots'
+  watch(
+    () => bots.value.map((b) => `${b.player}:${b.level}`).join(','),
+    () => {
+      if (!code.value) return
+      try {
+        sessionStorage.setItem(BOTS_KEY, JSON.stringify({
+          code: code.value,
+          bots: bots.value.map((b) => ({ player: b.player, level: b.level })),
+        }))
+      } catch {
+        // Sans stockage, la reprise par un autre onglet prendra le relais.
+      }
+    },
+  )
+  /** Au rechargement, une fois la partie lue : on reprend les bots qu'on faisait tourner. */
+  let relances = ''
+  watch(game, (g) => {
+    if (!g || !code.value || relances === code.value) return
+    relances = code.value
+    if (g.phase === 'terminee' || g.phase === 'annulee') return
+    let memo: { code: string; bots: { player: PlayerId; level: BotLevel }[] } | null = null
+    try { memo = JSON.parse(sessionStorage.getItem(BOTS_KEY) ?? 'null') } catch { memo = null }
+    if (memo?.code !== code.value) return
+    for (const b of memo.bots) {
+      const siege = g.seats[b.player]
+      if (siege?.bot && !bots.value.some((x) => x.player === b.player)) void addBot(b.player, b.level, siege.uid)
+    }
+  })
+
+  /**
+   * Qui doit agir maintenant, si c'est un bot qu'on ne fait pas tourner ici. Le donneur
+   * compte aussi entre deux donnes : sans lui, personne ne redistribue.
+   */
+  const botAttendu = computed<{ player: PlayerId; donneur: boolean } | null>(() => {
+    const g = game.value
+    if (!g || g.pause || !allSeatsTaken(g)) return null
+    const ici = (p: PlayerId) => bots.value.some((b) => b.player === p)
+    const attendu = g.phase === 'encheres' ? toBid.value
+      : g.phase === 'jeu' ? toPlay.value
+        : (g.phase === 'decompte' || (g.phase === 'lobby' && g.dealNumber > 0)) ? g.dealer : null
+    if (!attendu || !g.seats[attendu]?.bot || ici(attendu)) return null
+    return { player: attendu, donneur: g.phase === 'decompte' || g.phase === 'lobby' }
+  })
+  /** Le dernier signe de vie de la table : un événement, un changement de phase. */
+  let dernierProgres = Date.now()
+  watch(
+    () => `${events.value.length}|${game.value?.phase}|${game.value?.dealNumber}|${Boolean(game.value?.pause)}`,
+    () => { dernierProgres = Date.now() },
+  )
+  /**
+   * Un bot silencieux depuis trop longtemps : on le reprend ici. Un bot joue en
+   * quelques secondes ; entre deux donnes, on laisse aux humains le temps de lire le
+   * décompte. Le décalage par siège évite que les trois autres onglets se précipitent
+   * ensemble — la transaction n'en laisse de toute façon passer qu'un.
+   */
+  const REPRISE_MS = 15000
+  const REPRISE_DONNEUR_MS = 45000
+  setInterval(() => {
+    const b = botAttendu.value
+    const g = game.value
+    if (!b || !g || busy.value || !playerId.value) return
+    const rang = Math.max(0, seating.value.indexOf(playerId.value))
+    const delai = (b.donneur ? REPRISE_DONNEUR_MS : REPRISE_MS) + rang * 2000
+    if (Date.now() - dernierProgres < delai) return
+    const siege = g.seats[b.player]
+    if (!siege) return
+    dernierProgres = Date.now()
+    console.warn('[reprise] le bot', b.player, 'ne joue plus : repris ici')
+    void addBot(b.player, siege.niveau ?? 'simple', siege.uid)
+  }, 3000)
 
   /** Un double clic lançait deux distributions : la seconde se heurtait au verrou. */
   let distribution = false
@@ -355,7 +459,7 @@ export const useSession = defineStore('session', () => {
    */
   let derniereCarteJouee: string | null = null
   watch(
-    () => (myPlayTurn.value && hand.value.length === 1 && heldTrick.value === null ? hand.value[0] : null),
+    () => (myPlayTurn.value && hand.value.length === 1 && heldTrick.value === null && !pause.value ? hand.value[0] : null),
     (carte) => {
       if (!carte) return
       const cle = `${code.value}|${game.value?.dealNumber}|${carte}`
@@ -389,13 +493,38 @@ export const useSession = defineStore('session', () => {
    * sans dépendre des horloges des autres appareils.
    */
   let monTourDepuis: number | null = null
+  /** Les pauses prises pendant mon tour : elles ne sont pas de la réflexion. */
+  let pauseCumulee = 0
+  let pauseDepuis: number | null = null
   watch(
     () => myBidTurn.value || myPlayTurn.value,
-    (aMoi) => { monTourDepuis = aMoi ? Date.now() : null },
+    (aMoi) => {
+      monTourDepuis = aMoi ? Date.now() : null
+      pauseCumulee = 0
+      pauseDepuis = aMoi && pause.value ? Date.now() : null
+    },
     { immediate: true },
   )
-  const tempsDeReflexion = (): number | undefined =>
-    monTourDepuis === null ? undefined : Date.now() - monTourDepuis
+  watch(
+    () => Boolean(pause.value),
+    (enPause) => {
+      if (monTourDepuis === null) return
+      if (enPause) pauseDepuis = Date.now()
+      else if (pauseDepuis !== null) { pauseCumulee += Date.now() - pauseDepuis; pauseDepuis = null }
+    },
+  )
+  const tempsDeReflexion = (): number | undefined => {
+    if (monTourDepuis === null) return undefined
+    const enCours = pauseDepuis === null ? 0 : Date.now() - pauseDepuis
+    return Math.max(0, Date.now() - monTourDepuis - pauseCumulee - enCours)
+  }
+
+  /** On ne met en pause que pendant les enchères et le jeu : c'est là que le temps court. */
+  const peutPauser = computed(() => game.value?.phase === 'encheres' || game.value?.phase === 'jeu')
+  async function basculerPause(): Promise<void> {
+    if (!code.value || !playerId.value) return
+    await run(() => setPause(code.value!, playerId.value!, !pause.value))
+  }
 
   /** Un mot pour l'accueil quand on y revient sans l'avoir choisi : partie annulée. */
   const avis = ref<string | null>(null)
@@ -471,7 +600,7 @@ export const useSession = defineStore('session', () => {
     uid, playerId, code, game, hand, events, archives, error, busy,
     seated, ready, takenBy, present, myTeam, seating,
     bidding, biddingResult, toBid, myBidTurn, bidValues, mayCoinche, maySurcoinche,
-    play, toPlay, myPlayTurn, playable, beloteCards,
+    play, toPlay, myPlayTurn, playable, beloteCards, beloteLabel, annoncesBelote, pause, peutPauser, basculerPause,
     lastTrick, trickCounts, stars, shame, lastStar, sortedHand, heldTrick, shownTrick,
     dealSummaries, scoreCurve, momentumBars, playerTallies, impasses, impasseCounts, reflexionsPartie,
     peek, create, join, chooseSeating, chooseOptions, startDeal, bid, playTheCard, leave, resume, loadArchives,

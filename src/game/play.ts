@@ -146,6 +146,9 @@ export function beloteHeld(state: PlayState, trump: Atout): PlayerId | null {
  *
  * Il faut poser le Roi ou la Dame d'atout, et détenir (ou avoir déjà posé) l'autre.
  * L'annonce est un geste volontaire : oubliée, la belote ne compte pas.
+ *
+ * BEL-6 — sur la seconde tête, on n'annonce la rebelote que si la belote l'a été sur
+ * la première (`dejaAnnoncee`) : sinon elle est déjà perdue, et le bouton trompait.
  */
 export function canDeclareBelote(
   state: PlayState,
@@ -153,6 +156,7 @@ export function canDeclareBelote(
   card: Card,
   hand: Card[],
   trump: Atout,
+  dejaAnnoncee: boolean,
 ): boolean {
   if (!atoutCouleur(trump)) return false
   const king = `K${trump}` as Card
@@ -161,10 +165,11 @@ export function canDeclareBelote(
 
   const other = card === king ? queen : king
   if (hand.includes(other)) return true
-  return state.completed
+  const autrePosee = state.completed
     .flatMap((t) => t.plays)
     .concat(state.current)
     .some((p) => p.card === other && p.player === player)
+  return autrePosee && dejaAnnoncee
 }
 
 /** Les plis dans le format attendu par `scoreDeal`. */

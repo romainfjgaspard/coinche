@@ -5,6 +5,7 @@
  */
 import { computed, ref } from 'vue'
 import PlayingCard from './PlayingCard.vue'
+import type { Card } from '../game/cards'
 import CardBack from './CardBack.vue'
 import PlayerChip from './PlayerChip.vue'
 import QuitGame from './QuitGame.vue'
@@ -22,7 +23,7 @@ const encheresVisibles = ref(false)
 
 const {
   session, me, around, remaining, contract, contractLabel, trickAt, trickWinnerCard,
-  isTrump, canPlay, starsOf, lastBid,
+  isTrump, canPlay, starsOf, lastBid, beloteDe,
 } = useTableState()
 
 /** Tailles de cartes : la table double de largeur sur un écran d'ordinateur. */
@@ -46,6 +47,14 @@ const main = computed(() => {
   const x0 = Math.round(L.value.width / 2 - total / 2)
   return { pas, cartes: session.sortedHand.map((card, i) => ({ card, left: Math.round(x0 + i * pas) })) }
 })
+/**
+ * Roi et Dame d'atout sont voisins dans la main triée : leurs deux boutons « Belote »
+ * se chevauchaient. Celui de gauche monte d'un cran.
+ */
+function hausseBelote(card: Card): number {
+  const avec = session.sortedHand.filter((x) => session.beloteCards.includes(x))
+  return 30 * (avec.length - 1 - avec.indexOf(card))
+}
 /** Le bas du tapis : juste au-dessus de ma pastille, elle-même au-dessus de ma main. */
 const basTapis = computed(() => visibleMain.value + 44)
 
@@ -127,6 +136,16 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
         <span class="text-[13px] font-semibold text-them">Eux</span>
       </div>
       </div>
+      <!-- La pause, en icône comme les règles : il n'y avait pas la place d'un mot de plus -->
+      <button
+        v-if="session.peutPauser && !session.pause"
+        type="button"
+        class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/15 text-mist"
+        aria-label="Mettre en pause"
+        title="Mettre en pause"
+        :disabled="session.busy"
+        @click="session.basculerPause()"
+      ><svg viewBox="0 0 10 12" class="h-3 w-2.5" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="2.6" height="10" rx="0.8" /><rect x="6.4" y="1" width="2.6" height="10" rx="0.8" /></svg></button>
       <!-- Les règles en « ? » : à 360 px, un bouton de plus en toutes lettres ne tenait pas -->
       <button
         type="button"
@@ -191,7 +210,7 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
       <PlayerChip
         :player="around.top" :dealer="session.game?.dealer === around.top"
         :active="session.toPlay === around.top || session.toBid === around.top"
-        :stars="starsOf(around.top)" :annonce="lastBid.get(around.top)"
+        :stars="starsOf(around.top)" :belote="beloteDe(around.top)" :annonce="lastBid.get(around.top)"
       />
     </div>
 
@@ -203,7 +222,7 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
       <PlayerChip
         :player="around.left" :dealer="session.game?.dealer === around.left"
         :active="session.toPlay === around.left || session.toBid === around.left"
-        :stars="starsOf(around.left)" :annonce="lastBid.get(around.left)"
+        :stars="starsOf(around.left)" :belote="beloteDe(around.left)" :annonce="lastBid.get(around.left)"
       />
     </div>
     <div :style="grand ? undefined : cote" class="absolute right-2 flex flex-col items-center gap-1.5 lg:top-1/2 lg:-translate-y-1/2 lg:right-[5%] lg:gap-3">
@@ -213,7 +232,7 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
       <PlayerChip
         :player="around.right" :dealer="session.game?.dealer === around.right"
         :active="session.toPlay === around.right || session.toBid === around.right"
-        :stars="starsOf(around.right)" :annonce="lastBid.get(around.right)"
+        :stars="starsOf(around.right)" :belote="beloteDe(around.right)" :annonce="lastBid.get(around.right)"
       />
     </div>
 
@@ -280,7 +299,7 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
     >
       <PlayerChip
         :player="me" :dealer="session.game?.dealer === me" :active="session.myPlayTurn"
-        :stars="starsOf(me)" me
+        :stars="starsOf(me)" :belote="beloteDe(me)" me
       />
       <span v-if="session.myPlayTurn" class="text-[13px] font-semibold text-gold">à toi de jouer</span>
     </div>
@@ -308,13 +327,13 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
         <button
           v-if="canPlay(c.card) && session.beloteCards.includes(c.card)"
           type="button"
-          aria-label="Jouer en annonçant la belote"
-          title="Jouer en annonçant la belote"
-          class="absolute left-0 flex cursor-pointer justify-center"
-          :style="{ width: `${main.pas}px`, top: `${visibleMain - 34}px` }"
+          :aria-label="`Jouer en annonçant : ${session.beloteLabel}`"
+          :title="`Jouer en annonçant : ${session.beloteLabel}`"
+          class="absolute left-0 z-20 flex cursor-pointer justify-center"
+          :style="{ width: `${main.pas}px`, top: `${visibleMain - 34 - hausseBelote(c.card)}px` }"
           @click.stop="session.playTheCard(c.card, true)"
         >
-          <span class="flex h-7 items-center rounded-full border-2 border-felt bg-gold px-2 text-xs font-bold text-felt shadow-md">B</span>
+          <span class="flex h-7 items-center rounded-full border-2 border-felt bg-gold px-2 text-xs font-bold whitespace-nowrap text-felt shadow-md">{{ session.beloteLabel }}</span>
         </button>
       </div>
     </div>

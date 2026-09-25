@@ -168,26 +168,34 @@ describe('BEL-2 — annonce de la belote', () => {
   it('s\'annonce en posant le Roi ou la Dame d\'atout, quand on tient les deux', () => {
     const s = newPlay('s', 'viv', DEFAULT_SEATING)
     const hand: Card[] = ['Ks', 'Qs', '9h']
-    expect(canDeclareBelote(s, 'viv', 'Ks', hand, 's')).toBe(true)
-    expect(canDeclareBelote(s, 'viv', 'Qs', hand, 's')).toBe(true)
+    expect(canDeclareBelote(s, 'viv', 'Ks', hand, 's', false)).toBe(true)
+    expect(canDeclareBelote(s, 'viv', 'Qs', hand, 's', false)).toBe(true)
     // Une autre carte n'annonce rien.
-    expect(canDeclareBelote(s, 'viv', '9h', hand, 's')).toBe(false)
+    expect(canDeclareBelote(s, 'viv', '9h', hand, 's', false)).toBe(false)
   })
 
   it('ne s\'annonce pas si on ne tient qu\'une des deux cartes', () => {
     const s = newPlay('s', 'viv', DEFAULT_SEATING)
-    expect(canDeclareBelote(s, 'viv', 'Ks', ['Ks', '9h'], 's')).toBe(false)
+    expect(canDeclareBelote(s, 'viv', 'Ks', ['Ks', '9h'], 's', false)).toBe(false)
   })
 
-  it('reste annonçable sur la seconde carte, l\'autre ayant déjà été posée', () => {
+  const apresLeRoi = () => {
     let s = newPlay('s', 'viv', DEFAULT_SEATING)
     s = play(s, 'viv', 'Ks', ['Ks', 'Qs'])
     s = play(s, 'roux', 'Qh', ['Qh'])
     s = play(s, 'romain', 'Ah', ['Ah'])
-    s = play(s, 'benel', '10h', ['10h'])
-    expect(canDeclareBelote(s, 'viv', 'Qs', ['Qs'], 's')).toBe(true)
+    return play(s, 'benel', '10h', ['10h'])
+  }
+
+  it('la rebelote s\'annonce sur la seconde carte, si la belote l\'a été sur la première', () => {
+    const s = apresLeRoi()
+    expect(canDeclareBelote(s, 'viv', 'Qs', ['Qs'], 's', true)).toBe(true)
     // Mais pas pour quelqu'un d'autre.
-    expect(canDeclareBelote(s, 'roux', 'Qs', ['Qs'], 's')).toBe(false)
+    expect(canDeclareBelote(s, 'roux', 'Qs', ['Qs'], 's', true)).toBe(false)
+  })
+
+  it('pas de rebelote si la belote a été oubliée sur la première carte : elle est perdue', () => {
+    expect(canDeclareBelote(apresLeRoi(), 'viv', 'Qs', ['Qs'], 's', false)).toBe(false)
   })
 })
 
