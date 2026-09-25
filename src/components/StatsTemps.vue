@@ -52,8 +52,8 @@ const cartes = computed(() => series('cartes'))
 
 <template>
   <section>
-    <h2 class="mt-6 text-[13px] font-semibold lg:text-[15px]">Temps pour annoncer</h2>
-    <p class="mb-2 text-xs text-sage">
+    <h2 class="mt-6 text-[15px] font-semibold lg:text-[15px]">Temps pour annoncer</h2>
+    <p class="mb-2 text-[13px] lg:text-xs text-sage">
       Part de ses enchères selon le temps pris ; la coinche, hors tour, n'y est pas.
     </p>
     <CourbesDistribution
@@ -63,8 +63,8 @@ const cartes = computed(() => series('cartes'))
     />
   </section>
   <section>
-    <h2 class="mt-6 text-[13px] font-semibold lg:text-[15px]">Temps pour jouer</h2>
-    <p class="mb-2 text-xs text-sage">
+    <h2 class="mt-6 text-[15px] font-semibold lg:text-[15px]">Temps pour jouer</h2>
+    <p class="mb-2 text-[13px] lg:text-xs text-sage">
       Part de ses cartes selon le temps pris ; la dernière carte, jouée d'office, n'y est pas.
     </p>
     <CourbesDistribution

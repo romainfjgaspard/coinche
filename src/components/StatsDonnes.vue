@@ -117,8 +117,10 @@ const couleur = (p: PlayerId): string =>
   <div>
     <AnalysePartie :events="events" :seating="seating" :moi="session.playerId" :nous="nous" />
     <section>
-      <h2 class="mt-5 mb-2 text-[13px] font-semibold lg:text-[15px]">Donne par donne</h2>
-      <p v-if="!lignes.length" class="py-3 text-center text-sm text-sage">Aucune donne pour l'instant.</p>
+      <h2 class="mt-5 mb-2 text-[15px] font-semibold lg:text-[15px]">Donne par donne</h2>
+      <p v-if="!lignes.length" class="py-3 text-center text-[15px] lg:text-sm text-sage">
+        Aucune donne pour l'instant.
+      </p>
       <div v-for="l in lignes" :key="l.numero" class="border-t border-white/8">
         <button
           type="button"
@@ -126,8 +128,8 @@ const couleur = (p: PlayerId): string =>
           :aria-expanded="ouverte === l.numero"
           @click="ouverte = ouverte === l.numero ? null : l.numero"
         >
-          <span class="w-9 shrink-0 text-xs font-semibold text-sage">D{{ l.numero }}</span>
-          <span class="grow truncate text-[13px]">
+          <span class="w-9 shrink-0 text-[13px] lg:text-xs font-semibold text-sage">D{{ l.numero }}</span>
+          <span class="grow truncate text-[15px] lg:text-[13px]">
             <template v-if="l.contrat">
               {{ l.contrat.qui }} · {{ l.contrat.valeur }}
               <span :class="l.contrat.rouge ? 'text-[#e8786a]' : ''">{{ l.contrat.enseigne }}</span>
@@ -137,18 +139,20 @@ const couleur = (p: PlayerId): string =>
             </template>
             <template v-else>{{ l.issue === 'blanche' ? 'Donne blanche' : '—' }}</template>
           </span>
-          <span class="shrink-0 text-xs text-mist">{{ l.issue }}</span>
-          <span v-if="l.scores" class="w-16 shrink-0 text-right text-[13px] tabular-nums">
+          <span class="shrink-0 text-[13px] lg:text-xs text-mist">{{ l.issue }}</span>
+          <span v-if="l.scores" class="w-16 shrink-0 text-right text-[15px] lg:text-[13px] tabular-nums">
             <span class="text-gold">{{ l.scores[nous] }}</span> ·
             <span class="text-them">{{ l.scores[nous === 0 ? 1 : 0] }}</span>
           </span>
-          <span class="text-xs text-dusk transition" :class="ouverte === l.numero ? 'rotate-180' : ''"
+          <span
+            class="text-[13px] lg:text-xs text-dusk transition"
+            :class="ouverte === l.numero ? 'rotate-180' : ''"
             >▼</span
           >
         </button>
         <div v-if="ouverte === l.numero" class="pb-3 pl-12">
           <!-- Les enchères, une colonne par joueur dans l'ordre de parole -->
-          <div class="grid grid-cols-4 gap-x-2 text-[12px]">
+          <div class="grid grid-cols-4 gap-x-2 text-[14px] lg:text-[12px]">
             <span
               v-for="p in ordre(l.donneur)"
               :key="p"
@@ -157,7 +161,7 @@ const couleur = (p: PlayerId): string =>
               >{{ nomDe(p) }}</span
             >
           </div>
-          <div class="grid grid-cols-4 gap-x-2 gap-y-0.5 text-[12px]">
+          <div class="grid grid-cols-4 gap-x-2 gap-y-0.5 text-[14px] lg:text-[12px]">
             <span
               v-for="(pa, i) in l.paroles"
               :key="i"
@@ -178,7 +182,7 @@ const couleur = (p: PlayerId): string =>
           <button
             v-if="l.issue !== 'blitz' && l.issue !== 'blanche' && l.issue !== 'en cours'"
             type="button"
-            class="mt-2.5 cursor-pointer rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-mist transition hover:border-white/35"
+            class="mt-2.5 cursor-pointer rounded-lg border border-white/15 px-3 py-1.5 text-[13px] lg:text-xs font-semibold text-mist transition hover:border-white/35"
             @click="revoir(l.numero)"
           >
             Revoir la donne

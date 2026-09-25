@@ -225,20 +225,20 @@ const panaches = computed(() => {
 
 <template>
   <div>
-    <p v-if="session.archives.length === 0" class="mt-8 text-center text-sm text-sage">
+    <p v-if="session.archives.length === 0" class="mt-8 text-center text-[15px] text-sage">
       Aucune partie terminée pour l'instant. Les statistiques apparaîtront après la première.
     </p>
 
     <template v-else>
       <div class="mt-3 flex flex-wrap items-center gap-2">
         <FiltreBots />
-        <p class="ml-auto text-xs text-dusk">
+        <p class="ml-auto text-[13px] text-dusk">
           {{ total }} partie{{ total > 1 ? 's' : '' }} terminée{{ total > 1 ? 's' : '' }}
         </p>
       </div>
       <SousOnglets v-model="vue" :options="SOUS_ONGLETS" class="mt-3" />
 
-      <p v-if="total === 0 && vue !== 'parties'" class="mt-8 text-center text-sm text-sage">
+      <p v-if="total === 0 && vue !== 'parties'" class="mt-8 text-center text-[15px] text-sage">
         Aucune partie terminée dans cette sélection : changez les interrupteurs ci-dessus.
       </p>
       <template v-else>
@@ -251,21 +251,21 @@ const panaches = computed(() => {
                 class="rounded-xl border px-3.5 py-3"
                 :style="{ borderColor: r.bord, background: r.fond }"
               >
-                <p class="text-[9px] tracking-widest" :style="{ color: r.couleur }">{{ r.etiquette }}</p>
-                <p class="mt-1 font-display text-lg leading-tight">{{ r.qui }}</p>
-                <p class="font-display text-2xl leading-none" :style="{ color: r.couleur }">{{ r.valeur }}</p>
-                <p class="mt-1 text-[11px] text-mist">{{ r.detail }}</p>
+                <p class="text-[11px] tracking-widest" :style="{ color: r.couleur }">{{ r.etiquette }}</p>
+                <p class="mt-1 font-display text-xl leading-tight">{{ r.qui }}</p>
+                <p class="font-display text-3xl leading-none" :style="{ color: r.couleur }">{{ r.valeur }}</p>
+                <p class="mt-1 text-[13px] text-mist">{{ r.detail }}</p>
               </div>
             </div>
           </section>
 
           <section v-if="vue === 'duos'">
-            <h2 class="mt-6 mb-2 font-display text-lg">Duo par duo</h2>
+            <h2 class="mt-6 mb-2 font-display text-xl">Duo par duo</h2>
             <table
-              class="w-full border-collapse text-[12px] [&_td:first-child]:pl-0 [&_th:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:last-child]:pr-0"
+              class="w-full border-collapse text-[14px] [&_td:first-child]:pl-0 [&_th:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:last-child]:pr-0"
             >
               <thead>
-                <tr class="text-[10px] tracking-wider text-sage">
+                <tr class="text-[12px] tracking-wider text-sage">
                   <th class="pb-1.5 text-left font-semibold px-2">DUO</th>
                   <th class="pb-1.5 text-right font-semibold px-2">PARTIES</th>
                   <th class="pb-1.5 text-right font-semibold px-2">GAGNÉES</th>
@@ -282,7 +282,8 @@ const panaches = computed(() => {
               </thead>
               <tbody>
                 <tr v-for="d in duos" :key="clePaire(d.paire)" class="border-t border-white/8">
-                  <td class="py-2 font-semibold whitespace-nowrap">{{ nomPaire(d.paire) }}</td>
+                  <!-- Le duo passe sur deux lignes plutôt que de pousser la dernière colonne hors de l'écran -->
+                  <td class="py-2 font-semibold">{{ nomPaire(d.paire) }}</td>
                   <td class="py-2 text-right tabular-nums text-mist px-2">{{ d.parties }}</td>
                   <td class="py-2 text-right tabular-nums text-mist px-2">{{ d.gagnees }}</td>
                   <td class="py-2 text-right px-2">
@@ -327,12 +328,12 @@ const panaches = computed(() => {
           </section>
 
           <section v-if="vue === 'joueurs'">
-            <h2 class="mt-6 mb-2 font-display text-lg">Joueur par joueur</h2>
+            <h2 class="mt-6 mb-2 font-display text-xl">Joueur par joueur</h2>
             <table
-              class="w-full border-collapse text-[12px] [&_td:first-child]:pl-0 [&_th:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:last-child]:pr-0"
+              class="w-full border-collapse text-[14px] [&_td:first-child]:pl-0 [&_th:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:last-child]:pr-0"
             >
               <thead>
-                <tr class="text-[10px] tracking-wider text-sage">
+                <tr class="text-[12px] tracking-wider text-sage">
                   <th class="pb-1.5 text-left font-semibold px-2">JOUEUR</th>
                   <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">PARTIES</th>
                   <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">GAGNÉES</th>
@@ -420,18 +421,18 @@ const panaches = computed(() => {
           </section>
 
           <section v-if="vue === 'joueurs'">
-            <h2 class="mt-6 mb-2 font-display text-lg">Belotes, impasses, étoiles et réflexion</h2>
+            <h2 class="mt-6 mb-2 font-display text-xl">Belotes, impasses, étoiles et réflexion</h2>
             <div class="grid grid-cols-2 gap-2.5 max-[380px]:gap-2">
               <div
                 v-for="d in details"
                 :key="d.id"
                 class="rounded-xl border border-white/8 bg-white/4 px-3 py-2.5 max-[380px]:px-2"
               >
-                <p class="mb-1.5 text-[13px] font-semibold">{{ d.nom }}</p>
+                <p class="mb-1.5 text-[15px] font-semibold">{{ d.nom }}</p>
                 <div v-for="l in d.lignes" :key="l.quoi" class="flex items-baseline gap-2 py-0.5">
-                  <span class="grow text-[11px] text-sage">{{ l.quoi }}</span>
+                  <span class="grow text-[13px] text-sage">{{ l.quoi }}</span>
                   <span
-                    class="text-[12px] font-semibold whitespace-nowrap tabular-nums"
+                    class="text-[14px] font-semibold whitespace-nowrap tabular-nums"
                     :style="{ color: l.couleur }"
                     >{{ l.valeur }}</span
                   >
@@ -441,8 +442,8 @@ const panaches = computed(() => {
           </section>
 
           <section v-if="vue === 'joueurs'">
-            <h2 class="mt-6 mb-1 font-display text-lg">Jusqu'où chacun peut monter</h2>
-            <p class="mb-2 text-[11px] text-sage">
+            <h2 class="mt-6 mb-1 font-display text-xl">Jusqu'où chacun peut monter</h2>
+            <p class="mb-2 text-[13px] text-sage">
               Hauteur de la barre = contrats pris à ce palier · part dorée = contrats passés
             </p>
             <div class="flex flex-wrap gap-1.5 rounded-xl border border-white/8 bg-white/5 p-2">
@@ -450,7 +451,7 @@ const panaches = computed(() => {
                 v-for="f in filtres"
                 :key="f.nom"
                 type="button"
-                class="rounded-full border px-2.5 py-1 text-[11px]"
+                class="rounded-full border px-2.5 py-1 text-[13px]"
                 :class="
                   filtre.nom === f.nom
                     ? 'border-gold bg-gold/20 font-semibold text-gold'
@@ -473,7 +474,7 @@ const panaches = computed(() => {
                     <div class="rounded-t bg-[#5d7a70]" :style="{ flexGrow: p.partChute }"></div>
                     <div class="rounded-b bg-gold" :style="{ flexGrow: p.partReussi }"></div>
                     <span
-                      class="absolute inset-x-0 bottom-0.5 text-center text-[9px] font-bold"
+                      class="absolute inset-x-0 bottom-0.5 text-center text-[11px] font-bold"
                       :style="{ color: p.encre }"
                       >{{ p.pct }}</span
                     >
@@ -485,22 +486,22 @@ const panaches = computed(() => {
                     title="jamais pris"
                   ></div>
                 </div>
-                <span class="mt-1 text-[9px] font-semibold">{{ p.palier }}</span>
-                <span class="text-[9px] text-dusk">{{ p.total }}</span>
+                <span class="mt-1 text-[11px] font-semibold">{{ p.palier }}</span>
+                <span class="text-[11px] text-dusk">{{ p.total }}</span>
               </div>
             </div>
-            <p v-else class="text-sm text-sage">Aucune prise pour cette sélection.</p>
+            <p v-else class="text-[15px] text-sage">Aucune prise pour cette sélection.</p>
           </section>
 
           <section v-if="vue === 'joueurs'">
-            <h2 class="mt-6 mb-1 font-display text-lg">Le panache</h2>
-            <p class="mb-3 text-[11px] leading-relaxed text-sage">
+            <h2 class="mt-6 mb-1 font-display text-xl">Le panache</h2>
+            <p class="mb-3 text-[13px] leading-relaxed text-sage">
               Écart moyen entre ce qu'un joueur annonce et ce que <em>les autres</em> annoncent avec une main
               de force comparable.
             </p>
             <div v-if="panaches.length" class="flex flex-col gap-2">
               <div v-for="p in panaches" :key="p.nom" class="flex items-center gap-2.5">
-                <span class="w-14 text-right text-[13px] font-semibold">{{ p.nom }}</span>
+                <span class="w-16 shrink-0 text-right text-[15px] font-semibold">{{ p.nom }}</span>
                 <div class="relative h-6 grow">
                   <div class="absolute top-0 bottom-0 left-1/2 w-px bg-white/20"></div>
                   <div
@@ -508,15 +509,17 @@ const panaches = computed(() => {
                     :style="{ left: p.left, width: p.width, background: p.couleur }"
                   ></div>
                 </div>
-                <span class="w-10 text-[13px] font-bold tabular-nums" :style="{ color: p.couleur }">
+                <span class="w-12 shrink-0 text-[15px] font-bold tabular-nums" :style="{ color: p.couleur }">
                   {{ p.valeur }}
                 </span>
               </div>
-              <div class="mt-1 ml-16 flex justify-between text-[10px] text-dusk">
+              <div class="mt-1 ml-[74px] mr-14 flex justify-between text-[12px] text-dusk">
                 <span>plus prudent</span><span>plus audacieux</span>
               </div>
             </div>
-            <p v-else class="text-sm text-sage">Pas encore assez de prises pour comparer les tempéraments.</p>
+            <p v-else class="text-[15px] text-sage">
+              Pas encore assez de prises pour comparer les tempéraments.
+            </p>
           </section>
 
           <template v-if="vue === 'encheres'">

@@ -11,7 +11,7 @@ const puce = (actif: boolean): string =>
   <div class="flex flex-wrap gap-1.5">
     <button
       type="button"
-      class="flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition"
+      class="flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] lg:text-[11px] font-semibold transition"
       :class="puce(sansBot)"
       :aria-pressed="sansBot"
       @click="sansBot = !sansBot"
@@ -20,7 +20,7 @@ const puce = (actif: boolean): string =>
     </button>
     <button
       type="button"
-      class="flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition"
+      class="flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] lg:text-[11px] font-semibold transition"
       :class="puce(avecBot)"
       :aria-pressed="avecBot"
       @click="avecBot = !avecBot"

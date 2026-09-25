@@ -9,6 +9,7 @@
  * légende le met en avant et estompe les autres.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useLargeScreen } from '../composables/useLargeScreen'
 
 export interface SerieCourbe {
   id: string
@@ -46,12 +47,15 @@ onMounted(() => {
   if (cadre.value) observateur.observe(cadre.value)
 })
 onBeforeUnmount(() => observateur?.disconnect())
+/** Sur téléphone, des textes plus gros : le graphe y occupe toute la largeur. */
+const grand = useLargeScreen()
+const police = computed(() => (grand.value ? 10 : 12))
 const W = computed(() => largeur.value)
-const H = computed(() => Math.round(Math.min(260, Math.max(160, largeur.value * 0.42))))
-const G = 30 // marge gauche : l'échelle
+const H = computed(() => Math.round(Math.min(260, Math.max(grand.value ? 160 : 190, largeur.value * 0.42))))
+const G = computed(() => (grand.value ? 30 : 36)) // marge gauche : l'échelle
 const D = 8
 const HAUT = 10
-const BAS = 22 // les étiquettes de l'axe
+const BAS = computed(() => (grand.value ? 22 : 26)) // les étiquettes de l'axe
 
 const focus = ref<string | null>(null)
 
@@ -62,8 +66,8 @@ const max = computed(() => {
   return Math.max(pas, Math.ceil(m / pas) * pas)
 })
 const n = computed(() => props.categories.length)
-const x = (i: number): number => G + (n.value <= 1 ? 0 : (i / (n.value - 1)) * (W.value - G - D))
-const y = (v: number): number => HAUT + (1 - v / max.value) * (H.value - HAUT - BAS)
+const x = (i: number): number => G.value + (n.value <= 1 ? 0 : (i / (n.value - 1)) * (W.value - G.value - D))
+const y = (v: number): number => HAUT + (1 - v / max.value) * (H.value - HAUT - BAS.value)
 
 /** Catmull-Rom converti en courbes de Bézier, tension faible, bornée au plancher. */
 function chemin(valeurs: number[]): string {
@@ -95,7 +99,7 @@ const courbes = computed(() =>
 const graduations = computed(() => [0, max.value / 2, max.value].map((v) => ({ v, y: y(v) })))
 /** Une étiquette sur deux quand l'axe est trop serré, pour qu'elles restent lisibles. */
 const etiquettes = computed(() => {
-  const pas = n.value > 1 && (W.value - G - D) / (n.value - 1) < 34 ? 2 : 1
+  const pas = n.value > 1 && (W.value - G.value - D) / (n.value - 1) < (grand.value ? 34 : 40) ? 2 : 1
   const dernier = n.value - 1
   return props.categories.map((c, i) => ({
     c,
@@ -111,12 +115,12 @@ const aDesDonnees = computed(() => props.series.some((s) => s.valeurs.some((v) =
 
 <template>
   <div ref="cadre">
-    <p v-if="!aDesDonnees" class="py-6 text-center text-sm text-sage">{{ vide }}</p>
+    <p v-if="!aDesDonnees" class="py-6 text-center text-[15px] lg:text-sm text-sage">{{ vide }}</p>
     <template v-else>
       <svg :viewBox="`0 0 ${W} ${H}`" :width="W" :height="H" class="block max-w-full" role="img">
         <g v-for="g in graduations" :key="g.v">
           <line :x1="G" :x2="W - D" :y1="g.y" :y2="g.y" stroke="rgba(255,255,255,.08)" />
-          <text :x="G - 5" :y="g.y + 3.5" text-anchor="end" font-size="10" fill="#8fa89a">
+          <text :x="G - 5" :y="g.y + 3.5" text-anchor="end" :font-size="police" fill="#8fa89a">
             {{ Math.round(g.v) }}%
           </text>
         </g>
@@ -124,9 +128,9 @@ const aDesDonnees = computed(() => props.series.some((s) => s.valeurs.some((v) =
           v-for="e in etiquettes.filter((v) => v.montre)"
           :key="e.c"
           :x="e.x"
-          :y="H - 8"
+          :y="H - (grand ? 8 : 7)"
           :text-anchor="e.ancre"
-          font-size="10.5"
+          :font-size="police + 0.5"
           fill="#a9bdb1"
         >
           {{ e.c }}
@@ -159,7 +163,7 @@ const aDesDonnees = computed(() => props.series.some((s) => s.valeurs.some((v) =
           v-for="c in courbes"
           :key="c.id"
           type="button"
-          class="flex cursor-pointer items-center gap-1.5 rounded-full px-1.5 py-0.5 text-xs transition"
+          class="flex cursor-pointer items-center gap-1.5 rounded-full px-1.5 py-0.5 text-[13px] lg:text-xs transition"
           :class="focus === c.id ? 'bg-white/10' : 'hover:bg-white/5'"
           :style="{ opacity: c.opacite === 1 ? 1 : 0.5 }"
           @click="focus = focus === c.id ? null : c.id"

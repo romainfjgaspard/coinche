@@ -10,7 +10,7 @@ const emit = defineEmits<{ 'update:modelValue': [id: string] }>()
       v-for="o in options"
       :key="o.id"
       type="button"
-      class="h-8 shrink-0 grow cursor-pointer rounded-lg px-3 text-[13px] font-semibold whitespace-nowrap transition max-[380px]:px-1.5 max-[380px]:text-[12px]"
+      class="h-10 shrink-0 grow cursor-pointer rounded-lg px-2 text-[14.5px] font-semibold whitespace-nowrap transition max-[380px]:px-1 max-[380px]:text-[14px] lg:h-8 lg:px-3 lg:text-[13px]"
       :class="modelValue === o.id ? 'bg-gold text-felt' : 'text-mist hover:bg-white/5'"
       @click="emit('update:modelValue', o.id)"
     >

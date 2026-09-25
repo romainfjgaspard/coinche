@@ -339,7 +339,7 @@ const faits = computed(() => {
           v-for="t in ONGLETS"
           :key="t.id"
           type="button"
-          class="cursor-pointer rounded-full border px-3.5 py-1.5 text-[13px] whitespace-nowrap transition max-[380px]:px-3"
+          class="cursor-pointer rounded-full border px-3.5 py-1.5 text-[15px] whitespace-nowrap transition max-[380px]:px-3"
           :class="
             onglet === t.id
               ? 'border-gold bg-gold/20 font-semibold text-gold'
@@ -351,7 +351,7 @@ const faits = computed(() => {
         </button>
         <button
           type="button"
-          class="ml-auto shrink-0 cursor-pointer rounded-lg border border-white/15 px-2.5 py-1.5 text-xs font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
+          class="ml-auto shrink-0 cursor-pointer rounded-lg border border-white/15 px-2.5 py-1.5 text-[13px] font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
           @click="emit('fermer')"
         >
           {{ retour }}
@@ -367,15 +367,15 @@ const faits = computed(() => {
 
             <div class="mt-4 flex items-end gap-3">
               <div>
-                <p class="text-[11px] tracking-widest text-gold">NOUS</p>
-                <p class="font-display text-4xl leading-none">{{ nous }}</p>
+                <p class="text-[13px] tracking-widest text-gold">NOUS</p>
+                <p class="font-display text-5xl leading-none">{{ nous }}</p>
               </div>
-              <p class="pb-1 text-xl leading-none text-dusk">·</p>
+              <p class="pb-1 text-2xl leading-none text-dusk">·</p>
               <div>
-                <p class="text-[11px] tracking-widest text-them">EUX</p>
-                <p class="font-display text-4xl leading-none text-mist">{{ eux }}</p>
+                <p class="text-[13px] tracking-widest text-them">EUX</p>
+                <p class="font-display text-5xl leading-none text-mist">{{ eux }}</p>
               </div>
-              <p class="ml-auto text-right text-xs text-sage">
+              <p class="ml-auto text-right text-[13px] text-sage">
                 {{ donnesJouees }} donne{{ donnesJouees > 1 ? 's' : '' }}<br />objectif
                 {{ session.game?.objectif ?? 1000 }}<template v-if="session.game?.blitz"> · blitz</template>
               </p>
@@ -383,10 +383,12 @@ const faits = computed(() => {
           </section>
 
           <section v-if="vuePartie === 'score'">
-            <h2 class="mt-6 text-[13px] font-semibold">Évolution du score</h2>
-            <p class="text-[11px] text-sage">Cumul après chaque donne</p>
+            <h2 class="mt-6 text-[15px] font-semibold">Évolution du score</h2>
+            <p class="text-[13px] text-sage">Cumul après chaque donne</p>
             <!-- Un point unique ne fait pas une courbe : on attend la première donne -->
-            <p v-if="session.scoreCurve.length < 2" class="mt-2 text-sm text-sage">Aucune donne terminée.</p>
+            <p v-if="session.scoreCurve.length < 2" class="mt-2 text-[15px] text-sage">
+              Aucune donne terminée.
+            </p>
             <template v-else>
               <svg
                 viewBox="0 0 360 170"
@@ -403,7 +405,7 @@ const faits = computed(() => {
                   x="28"
                   :y="p.y + 3"
                   text-anchor="end"
-                  font-size="9"
+                  font-size="12.5"
                   fill="#8fb3a4"
                 >
                   {{ p.v }}
@@ -415,12 +417,12 @@ const faits = computed(() => {
                   :x="d.x"
                   y="156"
                   text-anchor="middle"
-                  font-size="8.5"
+                  font-size="12"
                   fill="#8fb3a4"
                 >
                   {{ d.n }}
                 </text>
-                <text x="165" y="168" text-anchor="middle" font-size="7.5" fill="#6f8f82">donne</text>
+                <text x="165" y="168" text-anchor="middle" font-size="9.5" fill="#6f8f82">donne</text>
                 <polyline
                   :points="courbe.nous"
                   fill="none"
@@ -455,7 +457,7 @@ const faits = computed(() => {
                   <text
                     :x="courbe.fin.x"
                     :y="courbe.fin.yNous + 3.5"
-                    font-size="10.5"
+                    font-size="12.5"
                     font-weight="700"
                     :fill="OR"
                   >
@@ -464,7 +466,7 @@ const faits = computed(() => {
                   <text
                     :x="courbe.fin.x"
                     :y="courbe.fin.yEux + 3.5"
-                    font-size="10.5"
+                    font-size="12.5"
                     font-weight="700"
                     :fill="BLEU"
                   >
@@ -472,7 +474,7 @@ const faits = computed(() => {
                   </text>
                 </template>
               </svg>
-              <div class="flex gap-4 text-[11px] text-mist">
+              <div class="flex gap-4 text-[13px] text-mist">
                 <span class="flex items-center gap-1.5"><span class="h-0.5 w-3 bg-gold"></span>Nous</span>
                 <span class="flex items-center gap-1.5"><span class="h-0.5 w-3 bg-them"></span>Eux</span>
               </div>
@@ -480,8 +482,8 @@ const faits = computed(() => {
           </section>
 
           <section v-if="vuePartie === 'score'">
-            <h2 class="mt-6 text-[13px] font-semibold">Momentum</h2>
-            <p class="mb-2 text-[11px] text-sage">
+            <h2 class="mt-6 text-[15px] font-semibold">Momentum</h2>
+            <p class="mb-2 text-[13px] text-sage">
               Points gagnés par donne, en cascade : chaque barre part de la fin de la précédente — vers le
               haut pour nous, vers le bas pour eux
             </p>
@@ -502,9 +504,9 @@ const faits = computed(() => {
                       :style="{ top: `${b.top}px`, height: `${b.height}px` }"
                     ></div>
                     <span
-                      class="absolute inset-x-0 text-center text-[10px] font-semibold tabular-nums"
+                      class="absolute inset-x-0 text-center text-[12px] font-semibold tabular-nums"
                       :class="b.nous ? 'text-gold' : 'text-them'"
-                      :style="b.nous ? { top: `${b.top - 15}px` } : { top: `${b.top + b.height + 2}px` }"
+                      :style="b.nous ? { top: `${b.top - 18}px` } : { top: `${b.top + b.height + 2}px` }"
                       >{{ b.points }}</span
                     >
                   </div>
@@ -514,19 +516,19 @@ const faits = computed(() => {
                 <span
                   v-for="b in momentum.barres"
                   :key="b.deal"
-                  class="max-w-12 grow text-center text-[10px] text-sage"
+                  class="max-w-12 grow text-center text-[12px] text-sage"
                   >D{{ b.deal }}</span
                 >
               </div>
             </div>
-            <p v-else class="text-sm text-sage">Aucune donne terminée.</p>
+            <p v-else class="text-[15px] text-sage">Aucune donne terminée.</p>
           </section>
 
           <section v-if="vuePartie === 'jeu'">
-            <h2 class="mt-6 mb-1 text-[13px] font-semibold">Les prises</h2>
+            <h2 class="mt-6 mb-1 text-[15px] font-semibold">Les prises</h2>
             <!-- En-têtes : sans eux, la colonne de l'enchère moyenne n'était qu'un nombre isolé -->
             <div
-              class="flex items-center gap-2.5 border-b border-white/15 pb-1 text-[10px] tracking-wider text-dusk uppercase"
+              class="flex items-center gap-2.5 border-b border-white/15 pb-1 text-[12px] tracking-wider text-dusk uppercase"
             >
               <span class="w-16">Joueur</span>
               <span class="w-12">Prises</span>
@@ -539,8 +541,8 @@ const faits = computed(() => {
               :key="p.id"
               class="flex items-center gap-2.5 border-b border-white/8 py-2"
             >
-              <span class="w-16 text-[13px] font-semibold">{{ p.nom }}</span>
-              <span class="w-12 text-[13px] tabular-nums text-mist">{{ p.prises }}</span>
+              <span class="w-16 text-[15px] font-semibold">{{ p.nom }}</span>
+              <span class="w-12 text-[15px] tabular-nums text-mist">{{ p.prises }}</span>
               <span class="flex grow gap-1">
                 <span
                   v-for="(ok, i) in p.resultats"
@@ -550,22 +552,22 @@ const faits = computed(() => {
                   :title="ok ? 'contrat réussi' : 'contrat chuté'"
                 ></span>
               </span>
-              <span class="w-[72px] text-right text-[12px] tabular-nums text-sage">{{
+              <span class="w-[72px] text-right text-[14px] tabular-nums text-sage">{{
                 p.enchere ?? '—'
               }}</span>
-              <span class="w-12 text-right text-[13px] font-bold tabular-nums" :style="{ color: p.couleur }">
+              <span class="w-12 text-right text-[15px] font-bold tabular-nums" :style="{ color: p.couleur }">
                 {{ p.bilan > 0 ? '+' : '' }}{{ p.bilan }}
               </span>
             </div>
-            <p class="mt-2 text-[11px] leading-relaxed text-dusk">
+            <p class="mt-2 text-[13px] leading-relaxed text-dusk">
               Carré plein = contrat réussi, creux = chuté. Le bilan est ce que la prise a rapporté à son camp,
               moins ce qu'elle a offert en chutant. Pas de pourcentage sur si peu de donnes.
             </p>
           </section>
 
           <section v-if="vuePartie === 'jeu'">
-            <h2 class="mt-6 mb-1 text-[13px] font-semibold">Les impasses</h2>
-            <p v-if="aucuneImpasse" class="text-[13px] text-sage">
+            <h2 class="mt-6 mb-1 text-[15px] font-semibold">Les impasses</h2>
+            <p v-if="aucuneImpasse" class="text-[15px] text-sage">
               Personne n'a encore gardé un as. Ça viendra.
             </p>
             <template v-else>
@@ -574,9 +576,9 @@ const faits = computed(() => {
                 :key="i.id"
                 class="flex items-center gap-2.5 border-b border-white/8 py-2"
               >
-                <span class="w-16 text-[13px] font-semibold">{{ i.nom }}</span>
-                <span class="w-6 text-[13px] tabular-nums text-mist">{{ i.tentees }}</span>
-                <span class="grow text-[12px]">
+                <span class="w-16 text-[15px] font-semibold">{{ i.nom }}</span>
+                <span class="w-6 text-[15px] tabular-nums text-mist">{{ i.tentees }}</span>
+                <span class="grow text-[14px]">
                   <span v-if="i.reussies" class="text-good"
                     >{{ i.reussies }} réussie{{ i.reussies > 1 ? 's' : '' }}</span
                   >
@@ -587,7 +589,7 @@ const faits = computed(() => {
                   <span v-if="!i.reussies && !i.ratees" class="text-dusk">sans suite</span>
                 </span>
               </div>
-              <p class="mt-2 text-[11px] leading-relaxed text-dusk">
+              <p class="mt-2 text-[13px] leading-relaxed text-dusk">
                 Impasse = garder l'as de la couleur entamée alors que personne n'a coupé. L'as coupé derrière,
                 c'est raté ; s'il ramasse un dix, c'est réussi.
               </p>
@@ -606,11 +608,11 @@ const faits = computed(() => {
             />
           </template>
           <section v-if="vuePartie === 'jeu'">
-            <h2 class="mt-6 mb-1 text-[13px] font-semibold">Temps de réflexion</h2>
-            <p v-if="aucunTemps" class="text-[13px] text-sage">Pas encore mesuré sur cette partie.</p>
+            <h2 class="mt-6 mb-1 text-[15px] font-semibold">Temps de réflexion</h2>
+            <p v-if="aucunTemps" class="text-[15px] text-sage">Pas encore mesuré sur cette partie.</p>
             <template v-else>
               <div
-                class="flex items-center gap-2.5 border-b border-white/15 pb-1 text-[10px] tracking-wider text-dusk uppercase"
+                class="flex items-center gap-2.5 border-b border-white/15 pb-1 text-[12px] tracking-wider text-dusk uppercase"
               >
                 <span class="w-16">Joueur</span>
                 <span class="grow text-right">Annoncer</span>
@@ -622,18 +624,18 @@ const faits = computed(() => {
                 :key="t.id"
                 class="flex items-center gap-2.5 border-b border-white/8 py-2"
               >
-                <span class="w-16 text-[13px] font-semibold">{{ t.nom }}</span>
-                <span class="grow text-right text-[12px] tabular-nums text-mist">{{
+                <span class="w-16 text-[15px] font-semibold">{{ t.nom }}</span>
+                <span class="grow text-right text-[14px] tabular-nums text-mist">{{
                   t.annonce === null ? '—' : duree(t.annonce)
                 }}</span>
-                <span class="w-16 text-right text-[12px] tabular-nums text-mist">{{
+                <span class="w-16 text-right text-[14px] tabular-nums text-mist">{{
                   t.carte === null ? '—' : duree(t.carte)
                 }}</span>
-                <span class="w-16 text-right text-[12px] tabular-nums text-mist">{{
+                <span class="w-16 text-right text-[14px] tabular-nums text-mist">{{
                   t.max === null ? '—' : duree(t.max)
                 }}</span>
               </div>
-              <p class="mt-2 text-[11px] leading-relaxed text-dusk">
+              <p class="mt-2 text-[13px] leading-relaxed text-dusk">
                 Moyennes, mesurées sur l'écran de chacun depuis que c'est à lui ; « Max » est la plus longue
                 hésitation.
               </p>
@@ -653,15 +655,15 @@ const faits = computed(() => {
             :nous="session.myTeam"
           />
           <section v-if="vuePartie === 'donnes'" class="lg:col-span-2">
-            <h2 class="mt-6 mb-2 text-[13px] font-semibold">Ce qui s'est passé</h2>
+            <h2 class="mt-6 mb-2 text-[15px] font-semibold">Ce qui s'est passé</h2>
             <div class="grid grid-cols-2 gap-2.5">
               <div
                 v-for="f in faits"
                 :key="f.titre"
                 class="rounded-xl border border-white/8 bg-white/5 px-3.5 py-3"
               >
-                <p class="text-[11px] text-sage">{{ f.titre }}</p>
-                <p class="mt-1 text-sm font-semibold" :class="f.alerte ? 'text-red-card' : 'text-ivory'">
+                <p class="text-[13px] text-sage">{{ f.titre }}</p>
+                <p class="mt-1 text-[15px] font-semibold" :class="f.alerte ? 'text-red-card' : 'text-ivory'">
                   {{ f.valeur }}
                 </p>
               </div>

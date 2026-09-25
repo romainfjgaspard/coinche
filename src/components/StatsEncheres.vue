@@ -62,8 +62,8 @@ const pct = (k: number, r: Roles): string => {
 
 <template>
   <section>
-    <h2 class="mt-5 text-[13px] font-semibold lg:text-[15px]">Répartition des annonces</h2>
-    <p class="mb-2 text-xs text-sage">
+    <h2 class="mt-5 text-[15px] font-semibold lg:text-[15px]">Répartition des annonces</h2>
+    <p class="mb-2 text-[13px] lg:text-xs text-sage">
       Chaque prise de parole, pas seulement l'annonce finale. En % de ses annonces chiffrées ; la passe à
       part.
     </p>
@@ -75,13 +75,13 @@ const pct = (k: number, r: Roles): string => {
     <button
       v-if="series.length"
       type="button"
-      class="mt-2 cursor-pointer text-xs text-sage underline underline-offset-4 hover:text-mist"
+      class="mt-2 cursor-pointer text-[13px] lg:text-xs text-sage underline underline-offset-4 hover:text-mist"
       @click="detail = !detail"
     >
       {{ detail ? 'Masquer le détail' : 'Voir le détail ▼' }}
     </button>
     <div v-if="detail" class="mt-2 overflow-x-auto">
-      <table class="w-full border-collapse text-[11px] tabular-nums lg:text-xs">
+      <table class="w-full border-collapse text-[13px] tabular-nums lg:text-xs">
         <thead>
           <tr class="text-sage">
             <th class="pr-2 pb-1 text-left font-semibold">Joueur</th>
@@ -107,14 +107,16 @@ const pct = (k: number, r: Roles): string => {
   </section>
 
   <section>
-    <h2 class="mt-6 text-[13px] font-semibold lg:text-[15px]">Lanceur, suiveur ou seul</h2>
-    <p class="mb-2 text-xs text-sage">
+    <h2 class="mt-6 text-[15px] font-semibold lg:text-[15px]">Lanceur, suiveur ou seul</h2>
+    <p class="mb-2 text-[13px] lg:text-xs text-sage">
       Quand son équipe a le contrat : a-t-il ouvert la couleur, monté sur son partenaire, ou pris seul ?
     </p>
-    <p v-if="!lignesRoles.length" class="py-3 text-center text-sm text-sage">Aucun contrat pour l'instant.</p>
-    <table v-else class="w-full border-collapse text-[13px] tabular-nums">
+    <p v-if="!lignesRoles.length" class="py-3 text-center text-[15px] lg:text-sm text-sage">
+      Aucun contrat pour l'instant.
+    </p>
+    <table v-else class="w-full border-collapse text-[15px] lg:text-[13px] tabular-nums">
       <thead>
-        <tr class="text-xs text-sage">
+        <tr class="text-[13px] lg:text-xs text-sage">
           <th class="pb-1 text-left font-semibold">Joueur</th>
           <th class="pb-1 text-right font-semibold">Lanceur</th>
           <th class="pb-1 text-right font-semibold">Suiveur</th>
@@ -125,13 +127,13 @@ const pct = (k: number, r: Roles): string => {
         <tr v-for="{ p, r } in lignesRoles" :key="p" class="border-t border-white/8">
           <td class="py-1.5 font-semibold" :style="{ color: couleurs[p] }">{{ nomDe(p) }}</td>
           <td class="py-1.5 text-right">
-            {{ r.lanceur }} <span class="text-[11px] text-dusk">{{ pct(r.lanceur, r) }}</span>
+            {{ r.lanceur }} <span class="text-[13px] lg:text-[11px] text-dusk">{{ pct(r.lanceur, r) }}</span>
           </td>
           <td class="py-1.5 text-right">
-            {{ r.suiveur }} <span class="text-[11px] text-dusk">{{ pct(r.suiveur, r) }}</span>
+            {{ r.suiveur }} <span class="text-[13px] lg:text-[11px] text-dusk">{{ pct(r.suiveur, r) }}</span>
           </td>
           <td class="py-1.5 text-right">
-            {{ r.seul }} <span class="text-[11px] text-dusk">{{ pct(r.seul, r) }}</span>
+            {{ r.seul }} <span class="text-[13px] lg:text-[11px] text-dusk">{{ pct(r.seul, r) }}</span>
           </td>
         </tr>
       </tbody>
