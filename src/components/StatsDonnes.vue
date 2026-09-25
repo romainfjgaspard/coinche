@@ -11,8 +11,11 @@ import { SUIT_GLYPH } from '../game/display'
 import { type DonneRevue, revoirDonne } from '../game/revue'
 import { nomDe } from '../stores/roster'
 import RevueDonne from './RevueDonne.vue'
+import AnalysePartie from './AnalysePartie.vue'
+import { useSession } from '../stores/session'
 
 const props = defineProps<{ events: GameEvent[]; seating: Seating; nous: 0 | 1 }>()
+const session = useSession()
 
 interface Ligne {
   numero: number
@@ -81,6 +84,8 @@ const couleur = (p: PlayerId): string => (teamOfPlayer(p, props.seating) === pro
 </script>
 
 <template>
+  <div>
+  <AnalysePartie :events="events" :seating="seating" :moi="session.playerId" :nous="nous" />
   <section>
     <h2 class="mt-5 mb-2 text-[13px] font-semibold lg:text-[15px]">Donne par donne</h2>
     <p v-if="!lignes.length" class="py-3 text-center text-sm text-sage">Aucune donne pour l'instant.</p>
@@ -129,4 +134,5 @@ const couleur = (p: PlayerId): string => (teamOfPlayer(p, props.seating) === pro
     </div>
     <RevueDonne v-if="revue" :donne="revue" @fermer="revue = null" />
   </section>
+  </div>
 </template>
