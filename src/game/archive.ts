@@ -56,6 +56,8 @@ export interface Archive {
   /** Sièges tenus par un bot. Vide pour une partie entre humains. */
   bots: PlayerId[]
   players: Record<PlayerId, PlayerArchive>
+  /** La soirée (code de sa première partie). Absente des archives d'avant le 25/09/2026. */
+  soiree?: string
   /** Points à dépasser, et partie en blitz. Absents : 1000 et partie normale. */
   objectif?: number
   blitz?: boolean

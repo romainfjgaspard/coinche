@@ -33,6 +33,22 @@ export function playerIdFrom(nom: string): PlayerId {
     .slice(0, 20)
 }
 
+/**
+ * Les bots n'ont pas de nom de joueur : ils prennent un siège anonyme, « bot-simple-1 »,
+ * « bot-etoile-2 »… Le niveau fait partie de l'identifiant, ce qui permet aux
+ * statistiques de regrouper tous les « Bot » et tous les « Bot ★ ».
+ */
+export type NiveauBot = 'simple' | 'compteur'
+export const estBotId = (p: PlayerId): boolean => p.startsWith('bot-')
+export const niveauDeBotId = (p: PlayerId): NiveauBot => (p.startsWith('bot-etoile') ? 'compteur' : 'simple')
+/** Le premier identifiant libre pour un bot de ce niveau, à côté des sièges déjà pris. */
+export function botId(niveau: NiveauBot, pris: readonly PlayerId[]): PlayerId {
+  const racine = `bot-${niveau === 'compteur' ? 'etoile' : 'simple'}-`
+  let n = 1
+  while (pris.includes(racine + n)) n++
+  return racine + n
+}
+
 /** Les quatre places, dans le sens du jeu (MAT-2). Les sièges 0 et 2 font équipe. */
 export type Seating = readonly [PlayerId, PlayerId, PlayerId, PlayerId]
 
