@@ -17,8 +17,20 @@ import { type BotLevel, chooseBid, chooseCard } from '../game/bot'
 import { PLI_VISIBLE_MS } from '../game/display'
 import { type Client, makeClient } from './app'
 import {
-  type GameDoc, allSeatsTaken, deal, moveCount, placeBid, playCard, remplacerParBot, reprendreSiegeBot, signIn, tableDe,
-  takeSeat, watchEvents, watchGame, watchHand,
+  type GameDoc,
+  allSeatsTaken,
+  deal,
+  moveCount,
+  placeBid,
+  playCard,
+  remplacerParBot,
+  reprendreSiegeBot,
+  signIn,
+  tableDe,
+  takeSeat,
+  watchEvents,
+  watchGame,
+  watchHand,
 } from './partie'
 
 /** Un temps de réflexion par défaut, pour que la table reste lisible par des humains. */
@@ -82,14 +94,17 @@ export interface BotOptions {
   onDetache?: () => void
 }
 
-export async function startBot(
-  code: string,
-  player: PlayerId,
-  options: BotOptions = {},
-): Promise<BotHandle> {
+export async function startBot(code: string, player: PlayerId, options: BotOptions = {}): Promise<BotHandle> {
   const {
-    level = 'simple', delayMs = REFLEXION_MS, feed, client, onError = defaultOnError, mayDealNext,
-    reprendDe, onDetache, remplaceHumain,
+    level = 'simple',
+    delayMs = REFLEXION_MS,
+    feed,
+    client,
+    onError = defaultOnError,
+    mayDealNext,
+    reprendDe,
+    onDetache,
+    remplaceHumain,
   } = options
   /** La pause après un pli suit le rythme du bot : les tests accélérés ne l'attendent pas. */
   const pausePli = Math.round((PLI_VISIBLE_MS * delayMs) / REFLEXION_MS)
@@ -126,7 +141,10 @@ export async function startBot(
     const cle = `${g.phase}|${g.dealNumber}|${moveCount(events)}`
     if (cle === dernierActe || g.phase === 'terminee' || g.phase === 'annulee') return null
     // En pause, on attend ; à la reprise, la réflexion repart de zéro.
-    if (g.pause) { trace = ''; return null }
+    if (g.pause) {
+      trace = ''
+      return null
+    }
 
     if (g.phase === 'lobby' || g.phase === 'decompte') {
       // Un bot donneur attend toujours le feu vert d'un humain de son onglet, y compris
@@ -163,7 +181,11 @@ export async function startBot(
     const decision = aFaire(game)
     if (!decision) return
     const { quoi, cle } = decision
-    if (cle !== trace) { trace = cle; vuA = Date.now(); console.warn('[p]', player, quoi, cle) }
+    if (cle !== trace) {
+      trace = cle
+      vuA = Date.now()
+      console.warn('[p]', player, quoi, cle)
+    }
 
     occupe = true
     try {
@@ -192,9 +214,10 @@ export async function startBot(
         // c'est que l'écoute n'a pas encore livré. On le dit, et le battement
         // suivant réessaiera plutôt que de laisser le bot muet.
         if (hand.length === 0) throw new Error(`main vide pour ${player}`)
-        agi = quoi === 'parler'
-          ? await parler(code, player, game, events, hand, c, Date.now() - vuA)
-          : await poser(code, player, game, events, hand, level, c, Date.now() - vuA)
+        agi =
+          quoi === 'parler'
+            ? await parler(code, player, game, events, hand, c, Date.now() - vuA)
+            : await poser(code, player, game, events, hand, level, c, Date.now() - vuA)
       }
       // On ne marque un état comme traité **que si on a réellement joué**. Le tour
       // peut avoir bougé pendant la lecture de la main : marquer quand même
@@ -216,12 +239,36 @@ export async function startBot(
      * contentait d'un cache vide, renvoyant une main inexistante sans erreur.
      * L'écoute maintient la connexion et garantit des données du serveur.
      */
-    watchHand(code, player, (h) => { hand = h }, c),
+    watchHand(
+      code,
+      player,
+      (h) => {
+        hand = h
+      },
+      c,
+    ),
     ...(feed
-      ? [feed((g, e) => { game = g; events = e })]
+      ? [
+          feed((g, e) => {
+            game = g
+            events = e
+          }),
+        ]
       : [
-          watchGame(code, (g) => { game = g }, c),
-          watchEvents(code, (e) => { events = e }, c),
+          watchGame(
+            code,
+            (g) => {
+              game = g
+            },
+            c,
+          ),
+          watchEvents(
+            code,
+            (e) => {
+              events = e
+            },
+            c,
+          ),
         ]),
   ]
 
@@ -319,14 +366,20 @@ async function poser(
   )
 
   // BEL-2 — un bot n'oublie jamais sa belote.
-  const annonce = canDeclareBelote(etat, player, carte, hand, etat.trump, (beloteAnnonces(events).get(player) ?? 0) > 0)
+  const annonce = canDeclareBelote(
+    etat,
+    player,
+    carte,
+    hand,
+    etat.trump,
+    (beloteAnnonces(events).get(player) ?? 0) > 0,
+  )
   await playCard(code, player, carte, annonce, c, thinkMs)
   return true
 }
 
 /** Vrai si ce siège est tenu par un bot. */
-export const isBotSeat = (game: GameDoc, player: PlayerId): boolean =>
-  Boolean(game.seats[player]?.bot)
+export const isBotSeat = (game: GameDoc, player: PlayerId): boolean => Boolean(game.seats[player]?.bot)
 
 /** Les sièges tenus par des bots, pour marquer l'archive. */
 export const botSeats = (game: GameDoc): PlayerId[] =>

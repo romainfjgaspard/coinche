@@ -10,11 +10,17 @@ export type Rank = (typeof RANKS)[number]
 export type Card = `${Rank}${Suit}`
 
 export const SUIT_LABELS: Record<Suit, string> = {
-  s: '♠', h: '♥', d: '♦', c: '♣',
+  s: '♠',
+  h: '♥',
+  d: '♦',
+  c: '♣',
 }
 
 export const SUIT_NAMES: Record<Suit, string> = {
-  s: 'Pique', h: 'Cœur', d: 'Carreau', c: 'Trèfle',
+  s: 'Pique',
+  h: 'Cœur',
+  d: 'Carreau',
+  c: 'Trèfle',
 }
 
 export const DECK: Card[] = SUITS.flatMap((s) => RANKS.map((r) => `${r}${s}` as Card))
@@ -36,14 +42,35 @@ const TRUMP_ORDER: Rank[] = ['J', '9', 'A', '10', 'K', 'Q', '8', '7']
 /** ORD-2 — hors atout : A > 10 > R > D > V > 9 > 8 > 7 */
 const PLAIN_ORDER: Rank[] = ['A', '10', 'K', 'Q', 'J', '9', '8', '7']
 const TRUMP_VALUES: Record<Rank, number> = {
-  J: 20, '9': 14, A: 11, '10': 10, K: 4, Q: 3, '8': 0, '7': 0,
+  J: 20,
+  '9': 14,
+  A: 11,
+  '10': 10,
+  K: 4,
+  Q: 3,
+  '8': 0,
+  '7': 0,
 }
 const PLAIN_VALUES: Record<Rank, number> = {
-  A: 11, '10': 10, K: 4, Q: 3, J: 2, '9': 0, '8': 0, '7': 0,
+  A: 11,
+  '10': 10,
+  K: 4,
+  Q: 3,
+  J: 2,
+  '9': 0,
+  '8': 0,
+  '7': 0,
 }
 /** Tout-atout : 38 points par couleur, 152 en tout, comme à la couleur. */
 const TOUT_ATOUT_VALUES: Record<Rank, number> = {
-  J: 14, '9': 9, A: 6, '10': 5, K: 3, Q: 1, '8': 0, '7': 0,
+  J: 14,
+  '9': 9,
+  A: 6,
+  '10': 5,
+  K: 3,
+  Q: 1,
+  '8': 0,
+  '7': 0,
 }
 
 /** Force d'une carte dans son propre registre. Plus c'est haut, plus c'est fort. */
@@ -53,14 +80,17 @@ export function strength(card: Card, trump: Atout): number {
 }
 
 export function value(card: Card, trump: Atout): number {
-  const table = trump === 'ta' ? TOUT_ATOUT_VALUES
-    : trump !== null && suitOf(card) === trump ? TRUMP_VALUES : PLAIN_VALUES
+  const table =
+    trump === 'ta'
+      ? TOUT_ATOUT_VALUES
+      : trump !== null && suitOf(card) === trump
+        ? TRUMP_VALUES
+        : PLAIN_VALUES
   return table[rankOf(card)]
 }
 
 /** Au tout-atout, aucune couleur n'en coupe une autre : rien n'y est « atout » au sens de la coupe. */
-export const isTrump = (card: Card, trump: Atout): boolean =>
-  atoutCouleur(trump) && suitOf(card) === trump
+export const isTrump = (card: Card, trump: Atout): boolean => atoutCouleur(trump) && suitOf(card) === trump
 
 const RED: Suit[] = ['h', 'd']
 

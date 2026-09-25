@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_SEATING } from '../players'
 import {
-  type BiddingEntry, IllegalBid, apply, canBidCapot, canBidGenerale, canCoinche, canSurcoinche, currentBidder,
-  firstLeader, legalValues, multiplier, newBidding, outcome, taker,
+  type BiddingEntry,
+  IllegalBid,
+  apply,
+  canBidCapot,
+  canBidGenerale,
+  canCoinche,
+  canSurcoinche,
+  currentBidder,
+  firstLeader,
+  legalValues,
+  multiplier,
+  newBidding,
+  outcome,
+  taker,
 } from '../bidding'
 
 // Sièges dans le sens du jeu : romain(0) · benel(1) · viv(2) · roux(3).
@@ -29,11 +41,11 @@ describe('ENC-1 — ordre de parole', () => {
 })
 
 describe('ENC-3 / ENC-4 — paliers et surenchère', () => {
-  it('ouvre à 80 et monte de 10 en 10 jusqu\'à 170 (un 150 belotté)', () => {
+  it("ouvre à 80 et monte de 10 en 10 jusqu'à 170 (un 150 belotté)", () => {
     expect(legalValues(start())).toEqual([80, 90, 100, 110, 120, 130, 140, 150, 160, 170])
   })
 
-  it('n\'autorise plus que le dessus d\'une enchère existante', () => {
+  it("n'autorise plus que le dessus d'une enchère existante", () => {
     const s = run({ kind: 'contrat', player: 'viv', value: 90, suit: 'h' })
     expect(legalValues(s)).toEqual([100, 110, 120, 130, 140, 150, 160, 170])
   })
@@ -61,17 +73,14 @@ describe('ENC-5 — reparler après avoir passé', () => {
 
 describe('ENC-6 / ENC-7 — fin des enchères', () => {
   it('trois passes après une enchère closent les enchères', () => {
-    const s = run(
-      { kind: 'contrat', player: 'viv', value: 100, suit: 'h' },
-      passe('roux'), passe('romain'),
-    )
+    const s = run({ kind: 'contrat', player: 'viv', value: 100, suit: 'h' }, passe('roux'), passe('romain'))
     expect(outcome(s).status).toBe('en_cours')
     const closed = apply(s, passe('benel'))
     expect(outcome(closed)).toMatchObject({ status: 'contrat', taker: 'viv', value: 100, trump: 'h' })
     expect(currentBidder(closed)).toBeNull()
   })
 
-  it('quatre passes d\'emblée donnent une donne blanche', () => {
+  it("quatre passes d'emblée donnent une donne blanche", () => {
     const s = run(passe('viv'), passe('roux'), passe('romain'), passe('benel'))
     expect(outcome(s).status).toBe('donne_blanche')
   })
@@ -82,27 +91,31 @@ describe('ENC-8 / ENC-9 / ENC-10 — capot, générale, sans-atout', () => {
     const s = run(
       { kind: 'contrat', player: 'viv', value: 160, suit: 'h' },
       { kind: 'capot', player: 'roux', declaration: 's' },
-      passe('romain'), passe('benel'), passe('viv'),
+      passe('romain'),
+      passe('benel'),
+      passe('viv'),
     )
     expect(outcome(s)).toMatchObject({ status: 'contrat', taker: 'roux', value: 250, capot: true })
   })
 
-  it('plus aucun contrat chiffré au-dessus d\'un capot', () => {
+  it("plus aucun contrat chiffré au-dessus d'un capot", () => {
     const s = run({ kind: 'capot', player: 'viv', declaration: 'h' })
     expect(legalValues(s)).toEqual([])
   })
 
-  it('la générale domine le capot, mais pas l\'inverse', () => {
+  it("la générale domine le capot, mais pas l'inverse", () => {
     const s = run({ kind: 'capot', player: 'viv', declaration: 'h' })
     const g = apply(s, { kind: 'generale', player: 'roux', declaration: 's' })
     expect(taker(g)).toBe('roux')
     expect(() => apply(g, { kind: 'capot', player: 'romain', declaration: 'd' })).toThrow(IllegalBid)
   })
 
-  it('sans-atout et tout-atout se jouent en capot, sans couleur d\'atout', () => {
+  it("sans-atout et tout-atout se jouent en capot, sans couleur d'atout", () => {
     const s = run(
       { kind: 'capot', player: 'viv', declaration: 'sa' },
-      passe('roux'), passe('romain'), passe('benel'),
+      passe('roux'),
+      passe('romain'),
+      passe('benel'),
     )
     expect(outcome(s)).toMatchObject({ status: 'contrat', declaration: 'sa', trump: null, capot: true })
   })
@@ -112,10 +125,10 @@ describe('CO-1 à CO-3 — coinche', () => {
   const taken = () => run({ kind: 'contrat', player: 'viv', value: 100, suit: 'h' })
 
   it('seul un adversaire du preneur peut coincher', () => {
-    expect(canCoinche(taken(), 'roux')).toBe(true)   // adversaire
-    expect(canCoinche(taken(), 'benel')).toBe(true)  // adversaire
+    expect(canCoinche(taken(), 'roux')).toBe(true) // adversaire
+    expect(canCoinche(taken(), 'benel')).toBe(true) // adversaire
     expect(canCoinche(taken(), 'romain')).toBe(false) // partenaire de Viv
-    expect(canCoinche(taken(), 'viv')).toBe(false)    // preneur
+    expect(canCoinche(taken(), 'viv')).toBe(false) // preneur
   })
 
   it('CO-3 — la coinche se prend à la volée, hors de son tour', () => {
@@ -125,7 +138,7 @@ describe('CO-1 à CO-3 — coinche', () => {
     expect(multiplier(s)).toBe(2)
   })
 
-  it('seul le camp du preneur peut surcoincher, et l\'enjeu est quadruplé', () => {
+  it("seul le camp du preneur peut surcoincher, et l'enjeu est quadruplé", () => {
     const s = apply(taken(), { kind: 'coinche', player: 'roux' })
     expect(canSurcoinche(s, 'romain')).toBe(true) // partenaire du preneur
     expect(canSurcoinche(s, 'benel')).toBe(false)
@@ -150,7 +163,7 @@ describe('CO-1 à CO-3 — coinche', () => {
     expect(() => apply(s, { kind: 'generale', player: 'viv', declaration: 'ta' })).toThrow(IllegalBid)
   })
 
-  it('le preneur peut laisser passer la coinche : l\'enjeu reste doublé', () => {
+  it("le preneur peut laisser passer la coinche : l'enjeu reste doublé", () => {
     const s = apply(taken(), { kind: 'coinche', player: 'roux' })
     expect(currentBidder(s)).toBe('viv')
     const closed = apply(s, passe('viv'))
@@ -163,7 +176,9 @@ describe('JEU-1 / ENC-9 — qui entame', () => {
     const s = run(
       passe('viv'),
       { kind: 'contrat', player: 'roux', value: 90, suit: 'h' },
-      passe('romain'), passe('benel'), passe('viv'),
+      passe('romain'),
+      passe('benel'),
+      passe('viv'),
     )
     expect(firstLeader(s)).toBe('viv')
   })
@@ -172,7 +187,9 @@ describe('JEU-1 / ENC-9 — qui entame', () => {
     const s = run(
       passe('viv'),
       { kind: 'generale', player: 'roux', declaration: 'h' },
-      passe('romain'), passe('benel'), passe('viv'),
+      passe('romain'),
+      passe('benel'),
+      passe('viv'),
     )
     expect(firstLeader(s)).toBe('roux')
   })

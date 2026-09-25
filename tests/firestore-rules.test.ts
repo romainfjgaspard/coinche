@@ -21,7 +21,10 @@ const CODE = 'ABCD'
 /** Roster figé. Chaque joueur occupe un siège via un compte anonyme (uid). */
 const ROSTER = ['benel', 'roux', 'viv', 'romain'] as const
 const UID: Record<string, string> = {
-  benel: 'uid-b', roux: 'uid-r', viv: 'uid-v', romain: 'uid-ro',
+  benel: 'uid-b',
+  roux: 'uid-r',
+  viv: 'uid-v',
+  romain: 'uid-ro',
 }
 const PARTIE = {
   seats: Object.fromEntries(ROSTER.map((p) => [p, { uid: UID[p] }])),
@@ -33,7 +36,11 @@ const PARTIE = {
 beforeAll(async () => {
   env = await initializeTestEnvironment({
     projectId: 'demo-coinche',
-    firestore: { rules: (await import('node:fs')).readFileSync('firestore.rules', 'utf8'), host: '127.0.0.1', port: 8080 },
+    firestore: {
+      rules: (await import('node:fs')).readFileSync('firestore.rules', 'utf8'),
+      host: '127.0.0.1',
+      port: 8080,
+    },
   })
 })
 
@@ -70,16 +77,16 @@ describe('mains — étanchéité', () => {
     await assertSucceeds(setDoc(doc(as(UID.benel), 'parties', CODE, 'mains', 'roux'), { cards: [] }))
   })
 
-  it('un joueur qui n\'est pas donneur ne peut pas écrire la main d\'un autre', async () => {
+  it("un joueur qui n'est pas donneur ne peut pas écrire la main d'un autre", async () => {
     await assertFails(setDoc(doc(as(UID.roux), 'parties', CODE, 'mains', 'viv'), { cards: [] }))
   })
 
-  it('un compte qui n\'occupe aucun siège ne lit rien', async () => {
+  it("un compte qui n'occupe aucun siège ne lit rien", async () => {
     await assertFails(getDoc(doc(as('uid-inconnu'), 'parties', CODE, 'mains', 'romain')))
   })
 })
 
-describe('donne distribuée — scellée jusqu\'à la fin', () => {
+describe("donne distribuée — scellée jusqu'à la fin", () => {
   it('illisible pendant la partie, même par un joueur', async () => {
     await assertFails(getDoc(doc(as(UID.benel), 'parties', CODE, 'donne', '1')))
   })
@@ -110,16 +117,13 @@ describe('journal — append-only', () => {
   })
 })
 
-
 describe('distribution complète — bout en bout', () => {
   it('le donneur distribue, chacun ne lit que sa main, et le paquet est intact', async () => {
     const hands = dealHands(shuffle([...DECK]), 'benel', DEFAULT_SEATING)
 
     // Benel est donneur : lui seul peut écrire les quatre mains.
     for (const pid of ROSTER) {
-      await assertSucceeds(
-        setDoc(doc(as(UID.benel), 'parties', CODE, 'mains', pid), { cards: hands[pid] }),
-      )
+      await assertSucceeds(setDoc(doc(as(UID.benel), 'parties', CODE, 'mains', pid), { cards: hands[pid] }))
     }
 
     // Chacun relit la sienne, et seulement la sienne.
@@ -162,7 +166,7 @@ describe('prise de siège', () => {
     )
   })
 
-  it('mais il ne peut pas déloger quelqu\'un en s\'asseyant', async () => {
+  it("mais il ne peut pas déloger quelqu'un en s'asseyant", async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'parties', CODE), {
         seats: { benel: { uid: UID.benel } },
@@ -198,7 +202,7 @@ describe('table complétée par le quatrième arrivé', () => {
     dealer: DEFAULT_SEATING[1],
   }
 
-  it('fixe le placement et le donneur en s\'asseyant', async () => {
+  it("fixe le placement et le donneur en s'asseyant", async () => {
     await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'parties', CODE), troisAssis))
     await assertSucceeds(setDoc(doc(as(UID.romain), 'parties', CODE), complete))
   })
@@ -208,11 +212,14 @@ describe('table complétée par le quatrième arrivé', () => {
       setDoc(doc(ctx.firestore(), 'parties', CODE), { ...troisAssis, seating: DEFAULT_SEATING }),
     )
     await assertFails(
-      setDoc(doc(as(UID.romain), 'parties', CODE), { ...complete, seating: ['viv', 'roux', 'benel', 'romain'] }),
+      setDoc(doc(as(UID.romain), 'parties', CODE), {
+        ...complete,
+        seating: ['viv', 'roux', 'benel', 'romain'],
+      }),
     )
   })
 
-  it('et un cinquième ne s\'assied pas', async () => {
+  it("et un cinquième ne s'assied pas", async () => {
     await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'parties', CODE), complete))
     await assertFails(
       setDoc(doc(as('uid-cinq'), 'parties', CODE), {
@@ -247,6 +254,8 @@ describe('joueurs ajoutés', () => {
   })
 
   it('refuse un anonyme non connecté', async () => {
-    await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), 'joueurs', 'jean'), nouveau('Jean')))
+    await assertFails(
+      setDoc(doc(env.unauthenticatedContext().firestore(), 'joueurs', 'jean'), nouveau('Jean')),
+    )
   })
 })

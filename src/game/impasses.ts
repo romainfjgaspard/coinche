@@ -43,11 +43,7 @@ const vide = (): ImpasseTally => ({ tentees: 0, reussies: 0, ratees: 0 })
  * impasse n'apparaît donc qu'au pli où l'as tombe. En direct, les chiffres se
  * complètent au fil des plis et sont définitifs à la fin de la donne.
  */
-export function impassesOfTricks(
-  tricks: CompletedTrick[],
-  trump: Atout,
-  dealNumber = 0,
-): Impasse[] {
+export function impassesOfTricks(tricks: CompletedTrick[], trump: Atout, dealNumber = 0): Impasse[] {
   // Chacun joue à chaque pli : les joueurs de la donne se lisent dans les plis eux-mêmes.
   const restantes = new Map<PlayerId, Set<Card>>()
   for (const t of tricks) {
@@ -102,8 +98,7 @@ export function impassesOfTricks(
     const pli = tricks[index]
     imp.sortieAu = index + 1
     if (pli.winner !== imp.player) imp.issue = 'ratee'
-    else if (pli.plays.some((c) => c.player !== imp.player && rankOf(c.card) === '10'))
-      imp.issue = 'reussie'
+    else if (pli.plays.some((c) => c.player !== imp.player && rankOf(c.card) === '10')) imp.issue = 'reussie'
     else imp.issue = 'sans_suite'
   }
 
@@ -111,21 +106,15 @@ export function impassesOfTricks(
 }
 
 /** Reconstruit chaque donne du journal et en extrait les impasses. */
-export function impassesOfGame(
-  events: GameEvent[],
-  dealer: PlayerId,
-  seating: Seating,
-): Impasse[] {
+export function impassesOfGame(events: GameEvent[], dealer: PlayerId, seating: Seating): Impasse[] {
   const out: Impasse[] = []
-  let debut = 0
 
   const bornes: number[] = []
   events.forEach((e, i) => e.type === 'donne_commencee' && bornes.push(i))
   bornes.push(events.length)
 
   for (let b = 0; b < bornes.length - 1; b++) {
-    debut = bornes[b]
-    const tranche = events.slice(debut, bornes[b + 1])
+    const tranche = events.slice(bornes[b], bornes[b + 1])
     const ouverture = tranche[0]
     if (ouverture.type !== 'donne_commencee') continue
     const contrat = tranche.find((e) => e.type === 'contrat_fixe')

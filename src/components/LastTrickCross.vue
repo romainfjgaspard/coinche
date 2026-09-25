@@ -22,9 +22,12 @@ const cartes = computed(() =>
     // Haut et bas l'un au-dessus de l'autre, les côtés à mi-hauteur entre les deux.
     const milieu = Math.round((h.value + g) / 2)
     const place =
-      p.player === me.value ? { left: w + g, top: h.value + g }
-        : p.player === around.value.top ? { left: w + g, top: 0 }
-          : p.player === around.value.left ? { left: 0, top: milieu }
+      p.player === me.value
+        ? { left: w + g, top: h.value + g }
+        : p.player === around.value.top
+          ? { left: w + g, top: 0 }
+          : p.player === around.value.left
+            ? { left: 0, top: milieu }
             : { left: 2 * (w + g), top: milieu }
     return { ...p, ...place }
   }),

@@ -15,6 +15,7 @@ const suits: { glyph: string; red: boolean }[] = [
       :key="s.glyph"
       class="flex items-center justify-center rounded bg-ivory px-1.5 py-0.5 text-xl leading-none"
       :class="s.red ? 'text-red-card' : 'text-felt-dark'"
-    >{{ s.glyph }}</span>
+      >{{ s.glyph }}</span
+    >
   </div>
 </template>

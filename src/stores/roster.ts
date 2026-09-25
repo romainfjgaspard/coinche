@@ -38,7 +38,8 @@ function lireListe(): PlayerId[] {
   try {
     const brut = localStorage.getItem(LISTE_KEY)
     if (brut) return JSON.parse(brut) as PlayerId[]
-    const moi = (JSON.parse(localStorage.getItem(SESSION_KEY) ?? 'null') as { playerId?: PlayerId } | null)?.playerId
+    const moi = (JSON.parse(localStorage.getItem(SESSION_KEY) ?? 'null') as { playerId?: PlayerId } | null)
+      ?.playerId
     return moi && !PLAYER_IDS.includes(moi) ? [...PLAYER_IDS, moi] : [...PLAYER_IDS]
   } catch {
     return [...PLAYER_IDS]

@@ -12,76 +12,217 @@ function pli(cartes: Array<[PlayerId, Card]>, winner: PlayerId): CompletedTrick 
   return { leader: plays[0].player, plays, winner, points: 0 }
 }
 
-describe('détection de l\'impasse', () => {
-  it('garder l\'as de la couleur entamée alors que personne n\'a coupé', () => {
+describe("détection de l'impasse", () => {
+  it("garder l'as de la couleur entamée alors que personne n'a coupé", () => {
     const tricks = [
       // Benel entame pique, Viv garde son as et fournit le 9
-      pli([['benel', 'Ks'], ['viv', '9s'], ['roux', '8s'], ['romain', '7s']], 'benel'),
+      pli(
+        [
+          ['benel', 'Ks'],
+          ['viv', '9s'],
+          ['roux', '8s'],
+          ['romain', '7s'],
+        ],
+        'benel',
+      ),
       // l'as sort plus tard et ramasse le 10 de Romain : impasse réussie
-      pli([['benel', 'Qs'], ['viv', 'As'], ['roux', 'Js'], ['romain', '10s']], 'viv'),
+      pli(
+        [
+          ['benel', 'Qs'],
+          ['viv', 'As'],
+          ['roux', 'Js'],
+          ['romain', '10s'],
+        ],
+        'viv',
+      ),
     ]
     const [imp] = impassesOfTricks(tricks, 'h', 3)
     expect(imp).toMatchObject({
-      player: 'viv', suit: 's', gardeeAu: 1, sortieAu: 2, issue: 'reussie', dealNumber: 3,
+      player: 'viv',
+      suit: 's',
+      gardeeAu: 1,
+      sortieAu: 2,
+      issue: 'reussie',
+      dealNumber: 3,
     })
   })
 
-  it('l\'as coupé derrière, c\'est raté', () => {
+  it("l'as coupé derrière, c'est raté", () => {
     const tricks = [
-      pli([['benel', 'Ks'], ['viv', '9s'], ['roux', '8s'], ['romain', '7s']], 'benel'),
-      pli([['benel', 'Qs'], ['viv', 'As'], ['roux', '7h'], ['romain', '10s']], 'roux'),
+      pli(
+        [
+          ['benel', 'Ks'],
+          ['viv', '9s'],
+          ['roux', '8s'],
+          ['romain', '7s'],
+        ],
+        'benel',
+      ),
+      pli(
+        [
+          ['benel', 'Qs'],
+          ['viv', 'As'],
+          ['roux', '7h'],
+          ['romain', '10s'],
+        ],
+        'roux',
+      ),
     ]
     expect(impassesOfTricks(tricks, 'h')[0].issue).toBe('ratee')
   })
 
-  it('l\'as ramasse mais sans dix : sans suite', () => {
+  it("l'as ramasse mais sans dix : sans suite", () => {
     const tricks = [
-      pli([['benel', 'Ks'], ['viv', '9s'], ['roux', '8s'], ['romain', '7s']], 'benel'),
-      pli([['benel', 'Qs'], ['viv', 'As'], ['roux', 'Js'], ['romain', '9h']], 'viv'),
+      pli(
+        [
+          ['benel', 'Ks'],
+          ['viv', '9s'],
+          ['roux', '8s'],
+          ['romain', '7s'],
+        ],
+        'benel',
+      ),
+      pli(
+        [
+          ['benel', 'Qs'],
+          ['viv', 'As'],
+          ['roux', 'Js'],
+          ['romain', '9h'],
+        ],
+        'viv',
+      ),
     ]
     expect(impassesOfTricks(tricks, 'h')[0].issue).toBe('sans_suite')
   })
 
-  it('pas d\'impasse si quelqu\'un a déjà coupé avant lui', () => {
+  it("pas d'impasse si quelqu'un a déjà coupé avant lui", () => {
     const tricks = [
-      pli([['benel', 'Ks'], ['roux', '7h'], ['viv', '9s'], ['romain', '7s']], 'roux'),
-      pli([['roux', 'Qs'], ['viv', 'As'], ['romain', '10s'], ['benel', 'Js']], 'viv'),
+      pli(
+        [
+          ['benel', 'Ks'],
+          ['roux', '7h'],
+          ['viv', '9s'],
+          ['romain', '7s'],
+        ],
+        'roux',
+      ),
+      pli(
+        [
+          ['roux', 'Qs'],
+          ['viv', 'As'],
+          ['romain', '10s'],
+          ['benel', 'Js'],
+        ],
+        'viv',
+      ),
     ]
     expect(impassesOfTricks(tricks, 'h')).toEqual([])
   })
 
-  it('pas d\'impasse quand l\'atout est la couleur entamée', () => {
+  it("pas d'impasse quand l'atout est la couleur entamée", () => {
     const tricks = [
-      pli([['benel', 'Kh'], ['viv', '9h'], ['roux', '8h'], ['romain', '7h']], 'viv'),
-      pli([['viv', 'Ah'], ['roux', 'Qh'], ['romain', '10h'], ['benel', 'Jh']], 'roux'),
+      pli(
+        [
+          ['benel', 'Kh'],
+          ['viv', '9h'],
+          ['roux', '8h'],
+          ['romain', '7h'],
+        ],
+        'viv',
+      ),
+      pli(
+        [
+          ['viv', 'Ah'],
+          ['roux', 'Qh'],
+          ['romain', '10h'],
+          ['benel', 'Jh'],
+        ],
+        'roux',
+      ),
     ]
     expect(impassesOfTricks(tricks, 'h')).toEqual([])
   })
 
-  it('l\'entameur ne fait pas d\'impasse : il choisit sa couleur', () => {
+  it("l'entameur ne fait pas d'impasse : il choisit sa couleur", () => {
     const tricks = [
-      pli([['viv', '9s'], ['roux', '8s'], ['romain', '7s'], ['benel', 'Ks']], 'benel'),
-      pli([['benel', 'Qs'], ['viv', 'As'], ['roux', 'Js'], ['romain', '10s']], 'viv'),
+      pli(
+        [
+          ['viv', '9s'],
+          ['roux', '8s'],
+          ['romain', '7s'],
+          ['benel', 'Ks'],
+        ],
+        'benel',
+      ),
+      pli(
+        [
+          ['benel', 'Qs'],
+          ['viv', 'As'],
+          ['roux', 'Js'],
+          ['romain', '10s'],
+        ],
+        'viv',
+      ),
     ]
     expect(impassesOfTricks(tricks, 'h')).toEqual([])
   })
 
-  it('un as gardé deux fois ne compte qu\'une impasse', () => {
+  it("un as gardé deux fois ne compte qu'une impasse", () => {
     const tricks = [
-      pli([['benel', 'Ks'], ['viv', '9s'], ['roux', '8s'], ['romain', '7s']], 'benel'),
-      pli([['benel', 'Qs'], ['viv', '10s'], ['roux', 'Js'], ['romain', '7h']], 'romain'),
-      pli([['benel', '8h'], ['viv', 'As'], ['roux', '9h'], ['romain', '10h']], 'romain'),
+      pli(
+        [
+          ['benel', 'Ks'],
+          ['viv', '9s'],
+          ['roux', '8s'],
+          ['romain', '7s'],
+        ],
+        'benel',
+      ),
+      pli(
+        [
+          ['benel', 'Qs'],
+          ['viv', '10s'],
+          ['roux', 'Js'],
+          ['romain', '7h'],
+        ],
+        'romain',
+      ),
+      pli(
+        [
+          ['benel', '8h'],
+          ['viv', 'As'],
+          ['roux', '9h'],
+          ['romain', '10h'],
+        ],
+        'romain',
+      ),
     ]
     const list = impassesOfTricks(tricks, 'h')
     expect(list).toHaveLength(1)
     expect(list[0].gardeeAu).toBe(1)
   })
 
-  it('tant que l\'as n\'est pas tombé, rien n\'est visible', () => {
-    const debut = pli([['benel', 'Ks'], ['viv', '9s'], ['roux', '8s'], ['romain', '7s']], 'benel')
+  it("tant que l'as n'est pas tombé, rien n'est visible", () => {
+    const debut = pli(
+      [
+        ['benel', 'Ks'],
+        ['viv', '9s'],
+        ['roux', '8s'],
+        ['romain', '7s'],
+      ],
+      'benel',
+    )
     expect(impassesOfTricks([debut], 'h')).toEqual([])
 
-    const suite = pli([['benel', 'Qs'], ['viv', 'As'], ['roux', 'Js'], ['romain', '10s']], 'viv')
+    const suite = pli(
+      [
+        ['benel', 'Qs'],
+        ['viv', 'As'],
+        ['roux', 'Js'],
+        ['romain', '10s'],
+      ],
+      'viv',
+    )
     expect(impassesOfTricks([debut, suite], 'h')).toHaveLength(1)
   })
 
@@ -112,8 +253,13 @@ describe('impasses lues depuis le journal', () => {
     const events: GameEvent[] = [
       { type: 'donne_commencee', dealNumber: 1, dealer: 'benel' } as GameEvent,
       {
-        type: 'contrat_fixe', taker: 'romain', value: 100, trump: 'h',
-        multiplier: 1, capot: false, generale: false,
+        type: 'contrat_fixe',
+        taker: 'romain',
+        value: 100,
+        trump: 'h',
+        multiplier: 1,
+        capot: false,
+        generale: false,
       } as GameEvent,
     ]
 
@@ -125,7 +271,9 @@ describe('impasses lues depuis le journal', () => {
       const carte = jouables.find((c) => rankOf(c) !== 'A') ?? jouables[0]
       main.splice(main.indexOf(carte), 1)
       events.push({
-        type: 'carte_jouee', player: joueur, card: carte,
+        type: 'carte_jouee',
+        player: joueur,
+        card: carte,
         trickNumber: state.completed.length + 1,
       } as GameEvent)
       state = applyPlayed(state, joueur, carte)

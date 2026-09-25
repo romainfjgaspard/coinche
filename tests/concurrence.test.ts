@@ -12,7 +12,17 @@ import { describe, expect, it } from 'vitest'
 import { getDoc } from 'firebase/firestore'
 import { type Client, makeClient } from '../src/firebase/app'
 import {
-  ConcurrentWrite, type GameDoc, archiveRef, cancelGame, createGame, deal, gameRef, placeBid, readEvents, readJournal, rejouer,
+  ConcurrentWrite,
+  type GameDoc,
+  archiveRef,
+  cancelGame,
+  createGame,
+  deal,
+  gameRef,
+  placeBid,
+  readEvents,
+  readJournal,
+  rejouer,
   signIn,
   takeSeat,
 } from '../src/firebase/partie'
@@ -43,9 +53,7 @@ describe('arrivées simultanées', () => {
     const clients = await quatreClients()
     const code = await nouvellePartie(clients)
 
-    await Promise.all(
-      (['roux', 'viv', 'romain'] as const).map((p) => takeSeat(code, p, clients[p])),
-    )
+    await Promise.all((['roux', 'viv', 'romain'] as const).map((p) => takeSeat(code, p, clients[p])))
 
     const game = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
     expect(Object.keys(game.seats).sort()).toEqual([...PLAYER_IDS].sort())
@@ -60,7 +68,10 @@ describe('distribution', () => {
     const code = await nouvellePartie(clients)
     for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
 
-    const issues = await Promise.allSettled([deal(code, null, clients.benel), deal(code, null, clients.benel)])
+    const issues = await Promise.allSettled([
+      deal(code, null, clients.benel),
+      deal(code, null, clients.benel),
+    ])
 
     // L'une réussit, l'autre est refusée proprement — pas d'erreur Firestore brute.
     expect(issues.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
@@ -106,7 +117,11 @@ describe('table formée par les arrivées', () => {
     let game = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
     expect(game.seating).toBeNull()
 
-    await Promise.all([takeSeat(code, 'roux', clients.roux), takeSeat(code, 'viv', clients.viv), takeSeat(code, 'jean', jean)])
+    await Promise.all([
+      takeSeat(code, 'roux', clients.roux),
+      takeSeat(code, 'viv', clients.viv),
+      takeSeat(code, 'jean', jean),
+    ])
     game = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
     expect([...game.seating!].sort()).toEqual(['benel', 'jean', 'roux', 'viv'])
     expect(game.dealer).toBe(game.seating![1])
@@ -132,7 +147,7 @@ describe('table formée par les arrivées', () => {
     expect((await readRoster(c)).filter((x) => x.id === j.id)).toHaveLength(1)
   })
 
-  it('un des quatre du départ n\'est jamais recréé en base', async () => {
+  it("un des quatre du départ n'est jamais recréé en base", async () => {
     const c = await makeClient(`concurrence-${n}-fondateur`)
     expect(await addPlayer('viv', c)).toEqual({ id: 'viv', nom: 'Viv', existait: true })
     expect((await readRoster(c)).map((x) => x.id)).not.toContain('viv')
@@ -182,14 +197,19 @@ describe('coinche hors enchères', () => {
     await placeBid(code, { kind: 'passe', player: 'benel' }, clients.benel)
     const game = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
     expect(game.phase).toBe('jeu')
-    await expect(placeBid(code, { kind: 'coinche', player: 'benel' }, clients.benel)).rejects.toThrow('Les enchères sont closes')
+    await expect(placeBid(code, { kind: 'coinche', player: 'benel' }, clients.benel)).rejects.toThrow(
+      'Les enchères sont closes',
+    )
   }, 30_000)
 })
 
 describe('partie en 500, en blitz, puis « Rejouer »', () => {
   it('trois capots non joués finissent la partie, archivée avec ses règles ; la suivante reprend les équipes', async () => {
     const clients = await quatreClients()
-    const code = await createGame('benel', DEFAULT_SEATING, 'benel', clients.benel, { objectif: 500, blitz: true })
+    const code = await createGame('benel', DEFAULT_SEATING, 'benel', clients.benel, {
+      objectif: 500,
+      blitz: true,
+    })
     for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
 
     for (let donne = 1; donne <= 3; donne++) {

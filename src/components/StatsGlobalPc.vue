@@ -17,7 +17,15 @@ import { computed, ref } from 'vue'
 import type { PlayerId } from '../game/players'
 import { nomDe } from '../stores/roster'
 import {
-  PALIERS, clePaire, duoStats, joueursDe, joueurStats, pairesJouees, parPalier, prisesAvecForce, prisesDe,
+  PALIERS,
+  clePaire,
+  duoStats,
+  joueursDe,
+  joueurStats,
+  pairesJouees,
+  parPalier,
+  prisesAvecForce,
+  prisesDe,
 } from '../game/statsGlobal'
 import { BAREME, habitudeDuGroupe, LARGEUR_BANDE } from '../game/force'
 import type { Archive } from '../game/archive'
@@ -32,7 +40,9 @@ const roles = computed(() => rolesGlobaux(props.archives))
 const ecarts = computed(() => ecartsGlobaux(props.archives))
 const temps = computed(() => tempsGlobaux(props.archives))
 const { nonFinies, chargerNonFinies } = useFiltreArchives()
-onMounted(() => { void chargerNonFinies() })
+onMounted(() => {
+  void chargerNonFinies()
+})
 
 const OR = '#d9a441'
 const BON = '#52a884'
@@ -69,13 +79,22 @@ const cel = (v: string | number, opt: Partial<Cell> = {}): Cell => ({
 /** Dégradé séquentiel : plus le taux est élevé, plus le fond est soutenu. */
 const tauxCel = (v: number, sep?: string): Cell => {
   const a = Math.max(0, Math.min(1, (v - 35) / 40))
-  return cel(`${v} %`, { c: '#faf9f5', w: '600', fond: `rgba(82,168,132,${(0.08 + a * 0.42).toFixed(2)})`, sep })
+  return cel(`${v} %`, {
+    c: '#faf9f5',
+    w: '600',
+    fond: `rgba(82,168,132,${(0.08 + a * 0.42).toFixed(2)})`,
+    sep,
+  })
 }
 const signeCel = (v: number, sep?: string): Cell =>
   cel(signe(v), { c: v >= 0 ? BON : MAUVAIS, w: '700', sep })
 
 const colonnes = (noms: string[], gauche: number, separateurs: number[]) =>
-  noms.map((t, i) => ({ t, align: i < gauche ? 'left' : 'right', sep: separateurs.includes(i) ? SEP : 'none' }))
+  noms.map((t, i) => ({
+    t,
+    align: i < gauche ? 'left' : 'right',
+    sep: separateurs.includes(i) ? SEP : 'none',
+  }))
 
 // --- Repères : le meilleur et le pire, en duo et en individuel
 const reperes = computed(() => {
@@ -94,23 +113,57 @@ const reperes = computed(() => {
   const bon = { fond: 'rgba(82,168,132,.14)', bord: BON, couleur: BON }
   const mauvais = { fond: 'rgba(204,107,74,.12)', bord: 'rgba(204,107,74,.5)', couleur: MAUVAIS }
   return [
-    { etiquette: 'MEILLEUR DUO', qui: nomPaire(d0.paire), valeur: `${taux(d0.gagnees, d0.parties)} %`,
-      detail: `${victoires(d0.gagnees, d0.parties)} · ${signe(parDonne(d0))} point par donne`, ...bon },
-    { etiquette: 'PIRE DUO', qui: nomPaire(dn.paire), valeur: `${taux(dn.gagnees, dn.parties)} %`,
-      detail: `${victoires(dn.gagnees, dn.parties)} · ${signe(parDonne(dn))} point par donne`, ...mauvais },
-    { etiquette: 'MEILLEUR JOUEUR', qui: nom(j0.joueur), valeur: `${taux(j0.gagnees, j0.parties)} %`,
+    {
+      etiquette: 'MEILLEUR DUO',
+      qui: nomPaire(d0.paire),
+      valeur: `${taux(d0.gagnees, d0.parties)} %`,
+      detail: `${victoires(d0.gagnees, d0.parties)} · ${signe(parDonne(d0))} point par donne`,
+      ...bon,
+    },
+    {
+      etiquette: 'PIRE DUO',
+      qui: nomPaire(dn.paire),
+      valeur: `${taux(dn.gagnees, dn.parties)} %`,
+      detail: `${victoires(dn.gagnees, dn.parties)} · ${signe(parDonne(dn))} point par donne`,
+      ...mauvais,
+    },
+    {
+      etiquette: 'MEILLEUR JOUEUR',
+      qui: nom(j0.joueur),
+      valeur: `${taux(j0.gagnees, j0.parties)} %`,
       detail: `${j0.gagnees} partie${j0.gagnees > 1 ? 's' : ''} gagnée${j0.gagnees > 1 ? 's' : ''} sur ${j0.parties} · ${taux(j0.reussies, j0.prises)} % de contrats tenus`,
-      ...bon },
-    { etiquette: 'PIRE JOUEUR', qui: nom(jn.joueur), valeur: `${taux(jn.gagnees, jn.parties)} %`,
+      ...bon,
+    },
+    {
+      etiquette: 'PIRE JOUEUR',
+      qui: nom(jn.joueur),
+      valeur: `${taux(jn.gagnees, jn.parties)} %`,
       detail: `${jn.gagnees} partie${jn.gagnees > 1 ? 's' : ''} gagnée${jn.gagnees > 1 ? 's' : ''} sur ${jn.parties} · ${jn.etoiles} étoile${jn.etoiles > 1 ? 's' : ''} de la honte`,
-      ...mauvais },
+      ...mauvais,
+    },
   ]
 })
 
 // --- Duo par duo
 const colDuos = colonnes(
-  ['DUO', 'CONTRE', 'JOUÉES', 'GAGNÉES', '%', 'SCORE MOY', 'PIRE SCORE',
-    'JOUÉES', 'GAGNÉES', '%', 'PRISES', 'RÉUSSIES', '%', 'BILAN'], 2, [2, 7],
+  [
+    'DUO',
+    'CONTRE',
+    'JOUÉES',
+    'GAGNÉES',
+    '%',
+    'SCORE MOY',
+    'PIRE SCORE',
+    'JOUÉES',
+    'GAGNÉES',
+    '%',
+    'PRISES',
+    'RÉUSSIES',
+    '%',
+    'BILAN',
+  ],
+  2,
+  [2, 7],
 )
 const lignesDuos = computed(() =>
   duos.value.map((d) => ({
@@ -118,10 +171,17 @@ const lignesDuos = computed(() =>
     paire: nomPaire(d.paire),
     contre: d.contre.map(nomPaire).join(' · '),
     cells: [
-      cel(d.parties, { sep: SEP }), cel(d.gagnees), tauxCel(taux(d.gagnees, d.parties)),
-      cel(d.scoreMoyen), cel(d.pireScore ?? '—'),
-      cel(d.donnes, { sep: SEP }), cel(d.donnesGagnees), tauxCel(taux(d.donnesGagnees, d.donnes)),
-      cel(d.prises), cel(d.reussies), tauxCel(taux(d.reussies, d.prises)),
+      cel(d.parties, { sep: SEP }),
+      cel(d.gagnees),
+      tauxCel(taux(d.gagnees, d.parties)),
+      cel(d.scoreMoyen),
+      cel(d.pireScore ?? '—'),
+      cel(d.donnes, { sep: SEP }),
+      cel(d.donnesGagnees),
+      tauxCel(taux(d.donnesGagnees, d.donnes)),
+      cel(d.prises),
+      cel(d.reussies),
+      tauxCel(taux(d.reussies, d.prises)),
       signeCel(d.donnes ? (d.marques - d.offerts) / d.donnes : 0),
     ],
   })),
@@ -129,8 +189,24 @@ const lignesDuos = computed(() =>
 
 // --- Joueur par joueur, triable d'un clic
 const colJoueurs = colonnes(
-  ['JOUEUR', 'JOUÉES', 'GAGNÉES', '%', 'SCORE MOY', 'PIRE SCORE',
-    'JOUÉES', 'PRISES', 'RÉUSSIES', '%', 'ENCH. MOY', 'CHUTES', 'COINCHES', 'BILAN'], 1, [1, 6],
+  [
+    'JOUEUR',
+    'JOUÉES',
+    'GAGNÉES',
+    '%',
+    'SCORE MOY',
+    'PIRE SCORE',
+    'JOUÉES',
+    'PRISES',
+    'RÉUSSIES',
+    '%',
+    'ENCH. MOY',
+    'CHUTES',
+    'COINCHES',
+    'BILAN',
+  ],
+  1,
+  [1, 6],
 )
 /** Valeur de tri de chaque colonne, dans l'ordre des en-têtes (hors nom). */
 const tri = ref<{ col: number; desc: boolean }>({ col: 3, desc: true })
@@ -138,19 +214,37 @@ const lignesJoueurs = computed(() => {
   const lignes = joueurs.value.map((j) => {
     const bilanDonne = j.donnes ? (j.marques - j.offerts) / j.donnes : 0
     const valeurs = [
-      j.parties, j.gagnees, taux(j.gagnees, j.parties), j.scoreMoyen, j.pireScore ?? 0,
-      j.donnes, j.prises, j.reussies, taux(j.reussies, j.prises), j.enchereMoyenne ?? 0, j.chutes,
-      j.coinches, bilanDonne,
+      j.parties,
+      j.gagnees,
+      taux(j.gagnees, j.parties),
+      j.scoreMoyen,
+      j.pireScore ?? 0,
+      j.donnes,
+      j.prises,
+      j.reussies,
+      taux(j.reussies, j.prises),
+      j.enchereMoyenne ?? 0,
+      j.chutes,
+      j.coinches,
+      bilanDonne,
     ]
     return {
       id: j.joueur,
       nom: nom(j.joueur),
       valeurs,
       cells: [
-        cel(j.parties, { sep: SEP }), cel(j.gagnees), tauxCel(taux(j.gagnees, j.parties)),
-        cel(j.scoreMoyen), cel(j.pireScore ?? '—'),
-        cel(j.donnes, { sep: SEP }), cel(j.prises), cel(j.reussies), tauxCel(taux(j.reussies, j.prises)),
-        cel(j.enchereMoyenne ?? '—'), cel(j.chutes), cel(`${j.coinches} / ${j.coinchesGagnees}`),
+        cel(j.parties, { sep: SEP }),
+        cel(j.gagnees),
+        tauxCel(taux(j.gagnees, j.parties)),
+        cel(j.scoreMoyen),
+        cel(j.pireScore ?? '—'),
+        cel(j.donnes, { sep: SEP }),
+        cel(j.prises),
+        cel(j.reussies),
+        tauxCel(taux(j.reussies, j.prises)),
+        cel(j.enchereMoyenne ?? '—'),
+        cel(j.chutes),
+        cel(`${j.coinches} / ${j.coinchesGagnees}`),
         signeCel(bilanDonne),
       ],
     }
@@ -171,7 +265,11 @@ const details = computed(() =>
       nom: nom(j.joueur),
       lignes: [
         { quoi: 'Belotes annoncées', valeur: String(j.belotesAnnoncees), couleur: CLAIR },
-        { quoi: 'Belotes oubliées', valeur: String(j.belotesOubliees), couleur: j.belotesOubliees ? MAUVAIS : CLAIR },
+        {
+          quoi: 'Belotes oubliées',
+          valeur: String(j.belotesOubliees),
+          couleur: j.belotesOubliees ? MAUVAIS : CLAIR,
+        },
         { quoi: 'Impasses tentées', valeur: String(j.impasses), couleur: CLAIR },
         {
           quoi: 'Impasses réussies',
@@ -180,7 +278,11 @@ const details = computed(() =>
         },
         { quoi: 'Étoiles de la honte', valeur: String(j.etoiles), couleur: OR },
         // Temps mesurés depuis le 24/09/2026 : les parties d'avant n'en ont pas.
-        { quoi: "Temps d'annonce", valeur: j.tempsEnchere === null ? '—' : duree(j.tempsEnchere), couleur: CLAIR },
+        {
+          quoi: "Temps d'annonce",
+          valeur: j.tempsEnchere === null ? '—' : duree(j.tempsEnchere),
+          couleur: CLAIR,
+        },
         { quoi: 'Temps de jeu', valeur: j.tempsCarte === null ? '—' : duree(j.tempsCarte), couleur: CLAIR },
       ],
     }
@@ -231,14 +333,22 @@ const resumeFiltre = computed(() => {
   const reussies = qui.reduce((s, j) => s + j.reussies, 0)
   const encheres = qui.filter((j) => j.enchereMoyenne !== null)
   const moy = encheres.length
-    ? Math.round(encheres.reduce((s, j) => s + j.enchereMoyenne! * j.prises, 0) / Math.max(1, encheres.reduce((s, j) => s + j.prises, 0)))
+    ? Math.round(
+        encheres.reduce((s, j) => s + j.enchereMoyenne! * j.prises, 0) /
+          Math.max(
+            1,
+            encheres.reduce((s, j) => s + j.prises, 0),
+          ),
+      )
     : null
   return `${prises} prise${prises > 1 ? 's' : ''} · ${taux(reussies, prises)} % de réussite · moyenne du groupe ${tauxGroupe.value} %${moy === null ? '' : ` · enchère moyenne ${moy}`}`
 })
 const petits = computed(() => {
   const maxGlobal = Math.max(
     1,
-    ...joueursDe(props.archives).flatMap((p) => parPalier(props.archives, [p]).map((l) => l.reussis + l.chutes)),
+    ...joueursDe(props.archives).flatMap((p) =>
+      parPalier(props.archives, [p]).map((l) => l.reussis + l.chutes),
+    ),
   )
   return joueursDe(props.archives).map((p) => {
     const j = joueurs.value.find((x) => x.joueur === p)
@@ -284,18 +394,30 @@ const titres = computed(() => {
   const out: { titre: string; qui: string; couleur: string; detail: string }[] = []
   const panacheur = audacieux.find((j) => j.panache! > 0 && reussite(j) >= tauxGroupe.value)
   if (panacheur) {
-    out.push({ titre: 'LE PANACHE', qui: nom(panacheur.joueur), couleur: BON,
-      detail: `${signe(panacheur.panache!)} au-dessus du groupe, et ${reussite(panacheur)} % de réussite quand même` })
+    out.push({
+      titre: 'LE PANACHE',
+      qui: nom(panacheur.joueur),
+      couleur: BON,
+      detail: `${signe(panacheur.panache!)} au-dessus du groupe, et ${reussite(panacheur)} % de réussite quand même`,
+    })
   }
   const kamikaze = audacieux.find((j) => j.panache! > 0 && reussite(j) < tauxGroupe.value)
   if (kamikaze) {
-    out.push({ titre: 'LE KAMIKAZE', qui: nom(kamikaze.joueur), couleur: MAUVAIS,
-      detail: `${signe(kamikaze.panache!)} au-dessus du groupe, ${reussite(kamikaze)} % seulement` })
+    out.push({
+      titre: 'LE KAMIKAZE',
+      qui: nom(kamikaze.joueur),
+      couleur: MAUVAIS,
+      detail: `${signe(kamikaze.panache!)} au-dessus du groupe, ${reussite(kamikaze)} % seulement`,
+    })
   }
   const comptable = [...avec].reverse().find((j) => j.panache! < 0)
   if (comptable) {
-    out.push({ titre: 'LE COMPTABLE', qui: nom(comptable.joueur), couleur: CLAIR,
-      detail: `${signe(comptable.panache!)} sous le groupe, mais ${reussite(comptable)} % de réussite` })
+    out.push({
+      titre: 'LE COMPTABLE',
+      qui: nom(comptable.joueur),
+      couleur: CLAIR,
+      detail: `${signe(comptable.panache!)} sous le groupe, mais ${reussite(comptable)} % de réussite`,
+    })
   }
   // La prise du siècle : le contrat tenu le plus haut au regard de la main.
   let siecle: { joueur: PlayerId; value: number; force: number; date: number } | null = null
@@ -312,8 +434,12 @@ const titres = computed(() => {
   }
   if (siecle) {
     const jour = new Date(siecle.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
-    out.push({ titre: 'LA PRISE DU SIÈCLE', qui: nom(siecle.joueur), couleur: BON,
-      detail: `${siecle.value} avec une main de force ${siecle.force}, réussi le ${jour}` })
+    out.push({
+      titre: 'LA PRISE DU SIÈCLE',
+      qui: nom(siecle.joueur),
+      couleur: BON,
+      detail: `${siecle.value} avec une main de force ${siecle.force}, réussi le ${jour}`,
+    })
   }
   return out
 })
@@ -326,7 +452,9 @@ const nuages = computed(() => {
   const habitude = habitudeDuGroupe(toutes)
   const bandes = [...habitude.keys()].sort((a, b) => a - b)
   const reference = bandes
-    .map((b) => `${posX(b * LARGEUR_BANDE + LARGEUR_BANDE / 2).toFixed(1)},${posY(habitude.get(b)!).toFixed(1)}`)
+    .map(
+      (b) => `${posX(b * LARGEUR_BANDE + LARGEUR_BANDE / 2).toFixed(1)},${posY(habitude.get(b)!).toFixed(1)}`,
+    )
     .join(' ')
   return joueursDe(props.archives).map((p) => {
     const prises = prisesDe(props.archives, p).filter((d) => !d.capot)
@@ -335,7 +463,8 @@ const nuages = computed(() => {
     return {
       id: p,
       nom: nom(p),
-      resume: mediane === null ? 'pas encore de prise' : `force médiane ${mediane} · bande de ${LARGEUR_BANDE}`,
+      resume:
+        mediane === null ? 'pas encore de prise' : `force médiane ${mediane} · bande de ${LARGEUR_BANDE}`,
       reference,
       points: prises.map((d, i) => ({
         cle: i,
@@ -351,302 +480,375 @@ const nuages = computed(() => {
 <template>
   <div>
     <template v-if="vue === 'duos'">
-    <!-- Quatre repères : le meilleur et le pire, en duo et en individuel -->
-    <div class="mt-4 grid grid-cols-4 gap-3.5">
-      <div
-        v-for="r in reperes"
-        :key="r.etiquette"
-        class="rounded-xl px-[18px] py-3.5"
-        :style="{ background: r.fond, border: `1px solid ${r.bord}` }"
-      >
-        <p class="text-[10px] tracking-[.1em]" :style="{ color: r.couleur }">{{ r.etiquette }}</p>
-        <div class="mt-1 flex items-baseline gap-2.5">
-          <span class="grow font-display text-2xl leading-none">{{ r.qui }}</span>
-          <span class="font-display text-[28px] leading-none" :style="{ color: r.couleur }">{{ r.valeur }}</span>
+      <!-- Quatre repères : le meilleur et le pire, en duo et en individuel -->
+      <div class="mt-4 grid grid-cols-4 gap-3.5">
+        <div
+          v-for="r in reperes"
+          :key="r.etiquette"
+          class="rounded-xl px-[18px] py-3.5"
+          :style="{ background: r.fond, border: `1px solid ${r.bord}` }"
+        >
+          <p class="text-[10px] tracking-[.1em]" :style="{ color: r.couleur }">{{ r.etiquette }}</p>
+          <div class="mt-1 flex items-baseline gap-2.5">
+            <span class="grow font-display text-2xl leading-none">{{ r.qui }}</span>
+            <span class="font-display text-[28px] leading-none" :style="{ color: r.couleur }">{{
+              r.valeur
+            }}</span>
+          </div>
+          <p class="mt-2 text-xs leading-snug text-mist">{{ r.detail }}</p>
         </div>
-        <p class="mt-2 text-xs leading-snug text-mist">{{ r.detail }}</p>
       </div>
-    </div>
 
-    <h2 class="mt-[26px] mb-[3px] font-display text-xl font-normal">Duo par duo</h2>
-    <p class="mb-2.5 text-xs text-sage">
-      {{ joueursDe(archives).length <= 4
-        ? "Les six paires possibles. Chaque paire n'a qu'un adversaire possible : les deux autres joueurs."
-        : "Les paires qui ont joué ensemble, et les paires qu'elles ont affrontées." }}
-    </p>
-    <table class="w-full border-collapse text-[13px]">
-      <thead>
-        <tr class="text-[10px] tracking-[.1em] text-dusk">
-          <th colspan="2" class="pb-[5px]"></th>
-          <th colspan="5" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">PARTIES</th>
-          <th colspan="7" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">DONNES</th>
-        </tr>
-        <tr class="text-[10px] tracking-[.05em] text-sage">
-          <th
-            v-for="(c, i) in colDuos"
-            :key="i"
-            class="pt-[7px] pr-4 pb-2 font-semibold"
-            :style="{ textAlign: c.align as 'left' | 'right', borderLeft: c.sep }"
-          >
-            {{ c.t }}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="d in lignesDuos" :key="d.cle" class="border-t border-white/7">
-          <td class="py-2.5 pr-4 font-semibold whitespace-nowrap">{{ d.paire }}</td>
-          <td class="py-2.5 pr-4 whitespace-nowrap text-sage">{{ d.contre }}</td>
-          <td v-for="(v, i) in d.cells" :key="i" class="py-2.5 pr-4 text-right" :style="{ borderLeft: v.sep }">
-            <span
-              class="inline-block rounded-[5px] px-[7px] py-0.5 tabular-nums"
-              :style="{ background: v.fond, color: v.c, fontWeight: v.w }"
-            >{{ v.v }}</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
+      <h2 class="mt-[26px] mb-[3px] font-display text-xl font-normal">Duo par duo</h2>
+      <p class="mb-2.5 text-xs text-sage">
+        {{
+          joueursDe(archives).length <= 4
+            ? "Les six paires possibles. Chaque paire n'a qu'un adversaire possible : les deux autres joueurs."
+            : "Les paires qui ont joué ensemble, et les paires qu'elles ont affrontées."
+        }}
+      </p>
+      <table class="w-full border-collapse text-[13px]">
+        <thead>
+          <tr class="text-[10px] tracking-[.1em] text-dusk">
+            <th colspan="2" class="pb-[5px]"></th>
+            <th colspan="5" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">
+              PARTIES
+            </th>
+            <th colspan="7" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">
+              DONNES
+            </th>
+          </tr>
+          <tr class="text-[10px] tracking-[.05em] text-sage">
+            <th
+              v-for="(c, i) in colDuos"
+              :key="i"
+              class="pt-[7px] pr-4 pb-2 font-semibold"
+              :style="{ textAlign: c.align as 'left' | 'right', borderLeft: c.sep }"
+            >
+              {{ c.t }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="d in lignesDuos" :key="d.cle" class="border-t border-white/7">
+            <td class="py-2.5 pr-4 font-semibold whitespace-nowrap">{{ d.paire }}</td>
+            <td class="py-2.5 pr-4 whitespace-nowrap text-sage">{{ d.contre }}</td>
+            <td
+              v-for="(v, i) in d.cells"
+              :key="i"
+              class="py-2.5 pr-4 text-right"
+              :style="{ borderLeft: v.sep }"
+            >
+              <span
+                class="inline-block rounded-[5px] px-[7px] py-0.5 tabular-nums"
+                :style="{ background: v.fond, color: v.c, fontWeight: v.w }"
+                >{{ v.v }}</span
+              >
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </template>
     <template v-else-if="vue === 'joueurs'">
-    <h2 class="mt-7 mb-[3px] font-display text-xl font-normal">Joueur par joueur</h2>
-    <p class="mb-2.5 text-xs text-sage">
-      {{ joueursDe(archives).length <= 4
-        ? "Les quatre jouent toutes les parties : c'est le camp qui change."
-        : 'Chacun compte ses propres parties.' }}
-      Les colonnes se trient d'un clic.
-    </p>
-    <table class="w-full border-collapse text-[13px]">
-      <thead>
-        <tr class="text-[10px] tracking-[.1em] text-dusk">
-          <th class="pb-[5px]"></th>
-          <th colspan="5" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">PARTIES</th>
-          <th colspan="8" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">DONNES</th>
-        </tr>
-        <tr class="text-[10px] tracking-[.05em] text-sage">
-          <th
-            v-for="(c, i) in colJoueurs"
-            :key="i"
-            class="pt-[7px] pr-4 pb-2 font-semibold"
-            :class="i > 0 ? 'cursor-pointer select-none hover:text-ivory' : ''"
-            :style="{ textAlign: c.align as 'left' | 'right', borderLeft: c.sep }"
-            :aria-sort="tri.col === i ? (tri.desc ? 'descending' : 'ascending') : undefined"
-            @click="trier(i)"
-          >
-            {{ c.t }}<span v-if="tri.col === i" class="text-gold">{{ tri.desc ? ' ▾' : ' ▴' }}</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="j in lignesJoueurs" :key="j.id" class="border-t border-white/7">
-          <td class="py-2.5 pr-4 font-semibold whitespace-nowrap">{{ j.nom }}</td>
-          <td v-for="(v, i) in j.cells" :key="i" class="py-2.5 pr-4 text-right" :style="{ borderLeft: v.sep }">
-            <span
-              class="inline-block rounded-[5px] px-[7px] py-0.5 tabular-nums"
-              :style="{ background: v.fond, color: v.c, fontWeight: v.w }"
-            >{{ v.v }}</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      <h2 class="mt-7 mb-[3px] font-display text-xl font-normal">Joueur par joueur</h2>
+      <p class="mb-2.5 text-xs text-sage">
+        {{
+          joueursDe(archives).length <= 4
+            ? "Les quatre jouent toutes les parties : c'est le camp qui change."
+            : 'Chacun compte ses propres parties.'
+        }}
+        Les colonnes se trient d'un clic.
+      </p>
+      <table class="w-full border-collapse text-[13px]">
+        <thead>
+          <tr class="text-[10px] tracking-[.1em] text-dusk">
+            <th class="pb-[5px]"></th>
+            <th colspan="5" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">
+              PARTIES
+            </th>
+            <th colspan="8" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">
+              DONNES
+            </th>
+          </tr>
+          <tr class="text-[10px] tracking-[.05em] text-sage">
+            <th
+              v-for="(c, i) in colJoueurs"
+              :key="i"
+              class="pt-[7px] pr-4 pb-2 font-semibold"
+              :class="i > 0 ? 'cursor-pointer select-none hover:text-ivory' : ''"
+              :style="{ textAlign: c.align as 'left' | 'right', borderLeft: c.sep }"
+              :aria-sort="tri.col === i ? (tri.desc ? 'descending' : 'ascending') : undefined"
+              @click="trier(i)"
+            >
+              {{ c.t }}<span v-if="tri.col === i" class="text-gold">{{ tri.desc ? ' ▾' : ' ▴' }}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="j in lignesJoueurs" :key="j.id" class="border-t border-white/7">
+            <td class="py-2.5 pr-4 font-semibold whitespace-nowrap">{{ j.nom }}</td>
+            <td
+              v-for="(v, i) in j.cells"
+              :key="i"
+              class="py-2.5 pr-4 text-right"
+              :style="{ borderLeft: v.sep }"
+            >
+              <span
+                class="inline-block rounded-[5px] px-[7px] py-0.5 tabular-nums"
+                :style="{ background: v.fond, color: v.c, fontWeight: v.w }"
+                >{{ v.v }}</span
+              >
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-    <h2 class="mt-7 mb-2.5 font-display text-xl font-normal">Belotes, impasses, étoiles et réflexion</h2>
-    <div class="grid grid-cols-4 gap-4">
-      <div v-for="d in details" :key="d.nom" class="rounded-xl border border-white/8 bg-white/4 px-[18px] py-3.5">
-        <p class="mb-2.5 text-[15px] font-semibold">{{ d.nom }}</p>
-        <div v-for="l in d.lignes" :key="l.quoi" class="flex items-baseline gap-2.5 py-[5px]">
-          <span class="grow text-xs text-sage">{{ l.quoi }}</span>
-          <span class="text-sm font-semibold whitespace-nowrap tabular-nums" :style="{ color: l.couleur }">{{ l.valeur }}</span>
+      <h2 class="mt-7 mb-2.5 font-display text-xl font-normal">Belotes, impasses, étoiles et réflexion</h2>
+      <div class="grid grid-cols-4 gap-4">
+        <div
+          v-for="d in details"
+          :key="d.nom"
+          class="rounded-xl border border-white/8 bg-white/4 px-[18px] py-3.5"
+        >
+          <p class="mb-2.5 text-[15px] font-semibold">{{ d.nom }}</p>
+          <div v-for="l in d.lignes" :key="l.quoi" class="flex items-baseline gap-2.5 py-[5px]">
+            <span class="grow text-xs text-sage">{{ l.quoi }}</span>
+            <span
+              class="text-sm font-semibold whitespace-nowrap tabular-nums"
+              :style="{ color: l.couleur }"
+              >{{ l.valeur }}</span
+            >
+          </div>
         </div>
       </div>
-    </div>
 
-    <h2 class="mt-[34px] mb-1 font-display text-xl font-normal">Jusqu'où chacun peut monter</h2>
-    <p class="mb-3 text-[13px] text-sage">
-      Hauteur de la barre = contrats pris à ce palier · part dorée = contrats passés
-    </p>
-    <div class="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/4 px-3.5 py-2.5">
-      <span class="mr-1 text-[11px] tracking-[.06em] text-dusk">AFFICHER</span>
-      <button
-        v-for="f in filtres"
-        :key="f.nom"
-        type="button"
-        class="cursor-pointer rounded-full border px-3.5 py-1.5 text-[12.5px] transition"
-        :class="filtre.nom === f.nom
-          ? 'border-gold bg-gold/20 font-semibold text-gold'
-          : 'border-white/14 font-medium text-mist hover:border-white/35'"
-        @click="choix = f.nom"
+      <h2 class="mt-[34px] mb-1 font-display text-xl font-normal">Jusqu'où chacun peut monter</h2>
+      <p class="mb-3 text-[13px] text-sage">
+        Hauteur de la barre = contrats pris à ce palier · part dorée = contrats passés
+      </p>
+      <div
+        class="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-white/4 px-3.5 py-2.5"
       >
-        {{ f.nom }}
-      </button>
-    </div>
-    <div class="mt-[18px] grid grid-cols-[1.5fr_1fr] gap-9">
-      <section>
-        <div class="flex items-baseline gap-3">
-          <h3 class="text-base font-semibold">{{ filtre.nom }}</h3>
-          <p class="text-[12.5px] text-sage">{{ resumeFiltre }}</p>
-          <span class="ml-auto flex gap-3.5 text-xs text-mist">
-            <span class="flex items-center gap-1.5"><span class="size-[11px] rounded-[3px] bg-gold"></span>réussis</span>
-            <span class="flex items-center gap-1.5"><span class="size-[11px] rounded-[3px] bg-[#5d7a70]"></span>chutés</span>
-          </span>
-        </div>
-        <div class="mt-3 flex items-end gap-2.5">
-          <div v-for="p in grand" :key="p.palier" class="flex grow flex-col items-center">
-            <div class="flex h-[300px] items-end">
-              <div
-                v-if="p.total"
-                class="relative flex w-[78px] flex-col gap-0.5"
-                :style="{ height: p.hTotal }"
-                :title="`${p.detail} contrats tenus`"
+        <span class="mr-1 text-[11px] tracking-[.06em] text-dusk">AFFICHER</span>
+        <button
+          v-for="f in filtres"
+          :key="f.nom"
+          type="button"
+          class="cursor-pointer rounded-full border px-3.5 py-1.5 text-[12.5px] transition"
+          :class="
+            filtre.nom === f.nom
+              ? 'border-gold bg-gold/20 font-semibold text-gold'
+              : 'border-white/14 font-medium text-mist hover:border-white/35'
+          "
+          @click="choix = f.nom"
+        >
+          {{ f.nom }}
+        </button>
+      </div>
+      <div class="mt-[18px] grid grid-cols-[1.5fr_1fr] gap-9">
+        <section>
+          <div class="flex items-baseline gap-3">
+            <h3 class="text-base font-semibold">{{ filtre.nom }}</h3>
+            <p class="text-[12.5px] text-sage">{{ resumeFiltre }}</p>
+            <span class="ml-auto flex gap-3.5 text-xs text-mist">
+              <span class="flex items-center gap-1.5"
+                ><span class="size-[11px] rounded-[3px] bg-gold"></span>réussis</span
               >
-                <div class="rounded-t bg-[#5d7a70]" :style="{ flexGrow: p.partChute }"></div>
-                <div class="rounded-b bg-gold" :style="{ flexGrow: p.partReussi }"></div>
-                <span
-                  class="absolute inset-x-0 bottom-[7px] text-center text-sm font-bold"
-                  :style="{ color: p.pctCouleur }"
-                >{{ p.pct }}</span>
-              </div>
-              <div v-else class="h-2.5 w-[78px] rounded border border-dashed border-white/20" title="jamais pris"></div>
-            </div>
-            <span class="mt-2 text-[13px] font-semibold">{{ p.palier }}</span>
-            <span class="mt-0.5 text-[11px] text-dusk">{{ p.detail }}</span>
+              <span class="flex items-center gap-1.5"
+                ><span class="size-[11px] rounded-[3px] bg-[#5d7a70]"></span>chutés</span
+              >
+            </span>
           </div>
-        </div>
-      </section>
-      <section>
-        <h3 class="mb-0.5 text-base font-semibold">{{ joueursDe(archives).length === 4 ? 'Les quatre' : 'Chacun' }}, à la même échelle</h3>
-        <p class="mb-2.5 text-xs text-sage">Le nombre inscrit dans chaque barre est le taux de réussite, en pourcentage.</p>
-        <div class="grid grid-cols-2 gap-3">
-          <div
-            v-for="j in petits"
-            :key="j.id"
-            class="rounded-[11px] px-3 py-2.5"
-            :style="{ background: j.fond, border: `1px solid ${j.bord}` }"
-          >
-            <div class="flex items-baseline gap-1.5">
-              <span class="grow text-[13px] font-semibold">{{ j.nom }}</span>
-              <span class="text-xs font-bold" :style="{ color: j.couleur }">{{ j.global }}</span>
+          <div class="mt-3 flex items-end gap-2.5">
+            <div v-for="p in grand" :key="p.palier" class="flex grow flex-col items-center">
+              <div class="flex h-[300px] items-end">
+                <div
+                  v-if="p.total"
+                  class="relative flex w-[78px] flex-col gap-0.5"
+                  :style="{ height: p.hTotal }"
+                  :title="`${p.detail} contrats tenus`"
+                >
+                  <div class="rounded-t bg-[#5d7a70]" :style="{ flexGrow: p.partChute }"></div>
+                  <div class="rounded-b bg-gold" :style="{ flexGrow: p.partReussi }"></div>
+                  <span
+                    class="absolute inset-x-0 bottom-[7px] text-center text-sm font-bold"
+                    :style="{ color: p.pctCouleur }"
+                    >{{ p.pct }}</span
+                  >
+                </div>
+                <div
+                  v-else
+                  class="h-2.5 w-[78px] rounded border border-dashed border-white/20"
+                  title="jamais pris"
+                ></div>
+              </div>
+              <span class="mt-2 text-[13px] font-semibold">{{ p.palier }}</span>
+              <span class="mt-0.5 text-[11px] text-dusk">{{ p.detail }}</span>
             </div>
-            <div class="mt-2 flex items-end gap-1">
-              <div v-for="b in j.barres" :key="b.palier" class="flex grow flex-col items-center">
-                <div class="flex h-[100px] items-end">
-                  <div v-if="b.total" class="relative flex w-[22px] flex-col gap-0.5" :style="{ height: b.hTotal }">
-                    <div class="rounded-t-[3px] bg-[#5d7a70]" :style="{ flexGrow: b.partChute }"></div>
-                    <div class="rounded-b-[3px] bg-gold" :style="{ flexGrow: b.partReussi }"></div>
+          </div>
+        </section>
+        <section>
+          <h3 class="mb-0.5 text-base font-semibold">
+            {{ joueursDe(archives).length === 4 ? 'Les quatre' : 'Chacun' }}, à la même échelle
+          </h3>
+          <p class="mb-2.5 text-xs text-sage">
+            Le nombre inscrit dans chaque barre est le taux de réussite, en pourcentage.
+          </p>
+          <div class="grid grid-cols-2 gap-3">
+            <div
+              v-for="j in petits"
+              :key="j.id"
+              class="rounded-[11px] px-3 py-2.5"
+              :style="{ background: j.fond, border: `1px solid ${j.bord}` }"
+            >
+              <div class="flex items-baseline gap-1.5">
+                <span class="grow text-[13px] font-semibold">{{ j.nom }}</span>
+                <span class="text-xs font-bold" :style="{ color: j.couleur }">{{ j.global }}</span>
+              </div>
+              <div class="mt-2 flex items-end gap-1">
+                <div v-for="b in j.barres" :key="b.palier" class="flex grow flex-col items-center">
+                  <div class="flex h-[100px] items-end">
+                    <div
+                      v-if="b.total"
+                      class="relative flex w-[22px] flex-col gap-0.5"
+                      :style="{ height: b.hTotal }"
+                    >
+                      <div class="rounded-t-[3px] bg-[#5d7a70]" :style="{ flexGrow: b.partChute }"></div>
+                      <div class="rounded-b-[3px] bg-gold" :style="{ flexGrow: b.partReussi }"></div>
+                      <span
+                        class="absolute inset-x-0 bottom-[3px] text-center text-[9px] font-bold"
+                        :style="{ color: b.pctCouleur }"
+                        >{{ b.pctCourt }}</span
+                      >
+                    </div>
+                  </div>
+                  <span class="mt-1 text-[8px] text-dusk">{{ b.palier }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <h2 class="mt-9 mb-1 font-display text-xl font-normal">Le panache</h2>
+      <p class="mb-3.5 text-[13px] text-sage">
+        Force de main : +{{ BAREME.atout }} par atout, +{{ BAREME.valetAtout }} pour le valet, +{{
+          BAREME.neufAtout
+        }}
+        pour le 9, +{{ BAREME.asExterieur }} par as extérieur, +{{ BAREME.atoutSupplementaire }} par atout
+        au-delà du quatrième, +{{ BAREME.chicane }} par chicane. Le panache est l'écart moyen entre ce qu'un
+        joueur annonce et ce que le groupe annonce habituellement avec la même main.
+      </p>
+      <div class="grid grid-cols-[1fr_1.6fr] gap-9">
+        <section>
+          <h3 class="mb-3 text-[15px] font-semibold">Audacieux ou prudent</h3>
+          <p v-if="!panache.length" class="text-sm text-sage">
+            Pas encore assez de prises pour comparer les tempéraments.
+          </p>
+          <div class="flex flex-col gap-2.5">
+            <div v-for="p in panache" :key="p.nom" class="flex items-center gap-3.5">
+              <span class="w-[74px] text-right text-sm font-semibold">{{ p.nom }}</span>
+              <div class="relative h-[30px] grow">
+                <div class="absolute -top-[3px] -bottom-[3px] left-1/2 w-px bg-white/22"></div>
+                <div
+                  class="absolute top-0 h-[30px] rounded"
+                  :style="{ background: p.fill, left: p.left, width: p.width }"
+                ></div>
+              </div>
+              <span class="w-11 text-sm font-bold tabular-nums" :style="{ color: p.fill }">{{
+                p.valeur
+              }}</span>
+            </div>
+          </div>
+          <div v-if="panache.length" class="mt-2 ml-[88px] flex justify-between text-[11px] text-dusk">
+            <span>plus prudent que le groupe</span>
+            <span>plus audacieux</span>
+          </div>
+          <div class="mt-4 flex flex-col gap-2">
+            <div
+              v-for="t in titres"
+              :key="t.titre"
+              class="flex items-baseline gap-3 rounded-[10px] border border-white/8 bg-white/4 px-[15px] py-[11px]"
+            >
+              <span class="w-[140px] text-[12.5px] font-semibold" :style="{ color: t.couleur }">{{
+                t.titre
+              }}</span>
+              <span class="text-sm font-semibold">{{ t.qui }}</span>
+              <span class="grow text-right text-xs text-sage">{{ t.detail }}</span>
+            </div>
+          </div>
+        </section>
+        <section>
+          <div class="flex items-baseline gap-3.5">
+            <h3 class="text-[15px] font-semibold">Ce qu'il lui faut en main pour partir</h3>
+            <span class="ml-auto flex gap-3.5 text-xs text-mist">
+              <span class="flex items-center gap-1.5"
+                ><span class="size-2.5 rounded-full bg-gold"></span>contrat réussi</span
+              >
+              <span class="flex items-center gap-1.5"
+                ><span class="size-2.5 rounded-full bg-[#5d7a70]"></span>contrat chuté</span
+              >
+              <span class="flex items-center gap-1.5">
+                <span class="w-3.5 border-t-2 border-dashed border-mist/60"></span>habitude du groupe
+              </span>
+            </span>
+          </div>
+          <div class="mt-2.5 grid grid-cols-2 gap-3.5">
+            <div
+              v-for="n in nuages"
+              :key="n.id"
+              class="rounded-[11px] border border-white/8 bg-white/4 px-[13px] pt-[11px] pb-[9px]"
+            >
+              <div class="flex items-baseline gap-2">
+                <span class="grow text-[13px] font-semibold">{{ n.nom }}</span>
+                <span class="text-[11.5px] text-sage">{{ n.resume }}</span>
+              </div>
+              <div class="mt-2 flex gap-1.5">
+                <div class="flex flex-col justify-between pt-0.5 pb-[18px] text-[9px] text-dusk">
+                  <span>160</span><span>120</span><span>80</span>
+                </div>
+                <div class="grow">
+                  <div class="relative h-[140px]">
+                    <svg
+                      viewBox="0 0 290 150"
+                      width="100%"
+                      height="140"
+                      preserveAspectRatio="none"
+                      class="absolute inset-0"
+                      role="img"
+                      :aria-label="`${n.nom} : force de main et hauteur d'annonce`"
+                    >
+                      <g stroke="rgba(255,255,255,.07)" stroke-width="1">
+                        <line x1="0" y1="6" x2="290" y2="6" />
+                        <line x1="0" y1="72" x2="290" y2="72" />
+                        <line x1="0" y1="138" x2="290" y2="138" />
+                      </g>
+                      <polyline
+                        :points="n.reference"
+                        fill="none"
+                        stroke="rgba(207,224,216,.5)"
+                        stroke-width="2"
+                        stroke-dasharray="5 4"
+                        vector-effect="non-scaling-stroke"
+                      />
+                    </svg>
+                    <!-- Les points en HTML : ils restent ronds quelle que soit la largeur -->
                     <span
-                      class="absolute inset-x-0 bottom-[3px] text-center text-[9px] font-bold"
-                      :style="{ color: b.pctCouleur }"
-                    >{{ b.pctCourt }}</span>
+                      v-for="pt in n.points"
+                      :key="pt.cle"
+                      class="absolute size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#0a2a1f]"
+                      :style="{ left: pt.left, top: pt.top, background: pt.fill }"
+                    ></span>
+                  </div>
+                  <div class="flex justify-between text-[9px] text-dusk">
+                    <span>main faible</span><span>main forte</span>
                   </div>
                 </div>
-                <span class="mt-1 text-[8px] text-dusk">{{ b.palier }}</span>
               </div>
             </div>
           </div>
-        </div>
-      </section>
-    </div>
-
-    <h2 class="mt-9 mb-1 font-display text-xl font-normal">Le panache</h2>
-    <p class="mb-3.5 text-[13px] text-sage">
-      Force de main : +{{ BAREME.atout }} par atout, +{{ BAREME.valetAtout }} pour le valet, +{{ BAREME.neufAtout }}
-      pour le 9, +{{ BAREME.asExterieur }} par as extérieur, +{{ BAREME.atoutSupplementaire }} par atout au-delà du
-      quatrième, +{{ BAREME.chicane }} par chicane. Le panache est l'écart moyen entre ce qu'un joueur annonce et ce
-      que le groupe annonce habituellement avec la même main.
-    </p>
-    <div class="grid grid-cols-[1fr_1.6fr] gap-9">
-      <section>
-        <h3 class="mb-3 text-[15px] font-semibold">Audacieux ou prudent</h3>
-        <p v-if="!panache.length" class="text-sm text-sage">Pas encore assez de prises pour comparer les tempéraments.</p>
-        <div class="flex flex-col gap-2.5">
-          <div v-for="p in panache" :key="p.nom" class="flex items-center gap-3.5">
-            <span class="w-[74px] text-right text-sm font-semibold">{{ p.nom }}</span>
-            <div class="relative h-[30px] grow">
-              <div class="absolute -top-[3px] -bottom-[3px] left-1/2 w-px bg-white/22"></div>
-              <div class="absolute top-0 h-[30px] rounded" :style="{ background: p.fill, left: p.left, width: p.width }"></div>
-            </div>
-            <span class="w-11 text-sm font-bold tabular-nums" :style="{ color: p.fill }">{{ p.valeur }}</span>
-          </div>
-        </div>
-        <div v-if="panache.length" class="mt-2 ml-[88px] flex justify-between text-[11px] text-dusk">
-          <span>plus prudent que le groupe</span>
-          <span>plus audacieux</span>
-        </div>
-        <div class="mt-4 flex flex-col gap-2">
-          <div
-            v-for="t in titres"
-            :key="t.titre"
-            class="flex items-baseline gap-3 rounded-[10px] border border-white/8 bg-white/4 px-[15px] py-[11px]"
-          >
-            <span class="w-[140px] text-[12.5px] font-semibold" :style="{ color: t.couleur }">{{ t.titre }}</span>
-            <span class="text-sm font-semibold">{{ t.qui }}</span>
-            <span class="grow text-right text-xs text-sage">{{ t.detail }}</span>
-          </div>
-        </div>
-      </section>
-      <section>
-        <div class="flex items-baseline gap-3.5">
-          <h3 class="text-[15px] font-semibold">Ce qu'il lui faut en main pour partir</h3>
-          <span class="ml-auto flex gap-3.5 text-xs text-mist">
-            <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-gold"></span>contrat réussi</span>
-            <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-[#5d7a70]"></span>contrat chuté</span>
-            <span class="flex items-center gap-1.5">
-              <span class="w-3.5 border-t-2 border-dashed border-mist/60"></span>habitude du groupe
-            </span>
-          </span>
-        </div>
-        <div class="mt-2.5 grid grid-cols-2 gap-3.5">
-          <div v-for="n in nuages" :key="n.id" class="rounded-[11px] border border-white/8 bg-white/4 px-[13px] pt-[11px] pb-[9px]">
-            <div class="flex items-baseline gap-2">
-              <span class="grow text-[13px] font-semibold">{{ n.nom }}</span>
-              <span class="text-[11.5px] text-sage">{{ n.resume }}</span>
-            </div>
-            <div class="mt-2 flex gap-1.5">
-              <div class="flex flex-col justify-between pt-0.5 pb-[18px] text-[9px] text-dusk">
-                <span>160</span><span>120</span><span>80</span>
-              </div>
-              <div class="grow">
-                <div class="relative h-[140px]">
-                  <svg
-                    viewBox="0 0 290 150"
-                    width="100%"
-                    height="140"
-                    preserveAspectRatio="none"
-                    class="absolute inset-0"
-                    role="img"
-                    :aria-label="`${n.nom} : force de main et hauteur d'annonce`"
-                  >
-                    <g stroke="rgba(255,255,255,.07)" stroke-width="1">
-                      <line x1="0" y1="6" x2="290" y2="6" />
-                      <line x1="0" y1="72" x2="290" y2="72" />
-                      <line x1="0" y1="138" x2="290" y2="138" />
-                    </g>
-                    <polyline
-                      :points="n.reference"
-                      fill="none"
-                      stroke="rgba(207,224,216,.5)"
-                      stroke-width="2"
-                      stroke-dasharray="5 4"
-                      vector-effect="non-scaling-stroke"
-                    />
-                  </svg>
-                  <!-- Les points en HTML : ils restent ronds quelle que soit la largeur -->
-                  <span
-                    v-for="pt in n.points"
-                    :key="pt.cle"
-                    class="absolute size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#0a2a1f]"
-                    :style="{ left: pt.left, top: pt.top, background: pt.fill }"
-                  ></span>
-                </div>
-                <div class="flex justify-between text-[9px] text-dusk">
-                  <span>main faible</span><span>main forte</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-
+        </section>
+      </div>
     </template>
     <div v-else-if="vue === 'encheres'" class="mt-4 grid grid-cols-2 items-start gap-x-10">
       <StatsEncheres :joueurs="lesJoueurs" :couleurs="couleursJ" :annonces="annonces" :roles="roles" />
@@ -661,10 +863,11 @@ const nuages = computed(() => {
 
     <p v-if="vue === 'duos' || vue === 'joueurs'" class="mt-6 text-xs leading-relaxed text-dusk">
       <b class="text-mist">Lecture.</b>
-      L'or et le bleu désignent les équipes, jamais la qualité d'un résultat ; le vert et le rouge sont réservés aux
-      valeurs, et le signe est toujours écrit. Les pourcentages portent un fond dégradé, d'autant plus soutenu que le
-      taux est élevé. « Pire score » remplace le maximum, qui tourne toujours autour de 1000 puisque la partie s'y
-      arrête. « Bilan » est le net par donne : points marqués en prenant, moins points offerts en chutant.
+      L'or et le bleu désignent les équipes, jamais la qualité d'un résultat ; le vert et le rouge sont
+      réservés aux valeurs, et le signe est toujours écrit. Les pourcentages portent un fond dégradé, d'autant
+      plus soutenu que le taux est élevé. « Pire score » remplace le maximum, qui tourne toujours autour de
+      1000 puisque la partie s'y arrête. « Bilan » est le net par donne : points marqués en prenant, moins
+      points offerts en chutant.
     </p>
   </div>
 </template>

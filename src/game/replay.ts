@@ -36,11 +36,7 @@ export function seatingOf(events: GameEvent[], fallback: Seating): Seating {
   return e && e.type === 'partie_creee' && e.seating ? e.seating : fallback
 }
 
-export function biddingFromEvents(
-  events: GameEvent[],
-  dealer: PlayerId,
-  seating: Seating,
-): BiddingState {
+export function biddingFromEvents(events: GameEvent[], dealer: PlayerId, seating: Seating): BiddingState {
   const entries: BiddingEntry[] = []
   for (const e of currentDeal(events)) {
     if (e.type === 'enchere') entries.push(e.entry)
@@ -60,19 +56,13 @@ export const bidRound = (state: BiddingState): number =>
  * On ne revalide pas les coups : ils l'ont été à l'écriture, et le journal fait foi.
  * Aucune main n'est nécessaire — la suite des cartes posées suffit.
  */
-export function playFromEvents(
-  events: GameEvent[],
-  dealer: PlayerId,
-  seating: Seating,
-): PlayState | null {
+export function playFromEvents(events: GameEvent[], dealer: PlayerId, seating: Seating): PlayState | null {
   const bidding = biddingFromEvents(events, dealer, seating)
   const result = outcome(bidding)
   if (result.status !== 'contrat') return null
 
   const places = seatingOf(events, seating)
-  const first = result.generale
-    ? result.taker
-    : nextPlayer(dealerOf(events, dealer), places)
+  const first = result.generale ? result.taker : nextPlayer(dealerOf(events, dealer), places)
   // Tout-atout : l'ordre de l'atout dans chaque couleur ; `trump` seul ne le distingue pas du sans-atout.
   let state = newPlay(result.declaration === 'ta' ? 'ta' : result.trump, first, places)
   for (const e of currentDeal(events)) {

@@ -7,7 +7,12 @@
 import { computed, ref } from 'vue'
 import type { PlayerId } from '../game/players'
 import {
-  CATEGORIES_ANNONCE, LIBELLE_ANNONCE, PALIERS, type Repartition, type Roles, enchereMoyenneDe,
+  CATEGORIES_ANNONCE,
+  LIBELLE_ANNONCE,
+  PALIERS,
+  type Repartition,
+  type Roles,
+  enchereMoyenneDe,
 } from '../game/statsEncheres'
 import { nomDe } from '../stores/roster'
 import CourbesDistribution, { type SerieCourbe } from './CourbesDistribution.vue'
@@ -59,28 +64,41 @@ const pct = (k: number, r: Roles): string => {
   <section>
     <h2 class="mt-5 text-[13px] font-semibold lg:text-[15px]">Répartition des annonces</h2>
     <p class="mb-2 text-xs text-sage">
-      Chaque prise de parole, pas seulement l'annonce finale. En % de ses annonces chiffrées ; la passe à part.
+      Chaque prise de parole, pas seulement l'annonce finale. En % de ses annonces chiffrées ; la passe à
+      part.
     </p>
-    <CourbesDistribution :series="series" :categories="PALIERS.map((c) => LIBELLE_ANNONCE[c])" vide="Aucune annonce pour l'instant." />
+    <CourbesDistribution
+      :series="series"
+      :categories="PALIERS.map((c) => LIBELLE_ANNONCE[c])"
+      vide="Aucune annonce pour l'instant."
+    />
     <button
       v-if="series.length"
       type="button"
       class="mt-2 cursor-pointer text-xs text-sage underline underline-offset-4 hover:text-mist"
       @click="detail = !detail"
-    >{{ detail ? 'Masquer le détail' : 'Voir le détail ▼' }}</button>
+    >
+      {{ detail ? 'Masquer le détail' : 'Voir le détail ▼' }}
+    </button>
     <div v-if="detail" class="mt-2 overflow-x-auto">
       <table class="w-full border-collapse text-[11px] tabular-nums lg:text-xs">
         <thead>
           <tr class="text-sage">
             <th class="pr-2 pb-1 text-left font-semibold">Joueur</th>
-            <th v-for="c in CATEGORIES_ANNONCE" :key="c" class="px-1 pb-1 text-right font-semibold">{{ LIBELLE_ANNONCE[c] }}</th>
+            <th v-for="c in CATEGORIES_ANNONCE" :key="c" class="px-1 pb-1 text-right font-semibold">
+              {{ LIBELLE_ANNONCE[c] }}
+            </th>
             <th class="pl-2 pb-1 text-right font-semibold">Total</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="p in joueurs.filter((j) => annonces.get(j))" :key="p" class="border-t border-white/8">
-            <td class="py-1 pr-2 font-semibold whitespace-nowrap" :style="{ color: couleurs[p] }">{{ nomDe(p) }}</td>
-            <td v-for="c in CATEGORIES_ANNONCE" :key="c" class="px-1 py-1 text-right text-mist">{{ annonces.get(p)![c] ?? '' }}</td>
+            <td class="py-1 pr-2 font-semibold whitespace-nowrap" :style="{ color: couleurs[p] }">
+              {{ nomDe(p) }}
+            </td>
+            <td v-for="c in CATEGORIES_ANNONCE" :key="c" class="px-1 py-1 text-right text-mist">
+              {{ annonces.get(p)![c] ?? '' }}
+            </td>
             <td class="py-1 pl-2 text-right font-semibold">{{ total(annonces.get(p)!) }}</td>
           </tr>
         </tbody>
@@ -106,9 +124,15 @@ const pct = (k: number, r: Roles): string => {
       <tbody>
         <tr v-for="{ p, r } in lignesRoles" :key="p" class="border-t border-white/8">
           <td class="py-1.5 font-semibold" :style="{ color: couleurs[p] }">{{ nomDe(p) }}</td>
-          <td class="py-1.5 text-right">{{ r.lanceur }} <span class="text-[11px] text-dusk">{{ pct(r.lanceur, r) }}</span></td>
-          <td class="py-1.5 text-right">{{ r.suiveur }} <span class="text-[11px] text-dusk">{{ pct(r.suiveur, r) }}</span></td>
-          <td class="py-1.5 text-right">{{ r.seul }} <span class="text-[11px] text-dusk">{{ pct(r.seul, r) }}</span></td>
+          <td class="py-1.5 text-right">
+            {{ r.lanceur }} <span class="text-[11px] text-dusk">{{ pct(r.lanceur, r) }}</span>
+          </td>
+          <td class="py-1.5 text-right">
+            {{ r.suiveur }} <span class="text-[11px] text-dusk">{{ pct(r.suiveur, r) }}</span>
+          </td>
+          <td class="py-1.5 text-right">
+            {{ r.seul }} <span class="text-[11px] text-dusk">{{ pct(r.seul, r) }}</span>
+          </td>
         </tr>
       </tbody>
     </table>

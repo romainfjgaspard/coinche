@@ -51,7 +51,8 @@ const courbe = computed(() => {
   const Y1 = 16
   const x = (i: number) => X0 + (i * (X1 - X0)) / n
   const y = (v: number) => Y0 - (v / max) * (Y0 - Y1)
-  const ligne = (t: 0 | 1) => points.map((p, i) => `${x(i).toFixed(1)},${y(p.scores[t]).toFixed(1)}`).join(' ')
+  const ligne = (t: 0 | 1) =>
+    points.map((p, i) => `${x(i).toFixed(1)},${y(p.scores[t]).toFixed(1)}`).join(' ')
   const fin = points.at(-1)
   const dernier = points.length - 1
   // Étiquettes de fin à gauche du dernier point, comme la maquette : celle du camp en
@@ -115,25 +116,26 @@ const equipes = computed(() => {
 
 // --- Par joueur
 const prises = computed(() =>
-  session.seating.map((p) => {
-    const t = session.playerTallies.get(p)
-    const resultats = session.dealSummaries
-      .filter((d) => d.taker === p && d.status !== null)
-      .map((d) => d.status !== 'chute')
-    const b = t ? bilan(t) : 0
-    return {
-      id: p,
-      nom: nom(p),
-      prises: t?.prises ?? 0,
-      resultats,
-      enchere: t ? (enchereMoyenne(t) ?? '—') : '—',
-      bilan: `${b > 0 ? '+' : b < 0 ? '−' : ''}${Math.abs(b)}`,
-      bilanBrut: b,
-      couleur: couleurDe(p),
-    }
-  }).sort((a, b) => b.bilanBrut - a.bilanBrut),
+  session.seating
+    .map((p) => {
+      const t = session.playerTallies.get(p)
+      const resultats = session.dealSummaries
+        .filter((d) => d.taker === p && d.status !== null)
+        .map((d) => d.status !== 'chute')
+      const b = t ? bilan(t) : 0
+      return {
+        id: p,
+        nom: nom(p),
+        prises: t?.prises ?? 0,
+        resultats,
+        enchere: t ? (enchereMoyenne(t) ?? '—') : '—',
+        bilan: `${b > 0 ? '+' : b < 0 ? '−' : ''}${Math.abs(b)}`,
+        bilanBrut: b,
+        couleur: couleurDe(p),
+      }
+    })
+    .sort((a, b) => b.bilanBrut - a.bilanBrut),
 )
-
 
 /** Le temps de réflexion : moyenne pour annoncer, pour jouer, et la plus longue hésitation. */
 const tempsReflexion = computed(() =>
@@ -212,187 +214,238 @@ const tempsPartie = computed(() => tempsParJoueur(session.events))
 <template>
   <div class="mt-[26px] grid grid-cols-2 items-start gap-x-10">
     <template v-if="vue === 'score'">
-    <section>
-      <div class="flex items-baseline gap-3.5">
-        <div>
-          <p class="text-[11px] tracking-[.1em] text-gold">NOUS</p>
-          <p class="mt-0.5 font-display text-[46px] leading-none">{{ nous }}</p>
-        </div>
-        <p class="text-[22px] text-dusk">·</p>
-        <div>
-          <p class="text-[11px] tracking-[.1em] text-them">EUX</p>
-          <p class="mt-0.5 font-display text-[46px] leading-none text-mist">{{ eux }}</p>
-        </div>
-      </div>
-
-      <h2 class="mt-[22px] mb-0.5 text-[13px] font-semibold">Évolution du score</h2>
-      <p class="mb-2 text-[11px] text-sage">Cumul après chaque donne</p>
-      <p v-if="session.scoreCurve.length < 2" class="text-sm text-sage">Aucune donne terminée.</p>
-      <svg
-        v-else
-        viewBox="0 0 900 250"
-        width="100%"
-        height="250"
-        role="img"
-        :aria-label="`Évolution du score : Nous ${nous}, Eux ${eux} après ${donnesJouees} donnes`"
-      >
-        <g stroke="rgba(255,255,255,.08)" stroke-width="1">
-          <line v-for="g in courbe.grid" :key="g.v" x1="34" :y1="g.y" x2="886" :y2="g.y" />
-        </g>
-        <text
-          v-for="g in courbe.grid"
-          :key="`t${g.v}`"
-          x="28"
-          :y="g.y + 4"
-          text-anchor="end"
-          font-size="11"
-          fill="#6f8f82"
-        >
-          {{ g.v }}
-        </text>
-        <polyline :points="courbe.nous" fill="none" :stroke="OR" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-        <polyline :points="courbe.eux" fill="none" :stroke="BLEU" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-        <circle :cx="courbe.finNous.x" :cy="courbe.finNous.y" r="5" :fill="OR" stroke="#0a2a1f" stroke-width="2" />
-        <circle :cx="courbe.finEux.x" :cy="courbe.finEux.y" r="5" :fill="BLEU" stroke="#0a2a1f" stroke-width="2" />
-        <text :x="courbe.finNous.lx" :y="courbe.finNous.ly" font-size="13" font-weight="700" :fill="OR">
-          {{ `Nous ${nous}` }}
-        </text>
-        <text :x="courbe.finEux.lx" :y="courbe.finEux.ly" font-size="13" font-weight="700" :fill="BLEU">
-          {{ `Eux ${eux}` }}
-        </text>
-      </svg>
-
-      <h2 class="mt-4 mb-0.5 text-[13px] font-semibold">Momentum</h2>
-      <p class="mb-2 text-[11px] text-sage">
-        Points gagnés par donne, en cascade : chaque barre part de la fin de la précédente —
-        vers le haut pour nous, vers le bas pour eux
-      </p>
-      <p v-if="!momentum.barres.length" class="text-sm text-sage">Aucune donne terminée.</p>
-      <div v-else>
-        <div class="relative mt-5 mb-5" :style="{ height: `${HAUTEUR_MOMENTUM}px` }">
-          <!-- Le zéro : au-dessus, nous menons ; en dessous, eux -->
-          <div class="absolute inset-x-0 h-px bg-white/18" :style="{ top: `${momentum.zero}px` }"></div>
-          <div class="absolute inset-0 flex gap-1">
-            <div v-for="b in momentum.barres" :key="b.n" class="relative max-w-[88px] grow" :title="b.titre">
-              <div
-                class="absolute left-[15%] w-[70%] rounded-sm"
-                :class="b.nous ? 'bg-gold' : 'bg-them'"
-                :style="{ top: `${b.top}px`, height: `${b.height}px` }"
-              ></div>
-              <!-- Les points au bout de la barre : au-dessus quand elle monte, dessous quand elle descend -->
-              <span
-                class="absolute inset-x-0 text-center text-[11px] font-semibold tabular-nums"
-                :class="b.nous ? 'text-gold' : 'text-them'"
-                :style="b.nous ? { top: `${b.top - 17}px` } : { top: `${b.top + b.height + 3}px` }"
-              >{{ b.points }}</span>
-            </div>
+      <section>
+        <div class="flex items-baseline gap-3.5">
+          <div>
+            <p class="text-[11px] tracking-[.1em] text-gold">NOUS</p>
+            <p class="mt-0.5 font-display text-[46px] leading-none">{{ nous }}</p>
+          </div>
+          <p class="text-[22px] text-dusk">·</p>
+          <div>
+            <p class="text-[11px] tracking-[.1em] text-them">EUX</p>
+            <p class="mt-0.5 font-display text-[46px] leading-none text-mist">{{ eux }}</p>
           </div>
         </div>
-        <div class="flex gap-1">
-          <span v-for="b in momentum.barres" :key="b.n" class="max-w-[88px] grow text-center text-[11px] text-dusk">{{ b.n }}</span>
-        </div>
-      </div>
-    </section>
 
-    <section>
-      <h2 class="mb-2.5 text-[13px] font-semibold">Par équipe</h2>
-      <table class="mb-[22px] w-full border-collapse text-[13px]">
-        <thead>
-          <tr class="text-left text-[11px] tracking-[.06em] text-sage">
-            <th class="pr-[18px] pb-2 font-semibold">ÉQUIPE</th>
-            <th
-              v-for="c in ['DONNES GAGN.', 'PRISES', 'RÉUSSIES', 'ENCH. MOY', 'COINCHES', '★', 'SCORE']"
-              :key="c"
-              class="pb-2 text-right font-semibold [&:not(:last-child)]:pr-[18px]"
-            >
-              {{ c }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="e in equipes" :key="e.nom" class="border-t border-white/7">
-            <td class="py-[11px] pr-[18px] font-semibold" :style="{ color: e.couleur }">{{ e.nom }}</td>
-            <td
-              v-for="(v, i) in e.cells"
-              :key="i"
-              class="py-[11px] text-right text-mist tabular-nums [&:not(:last-child)]:pr-[18px]"
-            >
-              {{ v }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <h2 class="mt-[22px] mb-0.5 text-[13px] font-semibold">Évolution du score</h2>
+        <p class="mb-2 text-[11px] text-sage">Cumul après chaque donne</p>
+        <p v-if="session.scoreCurve.length < 2" class="text-sm text-sage">Aucune donne terminée.</p>
+        <svg
+          v-else
+          viewBox="0 0 900 250"
+          width="100%"
+          height="250"
+          role="img"
+          :aria-label="`Évolution du score : Nous ${nous}, Eux ${eux} après ${donnesJouees} donnes`"
+        >
+          <g stroke="rgba(255,255,255,.08)" stroke-width="1">
+            <line v-for="g in courbe.grid" :key="g.v" x1="34" :y1="g.y" x2="886" :y2="g.y" />
+          </g>
+          <text
+            v-for="g in courbe.grid"
+            :key="`t${g.v}`"
+            x="28"
+            :y="g.y + 4"
+            text-anchor="end"
+            font-size="11"
+            fill="#6f8f82"
+          >
+            {{ g.v }}
+          </text>
+          <polyline
+            :points="courbe.nous"
+            fill="none"
+            :stroke="OR"
+            stroke-width="2"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+          />
+          <polyline
+            :points="courbe.eux"
+            fill="none"
+            :stroke="BLEU"
+            stroke-width="2"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+          />
+          <circle
+            :cx="courbe.finNous.x"
+            :cy="courbe.finNous.y"
+            r="5"
+            :fill="OR"
+            stroke="#0a2a1f"
+            stroke-width="2"
+          />
+          <circle
+            :cx="courbe.finEux.x"
+            :cy="courbe.finEux.y"
+            r="5"
+            :fill="BLEU"
+            stroke="#0a2a1f"
+            stroke-width="2"
+          />
+          <text :x="courbe.finNous.lx" :y="courbe.finNous.ly" font-size="13" font-weight="700" :fill="OR">
+            {{ `Nous ${nous}` }}
+          </text>
+          <text :x="courbe.finEux.lx" :y="courbe.finEux.ly" font-size="13" font-weight="700" :fill="BLEU">
+            {{ `Eux ${eux}` }}
+          </text>
+        </svg>
 
-      <h2 class="mb-2.5 text-[13px] font-semibold">Par joueur, donne par donne</h2>
-      <table class="w-full border-collapse text-[13px]">
-        <thead>
-          <tr class="text-left text-[11px] tracking-[.06em] text-sage">
-            <th class="pr-[18px] pb-2 font-semibold">JOUEUR</th>
-            <th class="pr-[18px] pb-2 text-right font-semibold">PRISES</th>
-            <th class="pr-[18px] pb-2 font-semibold">RÉSULTAT</th>
-            <th class="pr-[18px] pb-2 text-right font-semibold">ENCHÈRE MOY.</th>
-            <th class="pb-2 text-right font-semibold">BILAN</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="p in prises" :key="p.id" class="border-t border-white/7">
-            <td class="py-[11px] pr-[18px] font-semibold">{{ p.nom }}</td>
-            <td class="py-[11px] pr-[18px] text-right text-mist tabular-nums">{{ p.prises }}</td>
-            <td class="py-[11px] pr-[18px]">
-              <span class="flex gap-1">
+        <h2 class="mt-4 mb-0.5 text-[13px] font-semibold">Momentum</h2>
+        <p class="mb-2 text-[11px] text-sage">
+          Points gagnés par donne, en cascade : chaque barre part de la fin de la précédente — vers le haut
+          pour nous, vers le bas pour eux
+        </p>
+        <p v-if="!momentum.barres.length" class="text-sm text-sage">Aucune donne terminée.</p>
+        <div v-else>
+          <div class="relative mt-5 mb-5" :style="{ height: `${HAUTEUR_MOMENTUM}px` }">
+            <!-- Le zéro : au-dessus, nous menons ; en dessous, eux -->
+            <div class="absolute inset-x-0 h-px bg-white/18" :style="{ top: `${momentum.zero}px` }"></div>
+            <div class="absolute inset-0 flex gap-1">
+              <div
+                v-for="b in momentum.barres"
+                :key="b.n"
+                class="relative max-w-[88px] grow"
+                :title="b.titre"
+              >
+                <div
+                  class="absolute left-[15%] w-[70%] rounded-sm"
+                  :class="b.nous ? 'bg-gold' : 'bg-them'"
+                  :style="{ top: `${b.top}px`, height: `${b.height}px` }"
+                ></div>
+                <!-- Les points au bout de la barre : au-dessus quand elle monte, dessous quand elle descend -->
                 <span
-                  v-for="(ok, i) in p.resultats"
-                  :key="i"
-                  class="size-[15px] rounded-[3px] border"
-                  :class="ok ? 'border-gold bg-gold' : 'border-gold/45'"
-                  :title="ok ? 'contrat réussi' : 'contrat chuté'"
-                ></span>
-              </span>
-            </td>
-            <td class="py-[11px] pr-[18px] text-right text-mist tabular-nums">{{ p.enchere }}</td>
-            <td class="py-[11px] text-right font-bold tabular-nums" :style="{ color: p.couleur }">{{ p.bilan }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="mt-2.5 text-[11px] leading-normal text-dusk">
-        Carré plein = contrat réussi, creux = chuté. Aucun pourcentage : sur deux ou trois prises, un ratio ne dit
-        rien.
-      </p>
+                  class="absolute inset-x-0 text-center text-[11px] font-semibold tabular-nums"
+                  :class="b.nous ? 'text-gold' : 'text-them'"
+                  :style="b.nous ? { top: `${b.top - 17}px` } : { top: `${b.top + b.height + 3}px` }"
+                  >{{ b.points }}</span
+                >
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-1">
+            <span
+              v-for="b in momentum.barres"
+              :key="b.n"
+              class="max-w-[88px] grow text-center text-[11px] text-dusk"
+              >{{ b.n }}</span
+            >
+          </div>
+        </div>
+      </section>
 
-    </section>
+      <section>
+        <h2 class="mb-2.5 text-[13px] font-semibold">Par équipe</h2>
+        <table class="mb-[22px] w-full border-collapse text-[13px]">
+          <thead>
+            <tr class="text-left text-[11px] tracking-[.06em] text-sage">
+              <th class="pr-[18px] pb-2 font-semibold">ÉQUIPE</th>
+              <th
+                v-for="c in ['DONNES GAGN.', 'PRISES', 'RÉUSSIES', 'ENCH. MOY', 'COINCHES', '★', 'SCORE']"
+                :key="c"
+                class="pb-2 text-right font-semibold [&:not(:last-child)]:pr-[18px]"
+              >
+                {{ c }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="e in equipes" :key="e.nom" class="border-t border-white/7">
+              <td class="py-[11px] pr-[18px] font-semibold" :style="{ color: e.couleur }">{{ e.nom }}</td>
+              <td
+                v-for="(v, i) in e.cells"
+                :key="i"
+                class="py-[11px] text-right text-mist tabular-nums [&:not(:last-child)]:pr-[18px]"
+              >
+                {{ v }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 class="mb-2.5 text-[13px] font-semibold">Par joueur, donne par donne</h2>
+        <table class="w-full border-collapse text-[13px]">
+          <thead>
+            <tr class="text-left text-[11px] tracking-[.06em] text-sage">
+              <th class="pr-[18px] pb-2 font-semibold">JOUEUR</th>
+              <th class="pr-[18px] pb-2 text-right font-semibold">PRISES</th>
+              <th class="pr-[18px] pb-2 font-semibold">RÉSULTAT</th>
+              <th class="pr-[18px] pb-2 text-right font-semibold">ENCHÈRE MOY.</th>
+              <th class="pb-2 text-right font-semibold">BILAN</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in prises" :key="p.id" class="border-t border-white/7">
+              <td class="py-[11px] pr-[18px] font-semibold">{{ p.nom }}</td>
+              <td class="py-[11px] pr-[18px] text-right text-mist tabular-nums">{{ p.prises }}</td>
+              <td class="py-[11px] pr-[18px]">
+                <span class="flex gap-1">
+                  <span
+                    v-for="(ok, i) in p.resultats"
+                    :key="i"
+                    class="size-[15px] rounded-[3px] border"
+                    :class="ok ? 'border-gold bg-gold' : 'border-gold/45'"
+                    :title="ok ? 'contrat réussi' : 'contrat chuté'"
+                  ></span>
+                </span>
+              </td>
+              <td class="py-[11px] pr-[18px] text-right text-mist tabular-nums">{{ p.enchere }}</td>
+              <td class="py-[11px] text-right font-bold tabular-nums" :style="{ color: p.couleur }">
+                {{ p.bilan }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="mt-2.5 text-[11px] leading-normal text-dusk">
+          Carré plein = contrat réussi, creux = chuté. Aucun pourcentage : sur deux ou trois prises, un ratio
+          ne dit rien.
+        </p>
+      </section>
     </template>
 
     <template v-else-if="vue === 'encheres'">
-      <StatsEncheres :joueurs="joueursPartie" :couleurs="couleursJoueursPartie" :annonces="annoncesPartie" :roles="rolesPartie" />
+      <StatsEncheres
+        :joueurs="joueursPartie"
+        :couleurs="couleursJoueursPartie"
+        :annonces="annoncesPartie"
+        :roles="rolesPartie"
+      />
     </template>
 
     <template v-else-if="vue === 'jeu'">
       <StatsEcarts :joueurs="joueursPartie" :couleurs="couleursJoueursPartie" :ecarts="ecartsPartie" />
       <section>
-      <h2 class="mt-6 mb-2 text-[15px] font-semibold">Temps de réflexion</h2>
-      <p v-if="aucunTemps" class="text-sm text-sage">Pas encore mesuré sur cette partie.</p>
-      <table v-else class="w-full border-collapse text-[13px]">
-        <thead>
-          <tr class="text-[11px] tracking-[.06em] text-sage">
-            <th class="pb-2 text-left font-semibold">JOUEUR</th>
-            <th class="pb-2 text-right font-semibold">POUR ANNONCER</th>
-            <th class="pb-2 text-right font-semibold">POUR JOUER</th>
-            <th class="pb-2 text-right font-semibold">PLUS LONGUE HÉSITATION</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="t in tempsReflexion" :key="t.id" class="border-t border-white/7">
-            <td class="py-2 font-semibold">{{ t.nom }}</td>
-            <td class="py-2 text-right tabular-nums text-mist">{{ t.annonce === null ? '—' : duree(t.annonce) }}</td>
-            <td class="py-2 text-right tabular-nums text-mist">{{ t.carte === null ? '—' : duree(t.carte) }}</td>
-            <td class="py-2 text-right tabular-nums text-mist">{{ t.max === null ? '—' : duree(t.max) }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="mt-2 text-[11px] leading-relaxed text-dusk">
-        Moyennes, mesurées sur l'écran de chacun depuis que c'est à lui. La coinche, prise hors tour, n'en a pas.
-      </p>
-
+        <h2 class="mt-6 mb-2 text-[15px] font-semibold">Temps de réflexion</h2>
+        <p v-if="aucunTemps" class="text-sm text-sage">Pas encore mesuré sur cette partie.</p>
+        <table v-else class="w-full border-collapse text-[13px]">
+          <thead>
+            <tr class="text-[11px] tracking-[.06em] text-sage">
+              <th class="pb-2 text-left font-semibold">JOUEUR</th>
+              <th class="pb-2 text-right font-semibold">POUR ANNONCER</th>
+              <th class="pb-2 text-right font-semibold">POUR JOUER</th>
+              <th class="pb-2 text-right font-semibold">PLUS LONGUE HÉSITATION</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="t in tempsReflexion" :key="t.id" class="border-t border-white/7">
+              <td class="py-2 font-semibold">{{ t.nom }}</td>
+              <td class="py-2 text-right tabular-nums text-mist">
+                {{ t.annonce === null ? '—' : duree(t.annonce) }}
+              </td>
+              <td class="py-2 text-right tabular-nums text-mist">
+                {{ t.carte === null ? '—' : duree(t.carte) }}
+              </td>
+              <td class="py-2 text-right tabular-nums text-mist">
+                {{ t.max === null ? '—' : duree(t.max) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="mt-2 text-[11px] leading-relaxed text-dusk">
+          Moyennes, mesurées sur l'écran de chacun depuis que c'est à lui. La coinche, prise hors tour, n'en a
+          pas.
+        </p>
       </section>
       <StatsTemps :joueurs="joueursPartie" :couleurs="couleursJoueursPartie" :temps="tempsPartie" />
     </template>
@@ -400,14 +453,18 @@ const tempsPartie = computed(() => tempsParJoueur(session.events))
     <template v-else>
       <StatsDonnes :events="session.events" :seating="session.seating" :nous="session.myTeam" />
       <section>
-      <h2 class="mt-5 mb-2.5 text-[15px] font-semibold">Ce qui s'est passé</h2>
-      <div class="grid grid-cols-2 gap-2.5">
-        <div v-for="f in faits" :key="f.titre" class="rounded-[10px] border border-white/8 bg-white/4 px-3.5 py-3">
-          <p class="text-[11px] text-sage">{{ f.titre }}</p>
-          <p class="mt-1 text-[15px] font-semibold" :style="{ color: f.couleur }">{{ f.valeur }}</p>
-          <p v-if="f.detail" class="mt-0.5 text-xs text-mist">{{ f.detail }}</p>
+        <h2 class="mt-5 mb-2.5 text-[15px] font-semibold">Ce qui s'est passé</h2>
+        <div class="grid grid-cols-2 gap-2.5">
+          <div
+            v-for="f in faits"
+            :key="f.titre"
+            class="rounded-[10px] border border-white/8 bg-white/4 px-3.5 py-3"
+          >
+            <p class="text-[11px] text-sage">{{ f.titre }}</p>
+            <p class="mt-1 text-[15px] font-semibold" :style="{ color: f.couleur }">{{ f.valeur }}</p>
+            <p v-if="f.detail" class="mt-0.5 text-xs text-mist">{{ f.detail }}</p>
+          </div>
         </div>
-      </div>
       </section>
     </template>
   </div>

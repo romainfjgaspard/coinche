@@ -55,17 +55,25 @@ await benel.p.screenshot({ path: `${SP}/03-salon-complet.png` })
 async function dumpJournal(etiquette) {
   const rep = await fetch(
     `http://127.0.0.1:8080/v1/projects/demo-coinche/databases/(default)/documents/parties/${code}/evenements?pageSize=400`,
-    { headers: { Authorization: 'Bearer owner' } })
+    { headers: { Authorization: 'Bearer owner' } },
+  )
   const docs = (await rep.json()).documents ?? []
   const brut = docs.map((d) => {
     const f = {}
-    for (const [k, v] of Object.entries(d.fields)) f[k] = v.stringValue ?? v.integerValue ?? v.booleanValue ?? null
+    for (const [k, v] of Object.entries(d.fields))
+      f[k] = v.stringValue ?? v.integerValue ?? v.booleanValue ?? null
     return f
   })
   await import('node:fs/promises').then((fs) =>
-    fs.writeFile(`${SP}/journal.json`, JSON.stringify(brut, null, 1)))
-  console.log(`[${etiquette}] ${brut.length} événements, fin :`,
-    brut.slice(-5).map((e) => `${e.type}${e.joueur ? '/' + e.joueur : ''}${e.carte ? '/' + e.carte : ''}`).join(' > '))
+    fs.writeFile(`${SP}/journal.json`, JSON.stringify(brut, null, 1)),
+  )
+  console.log(
+    `[${etiquette}] ${brut.length} événements, fin :`,
+    brut
+      .slice(-5)
+      .map((e) => `${e.type}${e.joueur ? '/' + e.joueur : ''}${e.carte ? '/' + e.carte : ''}`)
+      .join(' > '),
+  )
   for (const j of table) {
     const t = (await j.p.locator('body').innerText()).replace(/\n+/g, ' | ')
     console.log(`   ${j.nom}: ${t.slice(0, 150)}`)
@@ -123,15 +131,21 @@ async function jouerLaDonne() {
       continue
     }
     const joue = await joueur.p
-      .waitForFunction((n) => document.querySelectorAll('[data-testid="main"] > div').length < n,
-        avant, { timeout: 8000 })
+      .waitForFunction((n) => document.querySelectorAll('[data-testid="main"] > div').length < n, avant, {
+        timeout: 8000,
+      })
       .then(() => true)
       .catch(() => false)
-    if (joue) { cartes++; continue }
+    if (joue) {
+      cartes++
+      continue
+    }
     // Pourquoi la main n'a-t-elle pas bougé ? On lit ce que l'app a affiché.
     const banniere = joueur.p.locator('p.bg-red-card')
     const message = (await banniere.count()) ? await banniere.first().innerText() : '(aucun message)'
-    const tour = (await joueur.p.locator('text=à toi de jouer').count()) ? 'a encore la main' : 'n\'a plus la main'
+    const tour = (await joueur.p.locator('text=à toi de jouer').count())
+      ? 'a encore la main'
+      : "n'a plus la main"
     echecs.push(`${joueur.nom} essai ${essai} · ${tour} · ${message}`)
   }
   return cartes
@@ -182,11 +196,15 @@ async function capturer(prefixe) {
   const h = await boite.evaluate((el) => el.scrollHeight)
   let n = 0
   for (let y = 0; y < h; y += 780, n++) {
-    await boite.evaluate((el, v) => { el.scrollTop = v }, y)
+    await boite.evaluate((el, v) => {
+      el.scrollTop = v
+    }, y)
     await ecran.p.waitForTimeout(350)
     await ecran.p.screenshot({ path: `${SP}/${prefixe}-${n}.png` })
   }
-  await boite.evaluate((el) => { el.scrollTop = 0 })
+  await boite.evaluate((el) => {
+    el.scrollTop = 0
+  })
   console.log(`${prefixe} : ${n} tranches, ${h}px`)
 }
 await capturer('09-stats')

@@ -24,7 +24,9 @@ function quitter(): void {
     class="shrink-0 cursor-pointer rounded-lg border border-white/15 font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
     :class="grand ? 'px-3.5 py-1.5 text-sm' : 'px-2.5 py-1.5 text-sm'"
     @click="quitter"
-  >Quitter</button>
+  >
+    Quitter
+  </button>
 
   <Teleport to="body">
     <div
@@ -41,8 +43,8 @@ function quitter(): void {
       >
         <h2 id="quitter-titre" class="font-display text-2xl">Annuler la partie ?</h2>
         <p class="mt-2 text-sm leading-relaxed text-mist">
-          Elle s'arrête pour les quatre joueurs, et chacun revient à l'accueil.
-          Elle ne comptera pas dans les statistiques.
+          Elle s'arrête pour les quatre joueurs, et chacun revient à l'accueil. Elle ne comptera pas dans les
+          statistiques.
         </p>
         <div class="mt-5 flex flex-col gap-2.5">
           <button
@@ -50,12 +52,16 @@ function quitter(): void {
             :disabled="session.busy"
             class="h-12 cursor-pointer rounded-xl bg-red-card text-[15px] font-bold text-ivory transition enabled:hover:brightness-110 disabled:opacity-50"
             @click="session.cancel()"
-          >{{ session.busy ? 'Annulation…' : 'Annuler la partie' }}</button>
+          >
+            {{ session.busy ? 'Annulation…' : 'Annuler la partie' }}
+          </button>
           <button
             type="button"
             class="h-11 cursor-pointer rounded-xl border border-white/15 text-sm font-medium text-mist transition hover:border-white/35 hover:bg-white/5"
             @click="confirmer = false"
-          >Continuer à jouer</button>
+          >
+            Continuer à jouer
+          </button>
         </div>
         <p v-if="session.error" class="mt-3 text-center text-sm text-red-card">{{ session.error }}</p>
       </div>

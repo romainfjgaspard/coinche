@@ -5,26 +5,31 @@ import { type PlayedCard, playableCards, trickWinner } from '../trick'
 import { RULES, isGameOver } from '../rules'
 import { dealHands, dealingOrder } from '../deal'
 import {
-  TOTAL_CARD_POINTS, hasBelote, isContractMade, scoreDeal, unannouncedCapot, type Contract,
+  TOTAL_CARD_POINTS,
+  hasBelote,
+  isContractMade,
+  scoreDeal,
+  unannouncedCapot,
+  type Contract,
 } from '../scoring'
 
 const play = (seat: number, card: Card): PlayedCard => ({ seat, card })
 
 describe('cartes', () => {
-  it('le paquet complet vaut 152 points quel que soit l\'atout', () => {
+  it("le paquet complet vaut 152 points quel que soit l'atout", () => {
     for (const trump of ['s', 'h', 'd', 'c'] as const) {
       expect(DECK.reduce((s, c) => s + value(c, trump), 0)).toBe(TOTAL_CARD_POINTS)
     }
   })
 
-  it('ORD-1 — à l\'atout, le valet domine le 9 qui domine l\'as', () => {
+  it("ORD-1 — à l'atout, le valet domine le 9 qui domine l'as", () => {
     expect(strength('Js', 's')).toBeGreaterThan(strength('9s', 's'))
     expect(strength('9s', 's')).toBeGreaterThan(strength('As', 's'))
     expect(value('Js', 's')).toBe(20)
     expect(value('9s', 's')).toBe(14)
   })
 
-  it('ORD-2 — hors atout, l\'as domine et le valet ne vaut que 2', () => {
+  it("ORD-2 — hors atout, l'as domine et le valet ne vaut que 2", () => {
     expect(strength('Ah', 's')).toBeGreaterThan(strength('10h', 's'))
     expect(value('Jh', 's')).toBe(2)
   })
@@ -44,7 +49,10 @@ describe('cartes', () => {
   })
 
   it('DIS-2 — on ramasse les plis et on coupe, sans rebattre', () => {
-    const tricks: Card[][] = [['Ks', 'As', '7s', '9s'], ['Jh', '9h', '8h', 'Ah']]
+    const tricks: Card[][] = [
+      ['Ks', 'As', '7s', '9s'],
+      ['Jh', '9h', '8h', 'Ah'],
+    ]
     expect(gatherAndCut(tricks, 0)).toEqual(['Ks', 'As', '7s', '9s', 'Jh', '9h', '8h', 'Ah'])
     // La coupe déplace le sommet du paquet, sans jamais casser les plis.
     expect(gatherAndCut(tricks, 4)).toEqual(['Jh', '9h', '8h', 'Ah', 'Ks', 'As', '7s', '9s'])
@@ -52,11 +60,11 @@ describe('cartes', () => {
 })
 
 describe('pli', () => {
-  it('l\'atout bat la couleur demandée', () => {
+  it("l'atout bat la couleur demandée", () => {
     expect(trickWinner([play(0, 'Ah'), play(1, '7s')], 's')).toBe(1)
   })
 
-  it('une carte d\'une autre couleur ne remporte rien', () => {
+  it("une carte d'une autre couleur ne remporte rien", () => {
     expect(trickWinner([play(0, '7h'), play(1, 'Ad')], 's')).toBe(0)
   })
 
@@ -70,11 +78,11 @@ describe('cartes jouables', () => {
     expect(playableCards(['Ah', '7h', 'As', 'Kd'], [play(0, '8h')], 's', 1)).toEqual(['Ah', '7h'])
   })
 
-  it('JEU-3 — obligation de couper si l\'adversaire est maître', () => {
+  it("JEU-3 — obligation de couper si l'adversaire est maître", () => {
     expect(playableCards(['Ad', '7s', 'Kd'], [play(0, '8h')], 's', 1)).toEqual(['7s'])
   })
 
-  it('JEU-4 — obligation de monter à l\'atout sur une coupe adverse', () => {
+  it("JEU-4 — obligation de monter à l'atout sur une coupe adverse", () => {
     const trick = [play(0, '8h'), play(1, '9s')]
     expect(playableCards(['7s', 'Js', 'Kd'], trick, 's', 2)).toEqual(['Js'])
   })
@@ -90,7 +98,7 @@ describe('cartes jouables', () => {
     expect(playableCards(hand, trick, 's', 2)).toEqual(hand)
   })
 
-  it('celui qui entame joue ce qu\'il veut', () => {
+  it("celui qui entame joue ce qu'il veut", () => {
     expect(playableCards(['Ad', '7s'], [], 's', 0)).toEqual(['Ad', '7s'])
   })
 })
@@ -101,7 +109,7 @@ describe('DEC-3 / DEC-7 — réussite du contrat', () => {
     expect(isContractMade(85, 90, 90)).toBe(false) // devant personne, et sous le contrat
   })
 
-  it('DEC-7 — l\'égalité 81-81 chute', () => {
+  it("DEC-7 — l'égalité 81-81 chute", () => {
     expect(isContractMade(81, 81, 80)).toBe(false)
     expect(isContractMade(82, 80, 80)).toBe(true)
   })
@@ -116,10 +124,21 @@ describe('DEC-3 / DEC-7 — réussite du contrat', () => {
 
 describe('décompte', () => {
   const allTricksTo = (seat: number): PlayedCard[][] =>
-    Array.from({ length: 8 }, () => [play(seat, 'Js'), play((seat + 1) % 4, '7h'), play((seat + 2) % 4, '8h'), play((seat + 3) % 4, '9h')])
+    Array.from({ length: 8 }, () => [
+      play(seat, 'Js'),
+      play((seat + 1) % 4, '7h'),
+      play((seat + 2) % 4, '8h'),
+      play((seat + 3) % 4, '9h'),
+    ])
 
   const contract = (over: Partial<Contract> = {}): Contract => ({
-    takerSeat: 0, value: 100, trump: 's', multiplier: 1, capot: false, generale: false, ...over,
+    takerSeat: 0,
+    value: 100,
+    trump: 's',
+    multiplier: 1,
+    capot: false,
+    generale: false,
+    ...over,
   })
 
   it('BEL-1 — détecte la belote', () => {
@@ -133,13 +152,13 @@ describe('décompte', () => {
     expect(res.scores).toEqual([100, 0])
   })
 
-  it('DEC-2 — contrat chuté : la défense marque l\'enchère, le preneur rien', () => {
+  it("DEC-2 — contrat chuté : la défense marque l'enchère, le preneur rien", () => {
     const res = scoreDeal(allTricksTo(1), contract(), RULES)
     expect(res.status).toBe('chute')
     expect(res.scores).toEqual([0, 100])
   })
 
-  it('DEC-4 — la coinche double l\'enjeu, la surcoinche le quadruple', () => {
+  it("DEC-4 — la coinche double l'enjeu, la surcoinche le quadruple", () => {
     expect(scoreDeal(allTricksTo(0), contract({ multiplier: 2 }), RULES).scores).toEqual([200, 0])
     expect(scoreDeal(allTricksTo(1), contract({ multiplier: 4 }), RULES).scores).toEqual([0, 400])
   })
@@ -150,7 +169,7 @@ describe('décompte', () => {
     expect(res.scores).toEqual([250, 0])
   })
 
-  it('BEL-5 — la belote n\'est jamais marquée, seulement comparée', () => {
+  it("BEL-5 — la belote n'est jamais marquée, seulement comparée", () => {
     const res = scoreDeal(allTricksTo(0), contract(), RULES, 0)
     expect(res.compared[0]).toBe(res.cardPoints[0] + 20)
     expect(res.scores).toEqual([100, 0]) // et non 120
@@ -196,25 +215,34 @@ describe('DIS-1 — distribution 3-2-3', () => {
 describe('DEC-8 — capot non annoncé', () => {
   const allTricksTo = (seat: number): PlayedCard[][] =>
     Array.from({ length: 8 }, () => [
-      play(seat, 'Js'), play((seat + 1) % 4, '7h'), play((seat + 2) % 4, '8h'), play((seat + 3) % 4, '9h'),
+      play(seat, 'Js'),
+      play((seat + 1) % 4, '7h'),
+      play((seat + 2) % 4, '8h'),
+      play((seat + 3) % 4, '9h'),
     ])
   const contract = (over: Partial<Contract> = {}): Contract => ({
-    takerSeat: 0, value: 100, trump: 's', multiplier: 1, capot: false, generale: false, ...over,
+    takerSeat: 0,
+    value: 100,
+    trump: 's',
+    multiplier: 1,
+    capot: false,
+    generale: false,
+    ...over,
   })
 
-  it('vaut une étoile quand le preneur rafle tout sans l\'avoir annoncé', () => {
+  it("vaut une étoile quand le preneur rafle tout sans l'avoir annoncé", () => {
     const c = contract()
     const res = scoreDeal(allTricksTo(0), c, RULES)
     expect(unannouncedCapot(res, c)).toBe(true)
     expect(res.scores).toEqual([100, 0]) // le score, lui, ne bouge pas
   })
 
-  it('pas d\'étoile si le capot avait été annoncé', () => {
+  it("pas d'étoile si le capot avait été annoncé", () => {
     const c = contract({ capot: true, value: RULES.capotValue })
     expect(unannouncedCapot(scoreDeal(allTricksTo(0), c, RULES), c)).toBe(false)
   })
 
-  it('pas d\'étoile quand c\'est la défense qui rafle les huit plis', () => {
+  it("pas d'étoile quand c'est la défense qui rafle les huit plis", () => {
     // Déroute du preneur, pas une sous-enchère : personne ne récolte d'étoile.
     const c = contract()
     const res = scoreDeal(allTricksTo(1), c, RULES)
@@ -222,7 +250,7 @@ describe('DEC-8 — capot non annoncé', () => {
     expect(unannouncedCapot(res, c)).toBe(false)
   })
 
-  it('pas d\'étoile si un pli a échappé au preneur', () => {
+  it("pas d'étoile si un pli a échappé au preneur", () => {
     const c = contract()
     const tricks = allTricksTo(0)
     tricks[7] = [play(1, 'Js'), play(2, '7h'), play(3, '8h'), play(0, '9h')]

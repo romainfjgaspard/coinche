@@ -18,7 +18,17 @@ import { describe, it } from 'vitest'
 import { getDoc } from 'firebase/firestore'
 import { type Client, db, makeClient, useEmulators } from '../src/firebase/app'
 import {
-  type GameDoc, createGame, deal, gameRef, handRef, placeBid, playCard, readArchives, readJournal, signIn, tableDe,
+  type GameDoc,
+  createGame,
+  deal,
+  gameRef,
+  handRef,
+  placeBid,
+  playCard,
+  readArchives,
+  readJournal,
+  signIn,
+  tableDe,
   takeSeat,
 } from '../src/firebase/partie'
 import { type BiddingEntry, currentBidder, highestBid, rankOf } from '../src/game/bidding'
@@ -60,9 +70,13 @@ async function parler(clients: Record<PlayerId, Client>, code: string, game: Gam
   const main_ = await main(c, code, joueur)
 
   // Un adversaire du preneur qui se sent fort coinche parfois.
-  if (meilleure && !partenaire && meilleure.kind === 'contrat'
-      && teamOfPlayer(meilleure.player, tableDe(game)) !== teamOfPlayer(joueur, tableDe(game))
-      && hasard(0.12)) {
+  if (
+    meilleure &&
+    !partenaire &&
+    meilleure.kind === 'contrat' &&
+    teamOfPlayer(meilleure.player, tableDe(game)) !== teamOfPlayer(joueur, tableDe(game)) &&
+    hasard(0.12)
+  ) {
     await placeBid(code, { kind: 'coinche', player: joueur }, c)
     return
   }
@@ -86,10 +100,19 @@ async function poser(clients: Record<PlayerId, Client>, code: string, game: Game
   const jouables = playableFor(etat, joueur, main_)
   const contrat = [...currentDeal(events)].reverse().find((e) => e.type === 'contrat_fixe')
   const preneur = contrat && contrat.type === 'contrat_fixe' ? contrat.taker : joueur
-  const carte = chooseCard({
-    me: joueur, seating: tableDe(game), hand: main_, trump: etat.trump, taker: preneur,
-    current: etat.current, completed: etat.completed,
-  }, jouables, 'compteur')
+  const carte = chooseCard(
+    {
+      me: joueur,
+      seating: tableDe(game),
+      hand: main_,
+      trump: etat.trump,
+      taker: preneur,
+      current: etat.current,
+      completed: etat.completed,
+    },
+    jouables,
+    'compteur',
+  )
   // BEL-2 : la belote s'annonce… sauf quand on l'oublie.
   const belote = canDeclareBelote(etat, joueur, carte, main_, etat.trump) && hasard(0.8)
   await playCard(code, joueur, carte, belote, c)
@@ -101,7 +124,10 @@ async function poser(clients: Record<PlayerId, Client>, code: string, game: Game
  * compris celles d'avant le semis — pour que chaque duo ait autant de matchs.
  */
 function afficheDe(seating: Seating): string {
-  return [[seating[0], seating[2]], [seating[1], seating[3]]]
+  return [
+    [seating[0], seating[2]],
+    [seating[1], seating[3]],
+  ]
     .map((duo) => [...duo].sort().join('+'))
     .sort()
     .join(' vs ')
@@ -111,7 +137,10 @@ async function placementEquilibre(c: Client): Promise<Seating> {
   const autres = PLAYER_IDS.filter((p) => p !== 'romain')
   // $env:PARTENAIRES="benel,roux" : seulement les affiches où Romain joue avec eux,
   // pour rattraper des appariements en retard ailleurs (en prod, par exemple).
-  const voulus = (process.env.PARTENAIRES ?? '').split(',').map((p) => p.trim()).filter(Boolean)
+  const voulus = (process.env.PARTENAIRES ?? '')
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)
   const affiches: Seating[] = autres
     .filter((partenaire) => voulus.length === 0 || voulus.includes(partenaire))
     .map((partenaire) => {
@@ -169,13 +198,19 @@ async function jouerUnePartie(n: number): Promise<void> {
 }
 
 describe('historique fictif', () => {
-  it(`joue ${PARTIES} parties complètes et dépose leurs archives`, async () => {
-    // La vraie base seulement sur demande explicite, en nommant le projet visé.
-    const projet = db.app.options.projectId
-    if (!useEmulators && process.env.SEED_CONFIRME !== projet) {
-      throw new Error(`Refus : vraie base (${projet}). Confirmer avec SEED_CONFIRME=${projet}`)
-    }
-    console.log(`semis de ${PARTIES} parties sur ${useEmulators ? 'l\'émulateur' : `la VRAIE base ${projet}`}`)
-    for (let n = 1; n <= PARTIES; n++) await jouerUnePartie(n)
-  }, 60 * 60 * 1000)
+  it(
+    `joue ${PARTIES} parties complètes et dépose leurs archives`,
+    async () => {
+      // La vraie base seulement sur demande explicite, en nommant le projet visé.
+      const projet = db.app.options.projectId
+      if (!useEmulators && process.env.SEED_CONFIRME !== projet) {
+        throw new Error(`Refus : vraie base (${projet}). Confirmer avec SEED_CONFIRME=${projet}`)
+      }
+      console.log(
+        `semis de ${PARTIES} parties sur ${useEmulators ? "l'émulateur" : `la VRAIE base ${projet}`}`,
+      )
+      for (let n = 1; n <= PARTIES; n++) await jouerUnePartie(n)
+    },
+    60 * 60 * 1000,
+  )
 })

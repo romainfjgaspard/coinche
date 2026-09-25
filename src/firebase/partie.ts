@@ -4,8 +4,21 @@
  * au journal.
  */
 import {
-  collection, doc, getDoc, getDocFromServer, getDocs, onSnapshot, orderBy, query, runTransaction,
-  type Transaction, arrayUnion, serverTimestamp, setDoc, updateDoc, where,
+  collection,
+  doc,
+  getDoc,
+  getDocFromServer,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  type Transaction,
+  arrayUnion,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
 } from 'firebase/firestore'
 import { signInAnonymously } from 'firebase/auth'
 import { type Client, mainClient } from './app'
@@ -17,17 +30,20 @@ import { ENGINE_VERSION } from '../game/rules'
 import type { GameEvent, NewEvent } from '../game/events'
 import { type BiddingEntry, apply, outcome } from '../game/bidding'
 import {
-  SHAME_THRESHOLD, beloteAnnonces, biddingFromEvents, bidRound, currentDeal, declaredBelote, playFromEvents,
+  SHAME_THRESHOLD,
+  beloteAnnonces,
+  biddingFromEvents,
+  bidRound,
+  currentDeal,
+  declaredBelote,
+  playFromEvents,
   starsInGame,
 } from '../game/replay'
 import { nextPlayer, playerAtSeat, seatOf, teamOfPlayer } from '../game/players'
-import {
-  beloteHeld, canDeclareBelote, isDealOver, play, trickFlags, tricksForScoring,
-} from '../game/play'
+import { beloteHeld, canDeclareBelote, isDealOver, play, trickFlags, tricksForScoring } from '../game/play'
 import { type Contract, type DealStatus, scoreDeal, unannouncedCapot } from '../game/scoring'
 import { type Archive, buildArchive } from '../game/archive'
 import { isGameOver, RULES } from '../game/rules'
-
 
 export type Phase = 'lobby' | 'encheres' | 'jeu' | 'decompte' | 'terminee' | 'annulee'
 
@@ -89,8 +105,7 @@ export const newCode = (): string =>
 
 export const gameRef = (code: string, c: Client = mainClient) => doc(c.db, 'parties', code)
 export const archiveRef = (code: string, c: Client = mainClient) => doc(c.db, 'archives', code)
-export const dealsRef = (code: string, c: Client = mainClient) =>
-  collection(c.db, 'parties', code, 'donne')
+export const dealsRef = (code: string, c: Client = mainClient) => collection(c.db, 'parties', code, 'donne')
 export const handRef = (code: string, player: PlayerId, c: Client = mainClient) =>
   doc(c.db, 'parties', code, 'mains', player)
 export const dealRef = (code: string, dealNumber: number, c: Client = mainClient) =>
@@ -199,7 +214,7 @@ async function appendWith(
       }
       const coups = game.moveSeq
       if (expectedMove !== undefined && coups !== undefined && coups !== expectedMove) {
-        throw new ConcurrentWrite('Quelqu\'un a joué en même temps que toi')
+        throw new ConcurrentWrite("Quelqu'un a joué en même temps que toi")
       }
       const seq = (game.eventSeq ?? 0) + 1
       tx.update(gameRef(code, c), {
@@ -297,10 +312,12 @@ export async function takeSeat(
     const assis = Object.keys(game.seats)
     if (!holder) {
       if (assis.length >= 4) throw new Error('La table est complète')
-      if (game.seating && !game.seating.includes(player)) throw new Error('Tu ne fais pas partie de cette table')
+      if (game.seating && !game.seating.includes(player))
+        throw new Error('Tu ne fais pas partie de cette table')
     }
     // Le quatrième arrivé complète la table : le placement est tiré entre les présents.
-    const table = !game.seating && !holder && assis.length === 3 ? randomSeating(Math.random, [...assis, player]) : null
+    const table =
+      !game.seating && !holder && assis.length === 3 ? randomSeating(Math.random, [...assis, player]) : null
     // Le drapeau reste sur le siège : c'est lui qui sortira les parties avec bot
     // des statistiques, et il doit survivre à la partie dans l'archive.
     // Uniquement ce siège, et l'identifiant ajouté à la liste côté serveur. Réécrire
@@ -369,7 +386,11 @@ export async function remplacerParBot(
 }
 
 /** De retour, le joueur reprend sa place au bot qui la tenait. */
-export async function reprendreMaPlace(code: string, player: PlayerId, c: Client = mainClient): Promise<void> {
+export async function reprendreMaPlace(
+  code: string,
+  player: PlayerId,
+  c: Client = mainClient,
+): Promise<void> {
   const uid = await signIn(c)
   await runTransaction(c.db, async (tx) => {
     const snap = await tx.get(gameRef(code, c))
@@ -405,8 +426,7 @@ export async function deal(
   if (!distribuable(game)) throw new ConcurrentWrite('La donne est déjà distribuée')
 
   const cut = 1 + Math.floor(Math.random() * 30)
-  const pile =
-    previousTricks && !RULES.shuffleEveryDeal ? gatherAndCut(previousTricks, cut) : shuffle(DECK)
+  const pile = previousTricks && !RULES.shuffleEveryDeal ? gatherAndCut(previousTricks, cut) : shuffle(DECK)
 
   const hands = dealHands(pile, game.dealer, tableDe(game))
   const dealNumber = game.dealNumber + 1
@@ -420,24 +440,18 @@ export async function deal(
   //   journal, figée ;
   // - deux distributions simultanées pouvaient mêler leurs mains.
   // La vérification dans la transaction garantit qu'une seule distribution passe.
-  await appendWith(
-    c,
-    code,
-    { type: 'donne_commencee', dealNumber, dealer: game.dealer, cut },
-    undefined,
-    {
-      game: { dealNumber, phase: 'encheres' },
-      verifier: (g) => {
-        if (g.dealNumber !== game.dealNumber || !distribuable(g)) {
-          throw new ConcurrentWrite('La donne est déjà distribuée')
-        }
-      },
-      extraWrites: (tx) => {
-        tx.set(dealRef(code, dealNumber, c), { hands, cut, at: Date.now() })
-        for (const p of tableDe(game)) tx.set(handRef(code, p, c), { cards: hands[p] })
-      },
+  await appendWith(c, code, { type: 'donne_commencee', dealNumber, dealer: game.dealer, cut }, undefined, {
+    game: { dealNumber, phase: 'encheres' },
+    verifier: (g) => {
+      if (g.dealNumber !== game.dealNumber || !distribuable(g)) {
+        throw new ConcurrentWrite('La donne est déjà distribuée')
+      }
     },
-  )
+    extraWrites: (tx) => {
+      tx.set(dealRef(code, dealNumber, c), { hands, cut, at: Date.now() })
+      for (const p of tableDe(game)) tx.set(handRef(code, p, c), { cards: hands[p] })
+    },
+  })
 }
 
 export const watchGame = (code: string, cb: (game: GameDoc | null) => void, c: Client = mainClient) =>
@@ -450,11 +464,7 @@ export const watchGame = (code: string, cb: (game: GameDoc | null) => void, c: C
  * le nombre de connexions par origine, et trois bots qui gardent chacun un flux
  * ouvert bloquaient leurs propres écritures — la distribution prenait 57 secondes.
  */
-export async function readHand(
-  code: string,
-  player: PlayerId,
-  c: Client = mainClient,
-): Promise<Card[]> {
+export async function readHand(code: string, player: PlayerId, c: Client = mainClient): Promise<Card[]> {
   // `getDocFromServer`, pas `getDoc` : un client sans écoute ouverte n'a rien en
   // cache et `getDoc` se contentait de ce cache vide. Le bot croyait alors n'avoir
   // aucune carte jouable et restait muet, sans la moindre erreur — la table gelait.
@@ -463,9 +473,11 @@ export async function readHand(
 }
 
 export const watchHand = (
-  code: string, player: PlayerId, cb: (cards: Card[]) => void, c: Client = mainClient,
-) =>
-  onSnapshot(handRef(code, player, c), (s) => cb((s.data()?.cards as Card[]) ?? []))
+  code: string,
+  player: PlayerId,
+  cb: (cards: Card[]) => void,
+  c: Client = mainClient,
+) => onSnapshot(handRef(code, player, c), (s) => cb((s.data()?.cards as Card[]) ?? []))
 
 /** Journal complet de la partie, dans l'ordre. */
 export async function readEvents(code: string, c: Client = mainClient): Promise<GameEvent[]> {
@@ -555,16 +567,22 @@ export async function placeBid(
   // temps, un onglet fermé entre les deux laissait la partie coincée dans la mauvaise phase.
   const result = outcome(after)
   if (result.status === 'contrat') {
-    await appendWith(c, code, {
-      type: 'contrat_fixe',
-      taker: result.taker,
-      value: result.value,
-      trump: result.trump,
-      declaration: result.declaration,
-      multiplier: result.multiplier,
-      capot: result.capot,
-      generale: result.generale,
-    }, undefined, { game: { phase: 'jeu' } })
+    await appendWith(
+      c,
+      code,
+      {
+        type: 'contrat_fixe',
+        taker: result.taker,
+        value: result.value,
+        trump: result.trump,
+        declaration: result.declaration,
+        multiplier: result.multiplier,
+        capot: result.capot,
+        generale: result.generale,
+      },
+      undefined,
+      { game: { phase: 'jeu' } },
+    )
 
     // Blitz : une donne non coinchée n'est pas jouée — le contrat est réputé réussi et le
     // preneur marque sa valeur (250 pour un capot ou une générale). La belote n'est
@@ -574,24 +592,35 @@ export async function placeBid(
       const valeur = result.generale ? RULES.generaleValue : result.capot ? RULES.capotValue : result.value
       const marque: [number, number] = [0, 0]
       marque[camp] = valeur
-      await clore(code, game, {
-        status: result.generale ? 'generale' : result.capot ? 'capot' : 'reussi',
-        cardPoints: [0, 0],
-        compared: [0, 0],
-        scores: marque,
-        beloteDeclaredBy: null,
-        beloteForgottenBy: null,
-        etoile: null,
-        blitz: true,
-      }, c)
+      await clore(
+        code,
+        game,
+        {
+          status: result.generale ? 'generale' : result.capot ? 'capot' : 'reussi',
+          cardPoints: [0, 0],
+          compared: [0, 0],
+          scores: marque,
+          beloteDeclaredBy: null,
+          beloteForgottenBy: null,
+          etoile: null,
+          blitz: true,
+        },
+        c,
+      )
     }
   } else if (result.status === 'donne_blanche') {
     // ENC-7 + DIS-3 : personne ne prend, le même donneur redonne.
-    await appendWith(c, code, {
-      type: 'donne_annulee',
-      dealNumber: game.dealNumber,
-      reason: 'quatre_passes',
-    }, undefined, { game: { phase: 'lobby' } })
+    await appendWith(
+      c,
+      code,
+      {
+        type: 'donne_annulee',
+        dealNumber: game.dealNumber,
+        reason: 'quatre_passes',
+      },
+      undefined,
+      { game: { phase: 'lobby' } },
+    )
   }
 }
 
@@ -697,18 +726,21 @@ export async function playCard(
   const forgotten = held !== null && declaredBy === null
 
   // DEC-8 — capot réalisé sans l'avoir annoncé : une étoile pour le preneur.
-  const etoile = unannouncedCapot(result, contract)
-    ? playerAtSeat(contract.takerSeat, tableDe(game))
-    : null
-  await clore(code, game, {
-    status: result.status,
-    cardPoints: result.cardPoints,
-    compared: result.compared,
-    scores: result.scores,
-    beloteDeclaredBy: declaredBy,
-    beloteForgottenBy: forgotten ? held : null,
-    etoile,
-  }, c)
+  const etoile = unannouncedCapot(result, contract) ? playerAtSeat(contract.takerSeat, tableDe(game)) : null
+  await clore(
+    code,
+    game,
+    {
+      status: result.status,
+      cardPoints: result.cardPoints,
+      compared: result.compared,
+      scores: result.scores,
+      beloteDeclaredBy: declaredBy,
+      beloteForgottenBy: forgotten ? held : null,
+      etoile,
+    },
+    c,
+  )
 }
 
 /**
@@ -731,28 +763,31 @@ async function clore(
   c: Client,
 ): Promise<void> {
   const { etoile } = donne
-  const scores: [number, number] = [
-    game.scores[0] + donne.scores[0],
-    game.scores[1] + donne.scores[1],
-  ]
+  const scores: [number, number] = [game.scores[0] + donne.scores[0], game.scores[1] + donne.scores[1]]
 
   const over = isGameOver(scores, { ...RULES, target: game.objectif ?? RULES.target })
   // Hors fin de partie, le décompte et le passage à la donne suivante partent avec
   // l'événement : écrits à part, un onglet fermé entre les deux figeait la table en « jeu ».
   // MAT-3 — le donneur tourne d'un joueur vers la gauche.
   const { blitz, ...detail } = donne
-  await appendWith(c, code, {
-    type: 'donne_terminee',
-    dealNumber: game.dealNumber,
-    ...detail,
-    ...(blitz ? { blitz: true } : {}),
-  }, undefined, over
-    ? undefined
-    : { game: { scores, phase: 'decompte', dealer: nextPlayer(game.dealer, tableDe(game)) } })
+  await appendWith(
+    c,
+    code,
+    {
+      type: 'donne_terminee',
+      dealNumber: game.dealNumber,
+      ...detail,
+      ...(blitz ? { blitz: true } : {}),
+    },
+    undefined,
+    over
+      ? undefined
+      : { game: { scores, phase: 'decompte', dealer: nextPlayer(game.dealer, tableDe(game)) } },
+  )
 
   // DEC-9 — trois étoiles dans la même partie : la honte complète.
   if (etoile) {
-    const stars = (starsInGame(await readJournal(code, c)).get(etoile) ?? 0)
+    const stars = starsInGame(await readJournal(code, c)).get(etoile) ?? 0
     if (stars === SHAME_THRESHOLD) {
       await appendWith(c, code, { type: 'honte_complete', player: etoile, stars })
     }
@@ -761,28 +796,35 @@ async function clore(
   if (over) {
     // La phase passe à « terminée » avec l'événement : c'est elle qui descelle les donnes,
     // lues juste après pour l'archive.
-    await appendWith(c, code, {
-      type: 'partie_terminee',
-      scores,
-      winner: scores[0] > scores[1] ? 0 : 1,
-      deals: game.dealNumber,
-    }, undefined, { game: { scores, phase: 'terminee' } })
+    await appendWith(
+      c,
+      code,
+      {
+        type: 'partie_terminee',
+        scores,
+        winner: scores[0] > scores[1] ? 0 : 1,
+        deals: game.dealNumber,
+      },
+      undefined,
+      { game: { scores, phase: 'terminee' } },
+    )
     await archiveGame(code, tableDe(game), c)
   }
 }
 
-export const watchEvents = (
-  code: string, cb: (events: GameEvent[]) => void, c: Client = mainClient,
-) =>
-  onSnapshot(query(eventsRef(code, c), orderBy('seq')), (s) =>
-    cb(s.docs.map((d) => d.data() as GameEvent)),
-  )
+export const watchEvents = (code: string, cb: (events: GameEvent[]) => void, c: Client = mainClient) =>
+  onSnapshot(query(eventsRef(code, c), orderBy('seq')), (s) => cb(s.docs.map((d) => d.data() as GameEvent)))
 
 /**
  * Met la partie en pause, ou la reprend. N'importe quel joueur peut faire l'un ou
  * l'autre, pendant les enchères et le jeu : c'est là que le temps de réflexion court.
  */
-export async function setPause(code: string, player: PlayerId, enPause: boolean, c: Client = mainClient): Promise<void> {
+export async function setPause(
+  code: string,
+  player: PlayerId,
+  enPause: boolean,
+  c: Client = mainClient,
+): Promise<void> {
   await signIn(c)
   await appendWith(c, code, { type: enPause ? 'pause' : 'reprise', player }, undefined, {
     game: { pause: enPause ? { par: player, depuis: Date.now() } : null },
@@ -852,11 +894,7 @@ export async function setOptions(
 }
 
 /** Change le placement avant la première donne : au hasard, ou choisi. */
-export async function setSeating(
-  code: string,
-  seating: Seating,
-  c: Client = mainClient,
-): Promise<void> {
+export async function setSeating(code: string, seating: Seating, c: Client = mainClient): Promise<void> {
   const snap = await getDoc(gameRef(code, c))
   if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
   if ((snap.data() as GameDoc).dealNumber > 0) {
@@ -872,11 +910,7 @@ export async function setSeating(
  * « terminée » : c'est à ce moment seulement qu'on peut calculer la force des
  * mains, et donc le panache.
  */
-export async function archiveGame(
-  code: string,
-  seating: Seating,
-  c: Client = mainClient,
-): Promise<Archive> {
+export async function archiveGame(code: string, seating: Seating, c: Client = mainClient): Promise<Archive> {
   const events = await readJournal(code, c)
   const snap = await getDocs(dealsRef(code, c))
   const mains: Record<number, Record<string, Card[]>> = {}
@@ -887,7 +921,9 @@ export async function archiveGame(
   // permet de sortir ces parties des statistiques, ou de les y remettre au filtre.
   const partie = (await getDoc(gameRef(code, c))).data() as GameDoc | undefined
   const bots = partie
-    ? (Object.keys(partie.seats) as PlayerId[]).filter((p) => partie.seats[p]?.bot || partie.seats[p]?.aideBot)
+    ? (Object.keys(partie.seats) as PlayerId[]).filter(
+        (p) => partie.seats[p]?.bot || partie.seats[p]?.aideBot,
+      )
     : []
   const archive: Archive = {
     ...buildArchive(code, events, seating, mains, bots),

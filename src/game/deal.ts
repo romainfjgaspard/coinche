@@ -13,11 +13,7 @@ export function dealingOrder(dealer: PlayerId, seating: Seating): PlayerId[] {
   return [1, 2, 3, 4].map((i) => playerAtSeat(seatOf(dealer, seating) + i, seating))
 }
 
-export function dealHands(
-  pile: Card[],
-  dealer: PlayerId,
-  seating: Seating,
-): Record<PlayerId, Card[]> {
+export function dealHands(pile: Card[], dealer: PlayerId, seating: Seating): Record<PlayerId, Card[]> {
   if (pile.length !== 32) throw new Error(`Paquet de ${pile.length} cartes, 32 attendues`)
   const order = dealingOrder(dealer, seating)
   const hands = Object.fromEntries(order.map((p) => [p, [] as Card[]])) as Record<PlayerId, Card[]>

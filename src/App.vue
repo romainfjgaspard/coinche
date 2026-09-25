@@ -29,7 +29,11 @@ const screen = computed<Screen>(() => {
 
 <template>
   <StatsScreen v-if="screen === 'join' && statsAccueil" global-seulement @fermer="statsAccueil = false" />
-  <RulesScreen v-else-if="screen === 'join' && reglesAccueil" retour="Accueil" @fermer="reglesAccueil = false" />
+  <RulesScreen
+    v-else-if="screen === 'join' && reglesAccueil"
+    retour="Accueil"
+    @fermer="reglesAccueil = false"
+  />
   <JoinScreen v-else-if="screen === 'join'" @stats="statsAccueil = true" @regles="reglesAccueil = true" />
   <LobbyScreen v-else-if="screen === 'lobby'" />
   <GameScreen v-else-if="screen === 'table'" />

@@ -2,8 +2,17 @@ import { describe, expect, it } from 'vitest'
 import type { GameEvent } from '../events'
 import { DEFAULT_SEATING } from '../players'
 import {
-  ajouterChrono, cascade, moyenne, reflexions,
-  bilan, deals, dealsPlayed, enchereMoyenne, momentum, runningScores, tallies,
+  ajouterChrono,
+  cascade,
+  moyenne,
+  reflexions,
+  bilan,
+  deals,
+  dealsPlayed,
+  enchereMoyenne,
+  momentum,
+  runningScores,
+  tallies,
 } from '../stats'
 
 const ev = (type: string, extra: Record<string, unknown> = {}): GameEvent =>
@@ -24,19 +33,31 @@ function donne(opts: {
 }): GameEvent[] {
   const out: GameEvent[] = [ev('donne_commencee', { dealNumber: opts.n, dealer: opts.dealer ?? 'benel' })]
   if (opts.taker) {
-    out.push(ev('contrat_fixe', {
-      taker: opts.taker, value: opts.value ?? 90, trump: 'h',
-      multiplier: 1, capot: false, generale: false,
-    }))
+    out.push(
+      ev('contrat_fixe', {
+        taker: opts.taker,
+        value: opts.value ?? 90,
+        trump: 'h',
+        multiplier: 1,
+        capot: false,
+        generale: false,
+      }),
+    )
   }
   for (const c of opts.coincheurs ?? []) out.push(ev('coinche', { player: c }))
   if (opts.status) {
-    out.push(ev('donne_terminee', {
-      dealNumber: opts.n, status: opts.status,
-      cardPoints: [81, 81], compared: [81, 81], scores: opts.scores ?? [0, 0],
-      beloteDeclaredBy: opts.belote ?? null, beloteForgottenBy: opts.oubliee ?? null,
-      etoile: opts.etoile ?? null,
-    }))
+    out.push(
+      ev('donne_terminee', {
+        dealNumber: opts.n,
+        status: opts.status,
+        cardPoints: [81, 81],
+        compared: [81, 81],
+        scores: opts.scores ?? [0, 0],
+        beloteDeclaredBy: opts.belote ?? null,
+        beloteForgottenBy: opts.oubliee ?? null,
+        etoile: opts.etoile ?? null,
+      }),
+    )
   }
   return out
 }
@@ -95,7 +116,7 @@ describe('momentum', () => {
 describe('compte par joueur', () => {
   const t = tallies(deals(PARTIE), DEFAULT_SEATING)
 
-  it('sépare ce qu\'un joueur rapporte de ce qu\'il offre', () => {
+  it("sépare ce qu'un joueur rapporte de ce qu'il offre", () => {
     const viv = t.get('viv')!
     expect(viv).toMatchObject({ prises: 2, reussies: 2, chutes: 0, marques: 210, offerts: 0 })
     expect(bilan(viv)).toBe(210)
@@ -135,7 +156,11 @@ describe('momentum en cascade', () => {
       ],
       0,
     )
-    expect(c.map((b) => [b.avant, b.apres])).toEqual([[0, 90], [90, -70], [-70, 30]])
+    expect(c.map((b) => [b.avant, b.apres])).toEqual([
+      [0, 90],
+      [90, -70],
+      [-70, 30],
+    ])
     expect(c.map((b) => b.nous)).toEqual([true, false, true])
   })
 
@@ -156,7 +181,10 @@ describe('temps de réflexion', () => {
 
   it('ne compte que les temps mesurés, annonces et cartes à part', () => {
     const r = reflexions(evs)
-    expect(r.get('viv')).toEqual({ encheres: { total: 4000, n: 1, max: 4000 }, cartes: { total: 4000, n: 2, max: 3000 } })
+    expect(r.get('viv')).toEqual({
+      encheres: { total: 4000, n: 1, max: 4000 },
+      cartes: { total: 4000, n: 2, max: 3000 },
+    })
     expect(r.has('roux')).toBe(false)
     expect(r.has('benel')).toBe(false)
     expect(moyenne(r.get('viv')!.cartes)).toBe(2000)

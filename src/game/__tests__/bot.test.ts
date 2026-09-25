@@ -15,10 +15,9 @@ const vue = (p: Partial<BotView> & Pick<BotView, 'me' | 'hand'>): BotView => ({
   ...p,
 })
 
-const pose = (paires: Array<[PlayerId, Card]>) =>
-  paires.map(([player, card]) => ({ player, card }))
+const pose = (paires: Array<[PlayerId, Card]>) => paires.map(([player, card]) => ({ player, card }))
 
-describe('le bot ne choisit que dans ce qu\'on lui donne', () => {
+describe("le bot ne choisit que dans ce qu'on lui donne", () => {
   it('rend toujours une carte de la liste légale', () => {
     const v = vue({ me: 'viv', hand: ['As', '10s', '8s', '7h'] })
     for (const level of ['simple', 'compteur'] as const) {
@@ -26,7 +25,7 @@ describe('le bot ne choisit que dans ce qu\'on lui donne', () => {
     }
   })
 
-  it('refuse de jouer quand rien n\'est jouable', () => {
+  it("refuse de jouer quand rien n'est jouable", () => {
     expect(() => chooseCard(vue({ me: 'viv', hand: [] }), [])).toThrow()
   })
 })
@@ -37,7 +36,7 @@ describe('entame', () => {
     expect(chooseCard(v, ['Jh', '7h', 'As'])).toBe('Jh')
   })
 
-  it('la défense sort sa carte maîtresse plutôt qu\'un atout', () => {
+  it("la défense sort sa carte maîtresse plutôt qu'un atout", () => {
     const v = vue({ me: 'benel', taker: 'romain', hand: ['As', '7h', '8d'] })
     expect(chooseCard(v, ['As', '7h', '8d'])).toBe('As')
   })
@@ -54,7 +53,11 @@ describe('quand le partenaire tient le pli', () => {
     const v = vue({
       me: 'roux',
       hand: ['10s', '9s'],
-      current: pose([['romain', '7s'], ['benel', 'As'], ['viv', '8s']]),
+      current: pose([
+        ['romain', '7s'],
+        ['benel', 'As'],
+        ['viv', '8s'],
+      ]),
     })
     expect(trickMaster(v)).toBe('benel')
     expect(chooseCard(v, ['10s', '9s'])).toBe('10s')
@@ -65,19 +68,25 @@ describe('quand le partenaire tient le pli', () => {
     const v = vue({
       me: 'viv',
       hand: ['10s', '8s'],
-      current: pose([['romain', 'As'], ['benel', '7s']]),
+      current: pose([
+        ['romain', 'As'],
+        ['benel', '7s'],
+      ]),
     })
     expect(trickMaster(v)).toBe('romain')
     expect(chooseCard(v, ['10s', '8s'])).toBe('8s')
   })
 })
 
-describe('quand l\'adversaire tient le pli', () => {
+describe("quand l'adversaire tient le pli", () => {
   it('on prend avec la plus petite carte qui suffit', () => {
     const v = vue({
       me: 'viv',
       hand: ['As', '10s', '8s'],
-      current: pose([['romain', '7s'], ['benel', 'Ks']]),
+      current: pose([
+        ['romain', '7s'],
+        ['benel', 'Ks'],
+      ]),
     })
     expect(trickMaster(v)).toBe('benel')
     // le dix suffit à passer devant le roi : on garde l'as
@@ -88,7 +97,10 @@ describe('quand l\'adversaire tient le pli', () => {
     const v = vue({
       me: 'viv',
       hand: ['9s', '8s'],
-      current: pose([['romain', '7s'], ['benel', 'As']]),
+      current: pose([
+        ['romain', '7s'],
+        ['benel', 'As'],
+      ]),
     })
     expect(chooseCard(v, ['9s', '8s'])).toBe('8s')
   })
@@ -96,20 +108,25 @@ describe('quand l\'adversaire tient le pli', () => {
 
 describe('compter les cartes passées', () => {
   const tombe = (cartes: Card[]) => [
-    { leader: 'romain' as PlayerId, plays: pose(PLAYER_IDS.map((p, i) => [p, cartes[i]])), winner: 'romain' as PlayerId, points: 0 },
+    {
+      leader: 'romain' as PlayerId,
+      plays: pose(PLAYER_IDS.map((p, i) => [p, cartes[i]])),
+      winner: 'romain' as PlayerId,
+      points: 0,
+    },
   ]
 
-  it('en simple, seul l\'as est considéré comme maître', () => {
+  it("en simple, seul l'as est considéré comme maître", () => {
     const v = vue({ me: 'viv', hand: ['10s'], completed: tombe(['As', '7d', '8d', '9d']) })
     expect(isMaster('10s', v, 'simple')).toBe(false)
   })
 
-  it('en compteur, le dix devient maître une fois l\'as tombé', () => {
+  it("en compteur, le dix devient maître une fois l'as tombé", () => {
     const v = vue({ me: 'viv', hand: ['10s'], completed: tombe(['As', '7d', '8d', '9d']) })
     expect(isMaster('10s', v, 'compteur')).toBe(true)
   })
 
-  it('mais pas tant que l\'as est dehors', () => {
+  it("mais pas tant que l'as est dehors", () => {
     const v = vue({ me: 'viv', hand: ['10s'], completed: tombe(['7s', '7d', '8d', '9d']) })
     expect(isMaster('10s', v, 'compteur')).toBe(false)
   })
@@ -132,7 +149,7 @@ describe('enchère', () => {
     expect(chooseBid(main, 90, true)).toBeNull()
   })
 
-  it('ne surenchérit pas en dessous de l\'enchère en cours', () => {
+  it("ne surenchérit pas en dessous de l'enchère en cours", () => {
     const main: Card[] = ['Jh', '9h', '7h', '8h', 'As', '7d', '8d', '7c']
     expect(chooseBid(main, 160, false)).toBeNull()
   })
@@ -141,11 +158,9 @@ describe('enchère', () => {
 describe('quatre bots jouent une donne entière', () => {
   it('32 coups légaux, huit plis, aucune carte jouée deux fois', () => {
     let graine = 7
-    const rnd = () => ((graine = (graine * 1103515245 + 12345) % 2147483648) / 2147483648)
+    const rnd = () => (graine = (graine * 1103515245 + 12345) % 2147483648) / 2147483648
     const pile = shuffle([...DECK], rnd)
-    const mains = new Map<PlayerId, Card[]>(
-      PLAYER_IDS.map((p, i) => [p, pile.slice(i * 8, i * 8 + 8)]),
-    )
+    const mains = new Map<PlayerId, Card[]>(PLAYER_IDS.map((p, i) => [p, pile.slice(i * 8, i * 8 + 8)]))
 
     let state = newPlay('h', 'romain', DEFAULT_SEATING)
     const jouees: Card[] = []
@@ -156,8 +171,13 @@ describe('quatre bots jouent une donne entière', () => {
       const jouables = playableFor(state, joueur, main)
       const carte = chooseCard(
         {
-          me: joueur, seating: DEFAULT_SEATING, hand: main, trump: 'h',
-          taker: 'romain', current: state.current, completed: state.completed,
+          me: joueur,
+          seating: DEFAULT_SEATING,
+          hand: main,
+          trump: 'h',
+          taker: 'romain',
+          current: state.current,
+          completed: state.completed,
         },
         jouables,
         i % 2 === 0 ? 'simple' : 'compteur',

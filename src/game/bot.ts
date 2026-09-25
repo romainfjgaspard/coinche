@@ -14,7 +14,17 @@
  *   n'est pas de la triche, juste un joueur attentif.
  */
 import {
-  type Atout, type Card, DECK, RANKS, SUITS, type Suit, isTrump, rankOf, strength, suitOf, value,
+  type Atout,
+  type Card,
+  DECK,
+  RANKS,
+  SUITS,
+  type Suit,
+  isTrump,
+  rankOf,
+  strength,
+  suitOf,
+  value,
 } from './cards'
 import { forceMain } from './force'
 import { type PlayerId, type Seating, partnerOf, seatOf, teamOfPlayer } from './players'
@@ -41,15 +51,11 @@ export interface BotView {
 
 /** La carte la moins chère à lâcher : d'abord peu de points, puis faible. */
 const cheapest = (cards: Card[], trump: Atout): Card =>
-  [...cards].sort(
-    (a, b) => value(a, trump) - value(b, trump) || strength(a, trump) - strength(b, trump),
-  )[0]
+  [...cards].sort((a, b) => value(a, trump) - value(b, trump) || strength(a, trump) - strength(b, trump))[0]
 
 /** La carte qui rapporte le plus : d'abord beaucoup de points, puis forte. */
 const richest = (cards: Card[], trump: Atout): Card =>
-  [...cards].sort(
-    (a, b) => value(b, trump) - value(a, trump) || strength(b, trump) - strength(a, trump),
-  )[0]
+  [...cards].sort((a, b) => value(b, trump) - value(a, trump) || strength(b, trump) - strength(a, trump))[0]
 
 const asPlayed = (view: BotView): PlayedCard[] =>
   view.current.map((p) => ({ seat: seatOf(p.player, view.seating), card: p.card }))

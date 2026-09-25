@@ -50,11 +50,15 @@ const ALL_VALUES = [80, 90, 100, 110, 120, 130, 140, 150, 160, 170]
 
 const best = computed(() => {
   const entries = session.bidding?.entries ?? []
-  return [...entries].reverse().find((e) => e.kind === 'contrat' || e.kind === 'capot' || e.kind === 'generale')
+  return [...entries]
+    .reverse()
+    .find((e) => e.kind === 'contrat' || e.kind === 'capot' || e.kind === 'generale')
 })
 
 const history = computed(() =>
-  currentDeal(session.events).filter((e) => e.type === 'enchere' || e.type === 'coinche' || e.type === 'surcoinche'),
+  currentDeal(session.events).filter(
+    (e) => e.type === 'enchere' || e.type === 'coinche' || e.type === 'surcoinche',
+  ),
 )
 
 /** Ordre de parole de la donne : c'est l'ordre des colonnes de l'historique. */
@@ -79,9 +83,7 @@ const rounds = computed(() => {
   }
   return rows
 })
-const coinches = computed(() =>
-  history.value.filter((e) => e.type === 'coinche' || e.type === 'surcoinche'),
-)
+const coinches = computed(() => history.value.filter((e) => e.type === 'coinche' || e.type === 'surcoinche'))
 
 const coinched = computed(() => (session.bidding?.entries ?? []).some((e) => e.kind === 'coinche'))
 const capotOpen = computed(() => Boolean(session.bidding && canBidCapot(session.bidding)))
@@ -96,16 +98,13 @@ const ready = computed(() => {
 })
 
 /** Ce que dit le bouton : l'annonce exacte, pour qu'on sache ce qu'on engage. */
-const levelLabel = (l: Level): string =>
-  l === 'capot' ? 'Capot' : l === 'generale' ? 'Générale' : String(l)
+const levelLabel = (l: Level): string => (l === 'capot' ? 'Capot' : l === 'generale' ? 'Générale' : String(l))
 const declarationLabel = (d: Declaration): string =>
   d === 'sa' ? 'sans-atout' : d === 'ta' ? 'tout-atout' : SUIT_GLYPH[d]
 
 /** Une seule chaîne : un espace en tête d'une balise imbriquée sautait au rendu. */
 const announceLabel = computed(() =>
-  ready.value
-    ? `Annoncer ${levelLabel(level.value!)} ${declarationLabel(declaration.value!)}`
-    : 'Annoncer',
+  ready.value ? `Annoncer ${levelLabel(level.value!)} ${declarationLabel(declaration.value!)}` : 'Annoncer',
 )
 
 /** Ce qui manque encore, dit en clair plutôt qu'un bouton grisé muet. */
@@ -117,7 +116,7 @@ const missing = computed(() => {
       : 'Choisis un palier, un capot ou une générale.'
   }
   if (declaration.value === null) return 'Choisis une couleur.'
-  if (!ready.value) return 'Sans-atout et tout-atout ne se jouent qu\'en capot ou en générale.'
+  if (!ready.value) return "Sans-atout et tout-atout ne se jouent qu'en capot ou en générale."
   return ''
 })
 
@@ -169,7 +168,11 @@ function label(entry: BiddingEntry): string {
   }
 }
 const suitOfEntry = (entry: BiddingEntry): Declaration | null =>
-  entry.kind === 'contrat' ? entry.suit : entry.kind === 'capot' || entry.kind === 'generale' ? entry.declaration : null
+  entry.kind === 'contrat'
+    ? entry.suit
+    : entry.kind === 'capot' || entry.kind === 'generale'
+      ? entry.declaration
+      : null
 
 /** « Viv a annoncé 90 ♠ », « Viv a annoncé une générale sans-atout ». */
 const bestText = computed(() => {
@@ -196,179 +199,217 @@ const bestText = computed(() => {
     :class="grand ? 'absolute z-40 -translate-x-1/2' : 'absolute inset-x-0 bottom-0 z-40'"
     :style="grand ? { left: '50%', top: `${L.tapis.y + L.rim + Math.round(22 * L.u)}px` } : undefined"
   >
-  <div
-    ref="panel"
-    class="bg-felt-dark px-5 pb-7 pt-5 shadow-[0_-8px_32px_rgba(0,0,0,.45)]"
-    :class="grand ? 'w-[480px] rounded-2xl border border-white/10 pb-5' : 'rounded-t-3xl'"
-    :style="grand ? { zoom } : undefined"
-  >
-    <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20 lg:hidden"></div>
+    <div
+      ref="panel"
+      class="bg-felt-dark px-5 pb-7 pt-5 shadow-[0_-8px_32px_rgba(0,0,0,.45)]"
+      :class="grand ? 'w-[480px] rounded-2xl border border-white/10 pb-5' : 'rounded-t-3xl'"
+      :style="grand ? { zoom } : undefined"
+    >
+      <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20 lg:hidden"></div>
 
-    <!--
+      <!--
       Sur téléphone le panneau couvre la main : on la remet sous les yeux, en grand et
       coupée par le bas comme la main sur la table — on n'a besoin que des index.
     -->
-    <div class="relative mb-4 overflow-hidden lg:hidden" :style="{ height: `${mainEncheres.hauteur}px` }">
-      <div
-        v-for="(card, i) in session.sortedHand"
-        :key="card"
-        class="absolute top-0"
-        :style="{ left: `${mainEncheres.x0 + i * mainEncheres.pas}px` }"
-      >
-        <PlayingCard :card="card" :width="mainEncheres.carte" />
+      <div class="relative mb-4 overflow-hidden lg:hidden" :style="{ height: `${mainEncheres.hauteur}px` }">
+        <div
+          v-for="(card, i) in session.sortedHand"
+          :key="card"
+          class="absolute top-0"
+          :style="{ left: `${mainEncheres.x0 + i * mainEncheres.pas}px` }"
+        >
+          <PlayingCard :card="card" :width="mainEncheres.carte" />
+        </div>
       </div>
-    </div>
 
-    <!--
+      <!--
       Qui a dit quoi : une colonne par joueur, dans l'ordre de parole. Sur PC, l'historique
       a sa propre colonne à droite du tapis (BiddingHistory) : la fenêtre n'en garde rien.
     -->
-    <div v-if="history.length && !grand" class="mb-4">
-      <div class="grid grid-cols-4 gap-x-2 border-b border-white/10 pb-1.5">
-        <span
-          v-for="p in speakers"
-          :key="p"
-          class="truncate text-[15px] font-semibold"
-          :class="p === session.playerId ? 'text-gold' : 'text-mist'"
-        >{{ nomDe(p) }}</span>
+      <div v-if="history.length && !grand" class="mb-4">
+        <div class="grid grid-cols-4 gap-x-2 border-b border-white/10 pb-1.5">
+          <span
+            v-for="p in speakers"
+            :key="p"
+            class="truncate text-[15px] font-semibold"
+            :class="p === session.playerId ? 'text-gold' : 'text-mist'"
+            >{{ nomDe(p) }}</span
+          >
+        </div>
+        <div
+          v-for="(row, r) in rounds"
+          :key="r"
+          class="grid grid-cols-4 gap-x-2 border-b border-white/5 py-1.5 last:border-0"
+        >
+          <span v-for="p in speakers" :key="p" class="flex h-7 items-center gap-1.5 text-[17px]">
+            <template v-if="row[p]">
+              <span :class="row[p]!.kind === 'passe' ? 'text-sage' : 'font-semibold text-ivory'">{{
+                label(row[p]!)
+              }}</span>
+              <span
+                v-if="suitOfEntry(row[p]!)"
+                class="flex h-6 min-w-6 items-center justify-center rounded-full bg-ivory px-1 text-[15px] leading-none font-bold"
+                :class="['h', 'd'].includes(suitOfEntry(row[p]!)!) ? 'text-red-card' : 'text-felt-dark'"
+                >{{
+                  ['sa', 'ta'].includes(suitOfEntry(row[p]!)!)
+                    ? suitOfEntry(row[p]!)!.toUpperCase()
+                    : SUIT_GLYPH[suitOfEntry(row[p]!) as Suit]
+                }}</span
+              >
+            </template>
+          </span>
+        </div>
+        <p
+          v-for="(e, i) in coinches"
+          :key="i"
+          class="mt-2 rounded-lg bg-red-card/20 px-3 py-1.5 text-[14px] font-semibold text-[#f0a293]"
+        >
+          {{ nomDe(e.player) }} {{ e.type === 'coinche' ? 'coinche ! ×2' : 'surcoinche ! ×4' }}
+        </p>
       </div>
-      <div
-        v-for="(row, r) in rounds"
-        :key="r"
-        class="grid grid-cols-4 gap-x-2 border-b border-white/5 py-1.5 last:border-0"
-      >
-        <span v-for="p in speakers" :key="p" class="flex h-7 items-center gap-1.5 text-[17px]">
-          <template v-if="row[p]">
-            <span :class="row[p]!.kind === 'passe' ? 'text-sage' : 'font-semibold text-ivory'">{{ label(row[p]!) }}</span>
-            <span
-              v-if="suitOfEntry(row[p]!)"
-              class="flex h-6 min-w-6 items-center justify-center rounded-full bg-ivory px-1 text-[15px] leading-none font-bold"
-              :class="['h', 'd'].includes(suitOfEntry(row[p]!)!) ? 'text-red-card' : 'text-felt-dark'"
-            >{{ ['sa', 'ta'].includes(suitOfEntry(row[p]!)!) ? suitOfEntry(row[p]!)!.toUpperCase() : SUIT_GLYPH[suitOfEntry(row[p]!) as Suit] }}</span>
-          </template>
-        </span>
-      </div>
-      <p
-        v-for="(e, i) in coinches"
-        :key="i"
-        class="mt-2 rounded-lg bg-red-card/20 px-3 py-1.5 text-[14px] font-semibold text-[#f0a293]"
-      >{{ nomDe(e.player) }} {{ e.type === 'coinche' ? 'coinche ! ×2' : 'surcoinche ! ×4' }}</p>
-    </div>
 
-    <template v-if="session.myBidTurn && coinched">
-      <!-- CO-5 : coinché, le preneur ne peut plus que laisser jouer ou surcoincher -->
-      <h2 class="text-[17px] font-semibold">Tu es coinché</h2>
-      <p class="mb-4 text-[13px] text-sage">Plus personne ne surenchérit : laisse jouer à ×2, ou surcoinche à ×4.</p>
-      <button
-        type="button"
-        class="h-12 w-full cursor-pointer rounded-[10px] border border-white/20 text-[15px] font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
-        @click="session.playerId && session.bid({ kind: 'passe', player: session.playerId })"
-      >Passe</button>
-    </template>
+      <template v-if="session.myBidTurn && coinched">
+        <!-- CO-5 : coinché, le preneur ne peut plus que laisser jouer ou surcoincher -->
+        <h2 class="text-[17px] font-semibold">Tu es coinché</h2>
+        <p class="mb-4 text-[13px] text-sage">
+          Plus personne ne surenchérit : laisse jouer à ×2, ou surcoinche à ×4.
+        </p>
+        <button
+          type="button"
+          class="h-12 w-full cursor-pointer rounded-[10px] border border-white/20 text-[15px] font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
+          @click="session.playerId && session.bid({ kind: 'passe', player: session.playerId })"
+        >
+          Passe
+        </button>
+      </template>
 
-    <template v-else-if="session.myBidTurn">
-      <h2 class="text-[17px] font-semibold">Ton enchère</h2>
-      <p class="mb-4 text-[13px] text-sage">
-        <span v-if="bestText">{{ bestText }} — il faut faire mieux</span>
-        <span v-else>Personne n'a encore annoncé</span>
+      <template v-else-if="session.myBidTurn">
+        <h2 class="text-[17px] font-semibold">Ton enchère</h2>
+        <p class="mb-4 text-[13px] text-sage">
+          <span v-if="bestText">{{ bestText }} — il faut faire mieux</span>
+          <span v-else>Personne n'a encore annoncé</span>
+        </p>
+
+        <div class="grid grid-cols-5 gap-2">
+          <button
+            v-for="v in ALL_VALUES"
+            :key="v"
+            type="button"
+            :disabled="!session.bidValues.includes(v)"
+            class="h-11 cursor-pointer rounded-[10px] border text-[15px] font-bold transition disabled:cursor-default disabled:opacity-30"
+            :class="
+              level === v
+                ? 'border-gold bg-gold text-felt'
+                : 'border-white/15 bg-white/5 text-ivory enabled:hover:border-white/40 enabled:hover:bg-white/12'
+            "
+            @click="pickLevel(v)"
+          >
+            {{ v }}
+          </button>
+        </div>
+
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <button
+            v-for="l in ['capot', 'generale'] as const"
+            :key="l"
+            type="button"
+            :disabled="l === 'capot' ? !capotOpen : !generaleOpen"
+            class="h-11 cursor-pointer rounded-[10px] border text-sm font-bold transition disabled:cursor-default disabled:opacity-30"
+            :class="
+              level === l
+                ? 'border-gold bg-gold text-felt'
+                : 'border-white/15 bg-white/5 text-ivory enabled:hover:border-white/40 enabled:hover:bg-white/12'
+            "
+            @click="pickLevel(l)"
+          >
+            {{ levelLabel(l) }} · 250
+          </button>
+        </div>
+
+        <div class="mt-3.5 grid grid-cols-6 gap-2">
+          <button
+            v-for="s in SUITS"
+            :key="s"
+            type="button"
+            :aria-label="`Atout ${declarationLabel(s)}`"
+            class="h-12 cursor-pointer rounded-[10px] border-2 bg-ivory text-[26px] leading-none transition hover:brightness-95"
+            :class="[
+              declaration === s
+                ? 'border-gold ring-2 ring-gold ring-offset-2 ring-offset-felt-dark'
+                : 'border-transparent',
+              isRed(s) ? 'text-red-card' : 'text-felt-dark',
+            ]"
+            @click="pickDeclaration(s)"
+          >
+            {{ SUIT_GLYPH[s] }}
+          </button>
+          <button
+            v-for="d in ['sa', 'ta'] as const"
+            :key="d"
+            type="button"
+            :title="d === 'sa' ? 'Sans-atout (capot ou générale)' : 'Tout-atout (capot ou générale)'"
+            class="h-12 cursor-pointer rounded-[10px] border-2 text-[15px] font-bold transition"
+            :class="
+              declaration === d
+                ? 'border-gold bg-gold text-felt'
+                : 'border-white/15 bg-white/5 text-ivory hover:border-white/40 hover:bg-white/12'
+            "
+            @click="pickDeclaration(d)"
+          >
+            {{ d.toUpperCase() }}
+          </button>
+        </div>
+
+        <p class="mt-2.5 h-4 text-xs" :class="ready ? 'text-transparent' : 'text-sage'">{{ missing }}</p>
+
+        <div class="mt-3 flex gap-2">
+          <button
+            type="button"
+            class="h-12 grow cursor-pointer rounded-[10px] border border-white/20 text-[15px] font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
+            @click="session.playerId && session.bid({ kind: 'passe', player: session.playerId })"
+          >
+            Passe
+          </button>
+          <button
+            type="button"
+            :disabled="!ready"
+            class="h-12 grow-[1.4] cursor-pointer rounded-[10px] bg-gold text-[15px] font-bold text-felt transition enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40"
+            @click="announce"
+          >
+            {{ announceLabel }}
+          </button>
+        </div>
+      </template>
+
+      <p v-else class="py-3 text-center text-sm text-mist">
+        <span v-if="session.toBid">{{ nomDe(session.toBid) }} réfléchit…</span>
+        <span v-else>Enchères closes</span>
       </p>
 
-      <div class="grid grid-cols-5 gap-2">
-        <button
-          v-for="v in ALL_VALUES"
-          :key="v"
-          type="button"
-          :disabled="!session.bidValues.includes(v)"
-          class="h-11 cursor-pointer rounded-[10px] border text-[15px] font-bold transition disabled:cursor-default disabled:opacity-30"
-          :class="level === v
-            ? 'border-gold bg-gold text-felt'
-            : 'border-white/15 bg-white/5 text-ivory enabled:hover:border-white/40 enabled:hover:bg-white/12'"
-          @click="pickLevel(v)"
-        >{{ v }}</button>
-      </div>
-
-      <div class="mt-2 grid grid-cols-2 gap-2">
-        <button
-          v-for="l in (['capot', 'generale'] as const)"
-          :key="l"
-          type="button"
-          :disabled="l === 'capot' ? !capotOpen : !generaleOpen"
-          class="h-11 cursor-pointer rounded-[10px] border text-sm font-bold transition disabled:cursor-default disabled:opacity-30"
-          :class="level === l
-            ? 'border-gold bg-gold text-felt'
-            : 'border-white/15 bg-white/5 text-ivory enabled:hover:border-white/40 enabled:hover:bg-white/12'"
-          @click="pickLevel(l)"
-        >{{ levelLabel(l) }} · 250</button>
-      </div>
-
-      <div class="mt-3.5 grid grid-cols-6 gap-2">
-        <button
-          v-for="s in SUITS"
-          :key="s"
-          type="button"
-          :aria-label="`Atout ${declarationLabel(s)}`"
-          class="h-12 cursor-pointer rounded-[10px] border-2 bg-ivory text-[26px] leading-none transition hover:brightness-95"
-          :class="[
-            declaration === s ? 'border-gold ring-2 ring-gold ring-offset-2 ring-offset-felt-dark' : 'border-transparent',
-            isRed(s) ? 'text-red-card' : 'text-felt-dark',
-          ]"
-          @click="pickDeclaration(s)"
-        >{{ SUIT_GLYPH[s] }}</button>
-        <button
-          v-for="d in (['sa', 'ta'] as const)"
-          :key="d"
-          type="button"
-          :title="d === 'sa' ? 'Sans-atout (capot ou générale)' : 'Tout-atout (capot ou générale)'"
-          class="h-12 cursor-pointer rounded-[10px] border-2 text-[15px] font-bold transition"
-          :class="declaration === d
-            ? 'border-gold bg-gold text-felt'
-            : 'border-white/15 bg-white/5 text-ivory hover:border-white/40 hover:bg-white/12'"
-          @click="pickDeclaration(d)"
-        >{{ d.toUpperCase() }}</button>
-      </div>
-
-      <p class="mt-2.5 h-4 text-xs" :class="ready ? 'text-transparent' : 'text-sage'">{{ missing }}</p>
-
-      <div class="mt-3 flex gap-2">
-        <button
-          type="button"
-          class="h-12 grow cursor-pointer rounded-[10px] border border-white/20 text-[15px] font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
-          @click="session.playerId && session.bid({ kind: 'passe', player: session.playerId })"
-        >Passe</button>
-        <button
-          type="button"
-          :disabled="!ready"
-          class="h-12 grow-[1.4] cursor-pointer rounded-[10px] bg-gold text-[15px] font-bold text-felt transition enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40"
-          @click="announce"
-        >{{ announceLabel }}</button>
-      </div>
-    </template>
-
-    <p v-else class="py-3 text-center text-sm text-mist">
-      <span v-if="session.toBid">{{ nomDe(session.toBid) }} réfléchit…</span>
-      <span v-else>Enchères closes</span>
-    </p>
-
-    <!--
+      <!--
       CO-3 : la coinche se prend à la volée, sans attendre son tour. Sur PC le bouton est
       sorti du panneau (à côté de ma pastille) ; sur téléphone, le panneau est la zone
       d'action et il y reste.
     -->
-    <div v-if="!grand && (session.mayCoinche || session.maySurcoinche)" class="mt-3">
-      <button
-        v-if="session.mayCoinche"
-        type="button"
-        class="h-12 w-full cursor-pointer rounded-[10px] bg-red-card text-[15px] font-bold text-ivory transition hover:brightness-110"
-        @click="session.playerId && session.bid({ kind: 'coinche', player: session.playerId })"
-      >Coincher</button>
-      <button
-        v-else
-        type="button"
-        class="h-12 w-full cursor-pointer rounded-[10px] bg-red-card text-[15px] font-bold text-ivory transition hover:brightness-110"
-        @click="session.playerId && session.bid({ kind: 'surcoinche', player: session.playerId })"
-      >Surcoincher</button>
-      <p class="mt-2 text-center text-xs text-sage">Possible à tout moment, sans attendre son tour.</p>
+      <div v-if="!grand && (session.mayCoinche || session.maySurcoinche)" class="mt-3">
+        <button
+          v-if="session.mayCoinche"
+          type="button"
+          class="h-12 w-full cursor-pointer rounded-[10px] bg-red-card text-[15px] font-bold text-ivory transition hover:brightness-110"
+          @click="session.playerId && session.bid({ kind: 'coinche', player: session.playerId })"
+        >
+          Coincher
+        </button>
+        <button
+          v-else
+          type="button"
+          class="h-12 w-full cursor-pointer rounded-[10px] bg-red-card text-[15px] font-bold text-ivory transition hover:brightness-110"
+          @click="session.playerId && session.bid({ kind: 'surcoinche', player: session.playerId })"
+        >
+          Surcoincher
+        </button>
+        <p class="mt-2 text-center text-xs text-sage">Possible à tout moment, sans attendre son tour.</p>
+      </div>
     </div>
-  </div>
   </div>
 </template>

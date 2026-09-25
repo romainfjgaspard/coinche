@@ -46,7 +46,10 @@ for (const taille of TAILLES) {
   // quelqu'un distribue pour atteindre la table
   for (const p of [benel, ...autres]) {
     const b = p.getByRole('button', { name: /Distribuer/ })
-    if (await b.count()) { await b.click(); break }
+    if (await b.count()) {
+      await b.click()
+      break
+    }
   }
   await benel.waitForTimeout(1500)
   await benel.screenshot({ path: `${SP}/table-${taille.nom}.png` })
@@ -59,7 +62,9 @@ for (const taille of TAILLES) {
     const vue = await boite.evaluate((el) => el.clientHeight)
     let n = 0
     for (let y = 0; y < h; y += vue - 40, n++) {
-      await boite.evaluate((el, v) => { el.scrollTop = v }, y)
+      await boite.evaluate((el, v) => {
+        el.scrollTop = v
+      }, y)
       await benel.waitForTimeout(350)
       await benel.screenshot({ path: `${SP}/${prefixe}-${taille.nom}-${n}.png` })
     }

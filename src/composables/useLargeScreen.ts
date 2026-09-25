@@ -12,7 +12,9 @@ export const GRAND_ECRAN = '(min-width: 1024px)'
 export function useLargeScreen() {
   const media = window.matchMedia(GRAND_ECRAN)
   const grand = ref(media.matches)
-  const suivre = (e: MediaQueryListEvent) => { grand.value = e.matches }
+  const suivre = (e: MediaQueryListEvent) => {
+    grand.value = e.matches
+  }
   media.addEventListener('change', suivre)
   onUnmounted(() => media.removeEventListener('change', suivre))
   return grand

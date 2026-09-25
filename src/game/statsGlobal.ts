@@ -9,7 +9,14 @@ import { type PriseForce, panacheDe } from './force'
 import { PLAYER_IDS, type PlayerId, type Seating, estBotId, niveauDeBotId, teamOfPlayer } from './players'
 import { type Chrono, ajouterChrono, moyenne } from './stats'
 import {
-  type Ecarts, type Repartition, type Roles, type Temps, ajouterRepartition, ecartsVides, rolesVides, tempsVides,
+  type Ecarts,
+  type Repartition,
+  type Roles,
+  type Temps,
+  ajouterRepartition,
+  ecartsVides,
+  rolesVides,
+  tempsVides,
 } from './statsEncheres'
 
 export type Paire = [PlayerId, PlayerId]
@@ -29,7 +36,8 @@ export const clePaire = (p: Paire): string => [...p].sort().join('+')
  */
 export function joueursDe(archives: Archive[]): PlayerId[] {
   const vus = new Set<PlayerId>()
-  for (const a of [...archives].sort((x, y) => x.finishedAt - y.finishedAt)) for (const p of a.seating) vus.add(p)
+  for (const a of [...archives].sort((x, y) => x.finishedAt - y.finishedAt))
+    for (const p of a.seating) vus.add(p)
   return [...PLAYER_IDS.filter((p) => vus.has(p)), ...[...vus].filter((p) => !PLAYER_IDS.includes(p))]
 }
 
@@ -56,8 +64,18 @@ export interface DuoStats {
 }
 
 const duoVide = (paire: Paire): DuoStats => ({
-  paire, contre: [], parties: 0, gagnees: 0, donnes: 0, donnesGagnees: 0,
-  prises: 0, reussies: 0, marques: 0, offerts: 0, scoreMoyen: 0, pireScore: null,
+  paire,
+  contre: [],
+  parties: 0,
+  gagnees: 0,
+  donnes: 0,
+  donnesGagnees: 0,
+  prises: 0,
+  reussies: 0,
+  marques: 0,
+  offerts: 0,
+  scoreMoyen: 0,
+  pireScore: null,
 })
 
 /** Les deux paires d'une partie, déduites du placement. */
@@ -73,12 +91,18 @@ export function duoStats(archives: Archive[]): DuoStats[] {
 
   for (const a of archives) {
     const [paireA, paireB] = pairesDe(a)
-    const camps: [Paire, Paire, 0 | 1][] = [[paireA, paireB, 0], [paireB, paireA, 1]]
+    const camps: [Paire, Paire, 0 | 1][] = [
+      [paireA, paireB, 0],
+      [paireB, paireA, 1],
+    ]
 
     for (const [paire, contre, team] of camps) {
       const cle = clePaire(paire)
       let d = out.get(cle)
-      if (!d) { d = { ...duoVide(paire), scores: [] }; out.set(cle, d) }
+      if (!d) {
+        d = { ...duoVide(paire), scores: [] }
+        out.set(cle, d)
+      }
       if (!d.contre.some((x) => clePaire(x) === clePaire(contre))) d.contre.push(contre)
 
       d.parties += 1
@@ -143,56 +167,72 @@ export function joueurStats(archives: Archive[]): JoueurStats[] {
   // calcule ensuite pour chacun en excluant ses propres prises de la référence.
   const toutes = prisesAvecForce(archives)
 
-  return joueursDe(archives).map((joueur) => {
-    const scores: number[] = []
-    const base = {
-      joueur, parties: 0, gagnees: 0, donnes: 0, prises: 0, reussies: 0, chutes: 0,
-      marques: 0, offerts: 0, coinches: 0, coinchesGagnees: 0, belotesAnnoncees: 0, belotesOubliees: 0,
-      etoiles: 0, impasses: 0, impassesReussies: 0, impassesRatees: 0,
-    }
-    const encheres: number[] = []
-    let chronoEnchere: Chrono = { total: 0, n: 0, max: 0 }
-    let chronoCarte: Chrono = { total: 0, n: 0, max: 0 }
-    for (const a of archives) {
-      const p = a.players[joueur]
-      if (!p) continue
-      const team = teamOfPlayer(joueur, a.seating)
-      base.parties += 1
-      if (a.winner === team) base.gagnees += 1
-      base.donnes += a.deals
-      scores.push(a.scores[team])
-      base.prises += p.prises
-      base.reussies += p.reussies
-      base.chutes += p.chutes
-      base.marques += p.marques
-      base.offerts += p.offerts
-      base.coinches += p.coinches
-      base.coinchesGagnees += p.coinchesGagnees ?? 0
-      if (p.reflexion) {
-        chronoEnchere = ajouterChrono(chronoEnchere, p.reflexion.encheres)
-        chronoCarte = ajouterChrono(chronoCarte, p.reflexion.cartes)
+  return joueursDe(archives)
+    .map((joueur) => {
+      const scores: number[] = []
+      const base = {
+        joueur,
+        parties: 0,
+        gagnees: 0,
+        donnes: 0,
+        prises: 0,
+        reussies: 0,
+        chutes: 0,
+        marques: 0,
+        offerts: 0,
+        coinches: 0,
+        coinchesGagnees: 0,
+        belotesAnnoncees: 0,
+        belotesOubliees: 0,
+        etoiles: 0,
+        impasses: 0,
+        impassesReussies: 0,
+        impassesRatees: 0,
       }
-      encheres.push(...p.detail.filter((d) => !d.capot && d.value <= 170).map((d) => d.value))
-      base.belotesAnnoncees += p.belotesAnnoncees
-      base.belotesOubliees += p.belotesOubliees
-      base.etoiles += p.etoiles
-      base.impasses += p.impasses
-      base.impassesReussies += p.impassesReussies
-      base.impassesRatees += p.impassesRatees
-    }
+      const encheres: number[] = []
+      let chronoEnchere: Chrono = { total: 0, n: 0, max: 0 }
+      let chronoCarte: Chrono = { total: 0, n: 0, max: 0 }
+      for (const a of archives) {
+        const p = a.players[joueur]
+        if (!p) continue
+        const team = teamOfPlayer(joueur, a.seating)
+        base.parties += 1
+        if (a.winner === team) base.gagnees += 1
+        base.donnes += a.deals
+        scores.push(a.scores[team])
+        base.prises += p.prises
+        base.reussies += p.reussies
+        base.chutes += p.chutes
+        base.marques += p.marques
+        base.offerts += p.offerts
+        base.coinches += p.coinches
+        base.coinchesGagnees += p.coinchesGagnees ?? 0
+        if (p.reflexion) {
+          chronoEnchere = ajouterChrono(chronoEnchere, p.reflexion.encheres)
+          chronoCarte = ajouterChrono(chronoCarte, p.reflexion.cartes)
+        }
+        encheres.push(...p.detail.filter((d) => !d.capot && d.value <= 170).map((d) => d.value))
+        base.belotesAnnoncees += p.belotesAnnoncees
+        base.belotesOubliees += p.belotesOubliees
+        base.etoiles += p.etoiles
+        base.impasses += p.impasses
+        base.impassesReussies += p.impassesReussies
+        base.impassesRatees += p.impassesRatees
+      }
 
-    return {
-      ...base,
-      scoreMoyen: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
-      pireScore: scores.length ? Math.min(...scores) : null,
-      panache: panacheDe(joueur, toutes),
-      enchereMoyenne: encheres.length
-        ? Math.round(encheres.reduce((s, v) => s + v, 0) / encheres.length)
-        : null,
-      tempsEnchere: moyenne(chronoEnchere),
-      tempsCarte: moyenne(chronoCarte),
-    }
-  }).sort((a, b) => b.gagnees / (b.parties || 1) - a.gagnees / (a.parties || 1))
+      return {
+        ...base,
+        scoreMoyen: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
+        pireScore: scores.length ? Math.min(...scores) : null,
+        panache: panacheDe(joueur, toutes),
+        enchereMoyenne: encheres.length
+          ? Math.round(encheres.reduce((s, v) => s + v, 0) / encheres.length)
+          : null,
+        tempsEnchere: moyenne(chronoEnchere),
+        tempsCarte: moyenne(chronoCarte),
+      }
+    })
+    .sort((a, b) => b.gagnees / (b.parties || 1) - a.gagnees / (a.parties || 1))
 }
 
 /** L'en-tête de la page : combien de parties, de donnes, de prises, et depuis quand. */
@@ -285,20 +325,42 @@ function fusionner(a: PlayerArchive, b: PlayerArchive): PlayerArchive {
     ...(a.reflexion || b.reflexion
       ? {
           reflexion: {
-            encheres: ajouterChrono(a.reflexion?.encheres ?? { total: 0, n: 0, max: 0 }, b.reflexion?.encheres ?? { total: 0, n: 0, max: 0 }),
-            cartes: ajouterChrono(a.reflexion?.cartes ?? { total: 0, n: 0, max: 0 }, b.reflexion?.cartes ?? { total: 0, n: 0, max: 0 }),
+            encheres: ajouterChrono(
+              a.reflexion?.encheres ?? { total: 0, n: 0, max: 0 },
+              b.reflexion?.encheres ?? { total: 0, n: 0, max: 0 },
+            ),
+            cartes: ajouterChrono(
+              a.reflexion?.cartes ?? { total: 0, n: 0, max: 0 },
+              b.reflexion?.cartes ?? { total: 0, n: 0, max: 0 },
+            ),
           },
         }
       : {}),
     ...(a.annonces || b.annonces ? { annonces: ajouterRepartition(a.annonces ?? {}, b.annonces ?? {}) } : {}),
     ...(a.roles || b.roles
-      ? { roles: { lanceur: somme(a.roles?.lanceur, b.roles?.lanceur), suiveur: somme(a.roles?.suiveur, b.roles?.suiveur), seul: somme(a.roles?.seul, b.roles?.seul) } }
+      ? {
+          roles: {
+            lanceur: somme(a.roles?.lanceur, b.roles?.lanceur),
+            suiveur: somme(a.roles?.suiveur, b.roles?.suiveur),
+            seul: somme(a.roles?.seul, b.roles?.seul),
+          },
+        }
       : {}),
     ...(a.ecarts || b.ecarts
-      ? { ecarts: { reussis: listes(a.ecarts?.reussis, b.ecarts?.reussis), chutes: listes(a.ecarts?.chutes, b.ecarts?.chutes) } }
+      ? {
+          ecarts: {
+            reussis: listes(a.ecarts?.reussis, b.ecarts?.reussis),
+            chutes: listes(a.ecarts?.chutes, b.ecarts?.chutes),
+          },
+        }
       : {}),
     ...(a.temps || b.temps
-      ? { temps: { encheres: listes(a.temps?.encheres, b.temps?.encheres), cartes: listes(a.temps?.cartes, b.temps?.cartes) } }
+      ? {
+          temps: {
+            encheres: listes(a.temps?.encheres, b.temps?.encheres),
+            cartes: listes(a.temps?.cartes, b.temps?.cartes),
+          },
+        }
       : {}),
   }
 }
@@ -338,7 +400,11 @@ export function rolesGlobaux(archives: Archive[]): Map<PlayerId, Roles> {
     for (const [p, v] of Object.entries(a.players)) {
       if (!v.roles) continue
       const r = out.get(p) ?? rolesVides()
-      out.set(p, { lanceur: r.lanceur + v.roles.lanceur, suiveur: r.suiveur + v.roles.suiveur, seul: r.seul + v.roles.seul })
+      out.set(p, {
+        lanceur: r.lanceur + v.roles.lanceur,
+        suiveur: r.suiveur + v.roles.suiveur,
+        seul: r.seul + v.roles.seul,
+      })
     }
   }
   return out
@@ -391,7 +457,10 @@ export function soirees(archives: Archive[]): Soiree[] {
       const tri = [...parties].sort((x, y) => x.finishedAt - y.finishedAt)
       const victoires = new Map<string, { paire: Paire; gagnees: number }>()
       for (const a of tri) {
-        for (const [paire, team] of [[pairesDe(a)[0], 0], [pairesDe(a)[1], 1]] as const) {
+        for (const [paire, team] of [
+          [pairesDe(a)[0], 0],
+          [pairesDe(a)[1], 1],
+        ] as const) {
           const k = clePaire(paire)
           const v = victoires.get(k) ?? { paire, gagnees: 0 }
           if (a.winner === team) v.gagnees += 1

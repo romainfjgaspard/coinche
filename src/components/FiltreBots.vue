@@ -15,13 +15,17 @@ const puce = (actif: boolean): string =>
       :class="puce(sansBot)"
       :aria-pressed="sansBot"
       @click="sansBot = !sansBot"
-    ><span>{{ sansBot ? '✓' : '○' }}</span> sans bot · {{ nbSansBot }}</button>
+    >
+      <span>{{ sansBot ? '✓' : '○' }}</span> sans bot · {{ nbSansBot }}
+    </button>
     <button
       type="button"
       class="flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition"
       :class="puce(avecBot)"
       :aria-pressed="avecBot"
       @click="avecBot = !avecBot"
-    ><span>{{ avecBot ? '✓' : '○' }}</span> avec bot · {{ nbAvecBot }}</button>
+    >
+      <span>{{ avecBot ? '✓' : '○' }}</span> avec bot · {{ nbAvecBot }}
+    </button>
   </div>
 </template>

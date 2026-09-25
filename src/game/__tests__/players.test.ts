@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
-  DEFAULT_SEATING, PAIRINGS, PLAYER_IDS, type Seating, pairingKey, partnerOf, playerAtSeat,
-  randomSeating, seatingFromTeam, teamOfPlayer,
+  DEFAULT_SEATING,
+  PAIRINGS,
+  PLAYER_IDS,
+  type Seating,
+  pairingKey,
+  partnerOf,
+  playerAtSeat,
+  randomSeating,
+  seatingFromTeam,
+  teamOfPlayer,
 } from '../players'
 
 describe('placement autour de la table', () => {
@@ -30,12 +38,12 @@ describe('placement autour de la table', () => {
 })
 
 describe('appariements', () => {
-  it('il n\'existe que trois duos à quatre joueurs', () => {
+  it("il n'existe que trois duos à quatre joueurs", () => {
     expect(PAIRINGS).toHaveLength(3)
     expect(new Set(PAIRINGS.map(pairingKey)).size).toBe(3)
   })
 
-  it('la clé d\'appariement ne dépend ni de l\'ordre ni du siège', () => {
+  it("la clé d'appariement ne dépend ni de l'ordre ni du siège", () => {
     expect(pairingKey(['romain', 'benel', 'viv', 'roux'])).toBe(
       pairingKey(['viv', 'roux', 'romain', 'benel']),
     )
@@ -75,7 +83,7 @@ describe('bots sans nom', () => {
     expect(niveauDeBotId('bot-simple-1')).toBe('simple')
   })
 
-  it('s\'affichent « Bot », « Bot ★ », puis numérotés', async () => {
+  it("s'affichent « Bot », « Bot ★ », puis numérotés", async () => {
     const { nomDe } = await import('../../stores/roster')
     expect(nomDe('bot-simple-1')).toBe('Bot')
     expect(nomDe('bot-simple-2')).toBe('Bot 2')
