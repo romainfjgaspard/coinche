@@ -12,6 +12,16 @@ import StatsGlobalView from './StatsGlobalView.vue'
 import StatsPartiePc from './StatsPartiePc.vue'
 import StatsGlobalPc from './StatsGlobalPc.vue'
 import { resumeGlobal } from '../game/statsGlobal'
+import { partnerOf, playerAtSeat, seatOf } from '../game/players'
+import { ecartsAnnonce, repartitionAnnonces, rolesPrise, tempsParJoueur } from '../game/statsEncheres'
+import { couleursPartie } from '../composables/couleursJoueurs'
+import { useFiltreArchives } from '../composables/useFiltreArchives'
+import FiltreBots from './FiltreBots.vue'
+import SousOnglets from './SousOnglets.vue'
+import StatsEncheres from './StatsEncheres.vue'
+import StatsEcarts from './StatsEcarts.vue'
+import StatsTemps from './StatsTemps.vue'
+import StatsDonnes from './StatsDonnes.vue'
 import { useSession } from '../stores/session'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableLayout } from '../composables/useTableLayout'
@@ -29,11 +39,37 @@ const onglet = ref<'partie' | 'global'>(props.globalSeulement ? 'global' : 'part
  * choix « avec ou sans bots » s'y trouve. Rechargées à chaque ouverture.
  */
 onMounted(() => { if (grand.value) void session.loadArchives() })
-const avecBots = ref(false)
-const partiesAvecBot = computed(() => session.archives.filter((a) => (a.bots ?? []).length > 0).length)
-const archives = computed(() =>
-  avecBots.value ? session.archives : session.archives.filter((a) => (a.bots ?? []).length === 0),
-)
+const { archives } = useFiltreArchives()
+
+/** Les sous-onglets de la partie en cours : une page par thème. */
+const SOUS_ONGLETS_PARTIE = [
+  { id: 'score', label: 'Score' },
+  { id: 'encheres', label: 'Enchères' },
+  { id: 'jeu', label: 'Jeu' },
+  { id: 'donnes', label: 'Donnes' },
+] as const
+const vuePartie = ref<string>('score')
+const SOUS_ONGLETS_GLOBAL = [
+  { id: 'duos', label: 'Duos' },
+  { id: 'joueurs', label: 'Joueurs' },
+  { id: 'encheres', label: 'Enchères' },
+  { id: 'temps', label: 'Temps' },
+  { id: 'parties', label: 'Parties' },
+] as const
+const vueGlobale = ref<string>('duos')
+
+/** Moi, mon partenaire, puis les deux autres : l'ordre et les couleurs des courbes. */
+const joueursPartie = computed<PlayerId[]>(() => {
+  const s = session.seating
+  const moi = session.playerId && s.includes(session.playerId) ? session.playerId : s[0]
+  const i = seatOf(moi, s)
+  return [moi, partnerOf(moi, s), playerAtSeat(i + 1, s), playerAtSeat(i + 3, s)]
+})
+const couleursJoueursPartie = computed(() => couleursPartie(joueursPartie.value))
+const annoncesPartie = computed(() => repartitionAnnonces(session.events))
+const rolesPartie = computed(() => rolesPrise(session.events, session.seating))
+const ecartsPartie = computed(() => ecartsAnnonce(session.events, session.seating))
+const tempsPartie = computed(() => tempsParJoueur(session.events))
 const nomCamp = (team: 0 | 1): string =>
   session.seating.filter((p) => teamOfPlayer(p, session.seating) === team).map((p) => nomDe(p)).join(' & ')
 /** La phrase à droite des onglets, comme sur la maquette. */
@@ -242,15 +278,7 @@ const faits = computed(() => {
             : 'border-white/14 font-medium text-sage hover:border-white/35 hover:text-mist'"
           @click="onglet = t.id"
         >{{ t.label }}</button>
-        <button
-          v-if="onglet === 'global' && partiesAvecBot > 0"
-          type="button"
-          class="ml-3 cursor-pointer rounded-full border px-2.5 py-0.5 text-[11px]"
-          :class="avecBots ? 'border-gold bg-gold/20 text-gold' : 'border-white/15 text-sage'"
-          @click="avecBots = !avecBots"
-        >
-          {{ avecBots ? 'avec' : 'sans' }} les {{ partiesAvecBot }} partie{{ partiesAvecBot > 1 ? 's' : '' }} à bot
-        </button>
+        <FiltreBots v-if="onglet === 'global'" class="ml-3" />
         <span class="ml-auto text-xs text-dusk">{{ enTete }}</span>
         <button
           type="button"
@@ -258,14 +286,19 @@ const faits = computed(() => {
           @click="emit('fermer')"
         >{{ retour }}</button>
       </div>
-      <StatsPartiePc v-if="onglet === 'partie'" />
+      <SousOnglets
+        v-if="onglet === 'partie'"
+        v-model="vuePartie"
+        :options="SOUS_ONGLETS_PARTIE"
+        class="mt-5 max-w-xl"
+      />
+      <SousOnglets v-else v-model="vueGlobale" :options="SOUS_ONGLETS_GLOBAL" class="mt-5 max-w-2xl" />
+      <StatsPartiePc v-if="onglet === 'partie'" :vue="vuePartie" />
       <template v-else>
-        <p v-if="!archives.length" class="mt-10 text-sm text-sage">
-          {{ partiesAvecBot > 0
-            ? 'Toutes les parties terminées avaient un bot à table : affichez-les avec le bouton ci-dessus.'
-            : "Aucune partie terminée pour l'instant." }}
+        <p v-if="!archives.length && vueGlobale !== 'parties'" class="mt-10 text-sm text-sage">
+          Aucune partie terminée dans cette sélection : changez les interrupteurs ci-dessus.
         </p>
-        <StatsGlobalPc v-else :archives="archives" />
+        <StatsGlobalPc v-else :archives="archives" :vue="vueGlobale" />
       </template>
     </div>
   </div>
@@ -299,6 +332,7 @@ const faits = computed(() => {
     <template v-else>
     <div class="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-12">
     <section class="lg:col-span-2">
+    <SousOnglets v-model="vuePartie" :options="SOUS_ONGLETS_PARTIE" class="mt-3" />
 
     <div class="mt-4 flex items-end gap-3">
       <div>
@@ -316,7 +350,7 @@ const faits = computed(() => {
     </div>
     </section>
 
-    <section>
+    <section v-if="vuePartie === 'score'">
     <h2 class="mt-6 text-[13px] font-semibold">Évolution du score</h2>
     <p class="text-[11px] text-sage">Cumul après chaque donne</p>
     <!-- Un point unique ne fait pas une courbe : on attend la première donne -->
@@ -358,7 +392,7 @@ const faits = computed(() => {
     </template>
     </section>
 
-    <section>
+    <section v-if="vuePartie === 'score'">
     <h2 class="mt-6 text-[13px] font-semibold">Momentum</h2>
     <p class="mb-2 text-[11px] text-sage">
       Points gagnés par donne, en cascade : chaque barre part de la fin de la précédente —
@@ -395,7 +429,7 @@ const faits = computed(() => {
     <p v-else class="text-sm text-sage">Aucune donne terminée.</p>
     </section>
 
-    <section>
+    <section v-if="vuePartie === 'jeu'">
     <h2 class="mt-6 mb-1 text-[13px] font-semibold">Les prises</h2>
     <!-- En-têtes : sans eux, la colonne de l'enchère moyenne n'était qu'un nombre isolé -->
     <div class="flex items-center gap-2.5 border-b border-white/15 pb-1 text-[10px] tracking-wider text-dusk uppercase">
@@ -428,7 +462,7 @@ const faits = computed(() => {
     </p>
     </section>
 
-    <section>
+    <section v-if="vuePartie === 'jeu'">
     <h2 class="mt-6 mb-1 text-[13px] font-semibold">Les impasses</h2>
     <p v-if="aucuneImpasse" class="text-[13px] text-sage">
       Personne n'a encore gardé un as. Ça viendra.
@@ -455,7 +489,13 @@ const faits = computed(() => {
     </template>
     </section>
 
-    <section>
+    <template v-if="vuePartie === 'jeu'">
+      <StatsEcarts :joueurs="joueursPartie" :couleurs="couleursJoueursPartie" :ecarts="ecartsPartie" />
+    </template>
+    <template v-if="vuePartie === 'encheres'">
+      <StatsEncheres :joueurs="joueursPartie" :couleurs="couleursJoueursPartie" :annonces="annoncesPartie" :roles="rolesPartie" />
+    </template>
+    <section v-if="vuePartie === 'jeu'">
     <h2 class="mt-6 mb-1 text-[13px] font-semibold">Temps de réflexion</h2>
     <p v-if="aucunTemps" class="text-[13px] text-sage">Pas encore mesuré sur cette partie.</p>
     <template v-else>
@@ -477,7 +517,9 @@ const faits = computed(() => {
     </template>
     </section>
 
-    <section class="lg:col-span-2">
+    <StatsTemps v-if="vuePartie === 'jeu'" :joueurs="joueursPartie" :couleurs="couleursJoueursPartie" :temps="tempsPartie" />
+    <StatsDonnes v-if="vuePartie === 'donnes'" :events="session.events" :seating="session.seating" :nous="session.myTeam" />
+    <section v-if="vuePartie === 'donnes'" class="lg:col-span-2">
     <h2 class="mt-6 mb-2 text-[13px] font-semibold">Ce qui s'est passé</h2>
     <div class="grid grid-cols-2 gap-2.5">
       <div

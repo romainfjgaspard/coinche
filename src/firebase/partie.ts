@@ -905,3 +905,42 @@ export async function readArchives(c: Client = mainClient): Promise<Archive[]> {
   const snap = await getDocs(query(collection(c.db, 'archives'), orderBy('finishedAt', 'desc')))
   return snap.docs.map((d) => d.data() as Archive)
 }
+
+/** Une partie commencée qui n'est pas allée au bout : annulée, abandonnée, ou en cours. */
+export interface PartieNonFinie {
+  code: string
+  /** Création, en ms ; nulle pour une partie trop ancienne pour l'avoir notée */
+  creeLe: number | null
+  joueurs: PlayerId[]
+  bots: PlayerId[]
+  donnes: number
+  scores: [number, number]
+  seating: Seating | null
+  annulee: boolean
+}
+
+/**
+ * Les parties commencées (au moins une donne) et non terminées. Seul le document de
+ * partie est lu : le journal, lui, n'est lisible que par ceux qui y ont joué.
+ */
+export async function readPartiesNonFinies(c: Client = mainClient): Promise<PartieNonFinie[]> {
+  await signIn(c)
+  const snap = await getDocs(query(collection(c.db, 'parties'), where('dealNumber', '>', 0)))
+  return snap.docs
+    .map((d) => ({ code: d.id, g: d.data() as GameDoc }))
+    .filter(({ g }) => g.phase !== 'terminee')
+    .map(({ code, g }) => {
+      const cree = g.createdAt as { toMillis?: () => number } | null
+      return {
+        code,
+        creeLe: cree?.toMillis ? cree.toMillis() : null,
+        joueurs: g.seating ? [...g.seating] : (Object.keys(g.seats) as PlayerId[]),
+        bots: (Object.keys(g.seats) as PlayerId[]).filter((p) => g.seats[p]?.bot || g.seats[p]?.aideBot),
+        donnes: g.dealNumber,
+        scores: g.scores,
+        seating: g.seating,
+        annulee: g.phase === 'annulee',
+      }
+    })
+    .sort((a, b) => (b.creeLe ?? 0) - (a.creeLe ?? 0))
+}
