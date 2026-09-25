@@ -152,18 +152,18 @@ const monPartenaire = computed(() =>
   >
     <!-- Sur une ligne, sans en faire un titre : il suffit de pouvoir le lire aux autres -->
     <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1.5">
-      <span class="text-sm text-sage">Code de la partie :</span>
-      <span class="font-display text-2xl tracking-[0.15em] leading-none">{{ session.code }}</span>
+      <span class="text-base text-sage lg:text-sm">Code de la partie :</span>
+      <span class="font-display text-[32px] tracking-[0.15em] leading-none lg:text-2xl">{{ session.code }}</span>
       <button
         type="button"
-        class="order-last basis-full cursor-pointer text-left text-[13px] text-sage underline underline-offset-4 transition hover:text-mist lg:order-none lg:basis-auto lg:self-center lg:rounded-full lg:border lg:border-white/20 lg:px-2.5 lg:py-0.5 lg:text-xs lg:font-semibold lg:text-mist lg:no-underline lg:hover:border-gold/60 lg:hover:text-gold"
+        class="order-last basis-full cursor-pointer text-left text-[15px] text-sage underline underline-offset-4 transition hover:text-mist lg:order-none lg:basis-auto lg:self-center lg:rounded-full lg:border lg:border-white/20 lg:px-2.5 lg:py-0.5 lg:text-xs lg:font-semibold lg:text-mist lg:no-underline lg:hover:border-gold/60 lg:hover:text-gold"
         :title="lien"
         @click="partager"
       >{{ lienCopie ? 'Lien copié ✓' : 'Partager le lien' }}</button>
       <span v-if="lienCopie === false" class="order-last basis-full text-xs break-all text-sage select-all">{{ lien }}</span>
       <button
         type="button"
-        class="ml-auto text-[13px] text-sage underline underline-offset-4 hover:text-mist"
+        class="ml-auto text-base text-sage underline underline-offset-4 hover:text-mist lg:text-[13px]"
         @click="session.leave()"
       >quitter</button>
     </div>
@@ -171,13 +171,13 @@ const monPartenaire = computed(() =>
     <!-- Les règles de cette partie : figées à la première donne -->
     <div class="mt-5 lg:flex lg:items-stretch lg:gap-3">
     <div class="flex items-center gap-2 lg:grow">
-      <span class="w-20 text-sm text-mist lg:w-auto">En</span>
+      <span class="w-12 text-base text-mist lg:w-auto lg:text-sm">En</span>
       <button
         v-for="o in OBJECTIFS"
         :key="o"
         type="button"
         :disabled="session.busy"
-        class="h-9 grow cursor-pointer rounded-lg border text-sm font-semibold transition disabled:opacity-50"
+        class="h-12 grow cursor-pointer rounded-lg border text-[17px] font-semibold transition disabled:opacity-50 lg:h-9 lg:text-sm"
         :class="(session.game?.objectif ?? 1000) === o
           ? 'border-gold bg-gold/15 text-gold'
           : 'border-white/15 text-mist hover:border-white/35'"

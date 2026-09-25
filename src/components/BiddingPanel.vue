@@ -33,7 +33,7 @@ const zoom = useFitZoom(
 const mainEncheres = computed(() => {
   const place = L.value.width - 40
   const n = Math.max(1, session.sortedHand.length)
-  const carte = Math.min(90, Math.round(place * 0.27))
+  const carte = Math.min(120, Math.round(place * 0.34))
   const pas = Math.min(carte - 8, (place - carte) / Math.max(1, n - 1))
   const x0 = Math.round((place - carte - (n - 1) * pas) / 2)
   return { carte, pas, x0, hauteur: Math.round(carte * 1.44 * 0.62) }
@@ -228,7 +228,7 @@ const bestText = computed(() => {
         <span
           v-for="p in speakers"
           :key="p"
-          class="truncate text-[13px] font-semibold"
+          class="truncate text-[15px] font-semibold"
           :class="p === session.playerId ? 'text-gold' : 'text-mist'"
         >{{ nomDe(p) }}</span>
       </div>
@@ -237,12 +237,12 @@ const bestText = computed(() => {
         :key="r"
         class="grid grid-cols-4 gap-x-2 border-b border-white/5 py-1.5 last:border-0"
       >
-        <span v-for="p in speakers" :key="p" class="flex h-6 items-center gap-1.5 text-[15px]">
+        <span v-for="p in speakers" :key="p" class="flex h-7 items-center gap-1.5 text-[17px]">
           <template v-if="row[p]">
             <span :class="row[p]!.kind === 'passe' ? 'text-sage' : 'font-semibold text-ivory'">{{ label(row[p]!) }}</span>
             <span
               v-if="suitOfEntry(row[p]!)"
-              class="flex h-5 min-w-5 items-center justify-center rounded-full bg-ivory px-1 text-[13px] leading-none font-bold"
+              class="flex h-6 min-w-6 items-center justify-center rounded-full bg-ivory px-1 text-[15px] leading-none font-bold"
               :class="['h', 'd'].includes(suitOfEntry(row[p]!)!) ? 'text-red-card' : 'text-felt-dark'"
             >{{ ['sa', 'ta'].includes(suitOfEntry(row[p]!)!) ? suitOfEntry(row[p]!)!.toUpperCase() : SUIT_GLYPH[suitOfEntry(row[p]!) as Suit] }}</span>
           </template>

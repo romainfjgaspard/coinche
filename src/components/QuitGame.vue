@@ -22,7 +22,7 @@ function quitter(): void {
   <button
     type="button"
     class="shrink-0 cursor-pointer rounded-lg border border-white/15 font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
-    :class="grand ? 'px-3.5 py-1.5 text-sm' : 'px-2.5 py-1 text-xs'"
+    :class="grand ? 'px-3.5 py-1.5 text-sm' : 'px-2.5 py-1.5 text-sm'"
     @click="quitter"
   >Quitter</button>
 
