@@ -41,7 +41,7 @@ const lignes = computed(() => {
 
 <template>
   <aside class="w-full rounded-2xl border border-white/8 bg-felt-dark/90 px-5 pt-4 pb-4 shadow-[0_12px_32px_rgba(0,0,0,.45)]">
-    <h2 class="flex items-center gap-2 text-xs font-semibold tracking-wider text-sage">
+    <h2 class="flex items-center gap-2 text-sm font-semibold tracking-wider text-sage lg:text-xs">
       ENCHÈRES — DONNEUR : {{ session.game ? nomDe(session.game.dealer).toUpperCase() : '' }}
       <DealerChip :size="16" />
     </h2>
@@ -52,20 +52,20 @@ const lignes = computed(() => {
         :key="l.cle"
         class="flex items-center gap-3 border-b border-white/7 py-2 last:border-0"
       >
-        <span class="w-[70px] truncate text-sm font-semibold" :class="couleurEquipe(l.joueur)">{{ l.qui }}</span>
+        <span class="w-[84px] truncate text-base font-semibold lg:w-[70px] lg:text-sm" :class="couleurEquipe(l.joueur)">{{ l.qui }}</span>
         <!-- Même formalisme que le contrat : le chiffre doré en police d'affichage, le symbole sur rond ivoire -->
         <span class="flex grow items-center gap-2">
           <span
-            class="font-display text-xl leading-none"
+            class="font-display text-2xl leading-none lg:text-xl"
             :class="l.coinche ? 'text-[#f0a293]' : l.passe ? 'text-sage' : 'text-gold'"
           >{{ l.quoi }}</span>
           <span
             v-if="l.couleur"
-            class="flex h-6 min-w-6 items-center justify-center rounded-full bg-ivory px-1 text-[15px] leading-none font-bold"
+            class="flex h-7 min-w-7 items-center justify-center rounded-full bg-ivory px-1 text-[17px] leading-none font-bold lg:h-6 lg:min-w-6 lg:text-[15px]"
             :class="l.couleur === 'h' || l.couleur === 'd' ? 'text-red-card' : 'text-felt-dark'"
           >{{ l.couleur === 'sa' || l.couleur === 'ta' ? l.couleur.toUpperCase() : SUIT_GLYPH[l.couleur] }}</span>
         </span>
-        <span class="text-[11px] tabular-nums text-dusk" title="temps de réflexion">{{ l.temps }}</span>
+        <span class="text-xs tabular-nums text-dusk lg:text-[11px]" title="temps de réflexion">{{ l.temps }}</span>
       </li>
     </ol>
     <p class="mt-3 text-[11px] leading-relaxed text-dusk">

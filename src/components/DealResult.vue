@@ -103,10 +103,10 @@ function next(): void {
 </script>
 
 <template>
-  <div class="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 px-5 py-4">
+  <div class="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 px-5 py-4 max-lg:items-stretch max-lg:px-3 max-lg:py-3">
     <div
-      class="w-full max-w-sm rounded-2xl border border-white/10 bg-felt-dark p-6 text-center"
-      :style="grand ? { zoom: L.t * 1.3 } : undefined"
+      class="w-full max-w-sm rounded-2xl border border-white/10 bg-felt-dark p-6 text-center max-lg:flex max-lg:flex-col max-lg:justify-center"
+      :style="grand ? { zoom: L.t * 1.3 } : { zoom: 1.12 }"
     >
 
       <!-- DEC-8 : l'étoile de la honte prend toute la place -->

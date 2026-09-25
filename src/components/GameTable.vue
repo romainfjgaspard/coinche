@@ -18,6 +18,7 @@ import { useTableLayout } from '../composables/useTableLayout'
 import { nomDe } from '../stores/roster'
 
 const emit = defineEmits<{ stats: []; regles: [] }>()
+const tailleScore = computed(() => (Math.max(...(session.game?.scores ?? [0, 0])) >= 1000 ? 'text-[25px]' : 'text-[30px]'))
 /** Toucher le contrat rouvre l'historique complet des enchères de la donne. */
 const encheresVisibles = ref(false)
 
@@ -117,30 +118,33 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
     ></div>
 
     <!-- Bandeau : donne, scores -->
-    <header class="absolute inset-x-0 top-0 flex h-14 items-center gap-3 bg-felt-dark px-4 lg:h-16 lg:px-8">
+    <header class="absolute inset-x-0 top-0 flex h-14 items-center gap-2 bg-felt-dark px-3 lg:h-16 lg:px-8">
       <QuitGame />
       <!-- Le numéro de donne passe au-dessus des scores : à gauche, la place va à « Quitter » -->
       <div class="flex grow flex-col items-center">
       <span class="text-[10px] font-medium tracking-wider text-sage">
         DONNE {{ session.game?.dealNumber ?? 0 }}
       </span>
-      <div class="flex items-baseline justify-center gap-2.5">
-        <span class="text-[13px] font-semibold text-gold">Nous</span>
-        <span class="font-display text-2xl leading-none">
+      <!--
+        Les scores en grand, dans les couleurs des équipes (or pour nous, bleu pour eux) :
+        les mots « Nous » et « Eux » prenaient la place, et à 1000 points les boutons
+        de droite sortaient de l'écran. Un cran plus petits au-delà de 999.
+      -->
+      <div class="flex items-baseline justify-center gap-2">
+        <span class="font-display leading-none text-gold" :class="tailleScore" title="Nous">
           {{ session.game?.scores[session.myTeam] ?? 0 }}
         </span>
-        <span class="text-[13px] text-dusk">·</span>
-        <span class="font-display text-2xl leading-none text-mist">
+        <span class="text-sm text-dusk">·</span>
+        <span class="font-display leading-none text-them" :class="tailleScore" title="Eux">
           {{ session.game?.scores[session.myTeam === 0 ? 1 : 0] ?? 0 }}
         </span>
-        <span class="text-[13px] font-semibold text-them">Eux</span>
       </div>
       </div>
       <!-- La pause, en icône comme les règles : il n'y avait pas la place d'un mot de plus -->
       <button
         v-if="session.peutPauser && !session.pause"
         type="button"
-        class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/15 text-mist"
+        class="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/15 text-mist"
         aria-label="Mettre en pause"
         title="Mettre en pause"
         :disabled="session.busy"
@@ -149,14 +153,14 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
       <!-- Les règles en « ? » : à 360 px, un bouton de plus en toutes lettres ne tenait pas -->
       <button
         type="button"
-        class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/15 text-sm font-bold text-mist"
+        class="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/15 text-[15px] font-bold text-mist"
         aria-label="Les règles"
         title="Les règles"
         @click="emit('regles')"
       >?</button>
       <button
         type="button"
-        class="shrink-0 cursor-pointer rounded-lg border border-white/15 px-2.5 py-1 text-xs font-semibold text-mist"
+        class="shrink-0 cursor-pointer rounded-lg border border-white/15 px-2.5 py-1.5 text-sm font-semibold text-mist"
         @click="emit('stats')"
       >Stats</button>
     </header>

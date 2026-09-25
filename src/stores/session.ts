@@ -9,7 +9,7 @@ import { getDoc } from 'firebase/firestore'
 import { type Card, sortHand } from '../game/cards'
 import type { PlayerId } from '../game/players'
 import {
-  type GameDoc, allSeatsTaken, cancelGame, createGame, deal, gameRef, placeBid, playCard, readArchives,
+  ConcurrentWrite, type GameDoc, allSeatsTaken, cancelGame, createGame, deal, gameRef, placeBid, playCard, readArchives,
   rejouer as rejouerPartie, reprendreMaPlace as reprendreMaPlaceEnBase, setOptions, setPause, setSeating,
   signIn, takeSeat, watchEvents, watchGame, watchHand,
 } from '../firebase/partie'
@@ -234,12 +234,19 @@ export const useSession = defineStore('session', () => {
     try {
       return await fn()
     } catch (e) {
-      error.value = e instanceof Error ? e.message : String(e)
+      // Un coup dépassé par un autre déjà enregistré n'est pas une erreur à montrer :
+      // la table se met à jour d'elle-même, et si c'est encore à nous, on rejoue.
+      if (e instanceof ConcurrentWrite) console.info('[coup dépassé]', e.message)
+      else error.value = e instanceof Error ? e.message : String(e)
       return null
     } finally {
       busy.value = false
     }
   }
+  // Un message d'erreur s'efface de lui-même : il restait affiché des donnes entières.
+  watch(error, (e) => {
+    if (e) setTimeout(() => { if (error.value === e) error.value = null }, 6000)
+  })
 
   /** Charge une partie sans y prendre place — sert à griser les sièges occupés. */
   async function peek(gameCode: string): Promise<void> {
@@ -498,9 +505,26 @@ export const useSession = defineStore('session', () => {
     await run(() => placeBid(code.value!, entry, undefined, hors ? undefined : tempsDeReflexion()))
   }
 
-  async function playTheCard(card: Card, declareBelote = false): Promise<void> {
+  /**
+   * Les cartes en cours d'envoi : la dernière carte part toute seule, et le joueur la
+   * touchait souvent en même temps — les deux envois se croisaient, et le second
+   * affichait « Quelqu'un a joué en même temps que toi ».
+   */
+  const enVol = new Set<string>()
+  const cleCarte = (card: Card) => `${code.value}|${game.value?.dealNumber}|${card}`
+  async function envoyerCarte(card: Card, declareBelote: boolean, thinkMs?: number): Promise<void> {
     if (!code.value || !playerId.value) return
-    await run(() => playCard(code.value!, playerId.value!, card, declareBelote, undefined, tempsDeReflexion()))
+    const cle = cleCarte(card)
+    if (enVol.has(cle)) return
+    enVol.add(cle)
+    try {
+      await run(() => playCard(code.value!, playerId.value!, card, declareBelote, undefined, thinkMs))
+    } finally {
+      enVol.delete(cle)
+    }
+  }
+  async function playTheCard(card: Card, declareBelote = false): Promise<void> {
+    await envoyerCarte(card, declareBelote, tempsDeReflexion())
   }
 
   /**
@@ -519,8 +543,7 @@ export const useSession = defineStore('session', () => {
       setTimeout(() => {
         if (myPlayTurn.value && hand.value.length === 1 && hand.value[0] === carte && code.value && playerId.value) {
           // Sans temps de réflexion : joué d'office, il fausserait les moyennes.
-          const belote = beloteCards.value.includes(carte)
-          void run(() => playCard(code.value!, playerId.value!, carte, belote))
+          void envoyerCarte(carte, beloteCards.value.includes(carte))
         }
       }, 600)
     },
