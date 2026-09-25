@@ -16,6 +16,7 @@
     "test:bot": "node tests/bot.mjs",
     "dev:emu": "vite --mode emu",
     "seed:stats": "vitest run --config vitest.seed.config.ts",
+    "tournoi": "vitest run --config vitest.tournoi.config.ts --reporter=verbose",
     "seed:stats:prod": "vitest run --config vitest.seed.config.ts --mode semis-prod",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

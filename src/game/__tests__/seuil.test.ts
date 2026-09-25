@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { DECK, shuffle, type Card } from '../cards'
 import { chooseBid } from '../bot'
+import { apply, newBidding } from '../bidding'
+import { DEFAULT_SEATING } from '../players'
 
 /**
  * Garde-fou : un bot trop prudent rend les parties interminables.
@@ -17,8 +19,14 @@ describe('prudence du bot', () => {
     for (let i = 0; i < 4000; i++) mains.push(shuffle([...DECK], rnd).slice(0, 8))
 
     // On mesure la part de mains qui déclenchent une annonce, et à quel palier.
-    const pris = mains.map((m) => chooseBid(m, 0, false)).filter((b) => b !== null)
-    const prisDernier = mains.map((m) => chooseBid(m, 0, false, true)).filter((b) => b !== null)
+    // Le donneur est roux : romain parle en premier, roux en dernier.
+    const debut = newBidding('roux', DEFAULT_SEATING)
+    const troisPasses = (['romain', 'benel', 'viv'] as const).reduce(
+      (e, player) => apply(e, { kind: 'passe', player }),
+      debut,
+    )
+    const pris = mains.map((m) => chooseBid(m, debut, 'romain')).filter((b) => b !== null)
+    const prisDernier = mains.map((m) => chooseBid(m, troisPasses, 'roux')).filter((b) => b !== null)
     const paliers = new Map<number, number>()
     for (const b of pris) paliers.set(b!.value, (paliers.get(b!.value) ?? 0) + 1)
     console.log(`seuil actuel : ${((pris.length / mains.length) * 100).toFixed(1)} % des mains annoncent`)

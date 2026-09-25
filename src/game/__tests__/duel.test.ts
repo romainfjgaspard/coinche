@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { type Card, DECK, shuffle, value } from '../cards'
 import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId, teamOfPlayer } from '../players'
 import { applyPlayed, currentPlayer, newPlay, playableFor } from '../play'
-import { chooseCard, type BotLevel } from '../bot'
+import { chooseCard } from '../bot'
 import { forceMain } from '../force'
 import { SUITS, type Suit } from '../cards'
 
@@ -16,22 +16,19 @@ type Strategie = (
 ) => Card
 
 const singe: Strategie = (_e, _j, _m, jouables) => jouables[0]
-const bot =
-  (level: BotLevel): Strategie =>
-  (etat, joueur, main, jouables, atout, preneur) =>
-    chooseCard(
-      {
-        me: joueur,
-        seating: DEFAULT_SEATING,
-        hand: main,
-        trump: atout,
-        taker: preneur,
-        current: etat.current,
-        completed: etat.completed,
-      },
-      jouables,
-      level,
-    )
+const bot: Strategie = (etat, joueur, main, jouables, atout, preneur) =>
+  chooseCard(
+    {
+      me: joueur,
+      seating: DEFAULT_SEATING,
+      hand: main,
+      trump: atout,
+      taker: preneur,
+      current: etat.current,
+      completed: etat.completed,
+    },
+    jouables,
+  )
 
 /** Joue une donne, équipe 0 avec `a`, équipe 1 avec `b`. Rend les points de pli. */
 function donne(pile: Card[], atout: Suit, preneur: PlayerId, a: Strategie, b: Strategie) {
@@ -66,11 +63,12 @@ function donne(pile: Card[], atout: Suit, preneur: PlayerId, a: Strategie, b: St
  * distribution s'annule exactement : l'écart mesuré ne vient que du jeu.
  */
 describe("le bot joue mieux qu'au hasard", () => {
-  it('prend plus de la moitié des points de pli, aux deux niveaux', () => {
+  it('prend plus de la moitié des points de pli', () => {
     let graine = 2024
     const rnd = () => (graine = (graine * 1103515245 + 12345) % 2147483648) / 2147483648
 
-    for (const level of ['simple', 'compteur'] as const) {
+    {
+      const level = 'base'
       let pourBot = 0
       let pourSinge = 0
       const N = 200
@@ -80,11 +78,11 @@ describe("le bot joue mieux qu'au hasard", () => {
         const atout = SUITS.map((s) => ({ s, f: forceMain(mainDe0, s) })).sort((x, y) => y.f - x.f)[0].s
 
         // équipe 0 = bot, équipe 1 = singe
-        const p1 = donne([...pile], atout, 'romain', bot(level), singe)
+        const p1 = donne([...pile], atout, 'romain', bot, singe)
         pourBot += p1[0]
         pourSinge += p1[1]
         // on inverse les rôles sur exactement la même donne
-        const p2 = donne([...pile], atout, 'romain', singe, bot(level))
+        const p2 = donne([...pile], atout, 'romain', singe, bot)
         pourSinge += p2[0]
         pourBot += p2[1]
       }
