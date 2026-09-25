@@ -55,8 +55,7 @@ export type Seating = readonly [PlayerId, PlayerId, PlayerId, PlayerId]
 export const DEFAULT_SEATING: Seating = ['romain', 'benel', 'viv', 'roux']
 
 export const seatOf = (player: PlayerId, seating: Seating): number => seating.indexOf(player)
-export const playerAtSeat = (seat: number, seating: Seating): PlayerId =>
-  seating[((seat % 4) + 4) % 4]
+export const playerAtSeat = (seat: number, seating: Seating): PlayerId => seating[((seat % 4) + 4) % 4]
 export const teamOfPlayer = (player: PlayerId, seating: Seating): 0 | 1 =>
   (seatOf(player, seating) % 2) as 0 | 1
 export const nextPlayer = (player: PlayerId, seating: Seating): PlayerId =>

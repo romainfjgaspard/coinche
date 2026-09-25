@@ -16,7 +16,14 @@
     "test:bot": "node tests/bot.mjs",
     "dev:emu": "vite --mode emu",
     "seed:stats": "vitest run --config vitest.seed.config.ts",
-    "seed:stats:prod": "vitest run --config vitest.seed.config.ts --mode semis-prod"
+    "seed:stats:prod": "vitest run --config vitest.seed.config.ts --mode semis-prod",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
+    "coverage": "vitest run src --coverage",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -26,15 +33,28 @@
     "vue": "^3.5.42"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^5.0.2",
     "@types/node": "^24.13.3",
     "@vitejs/plugin-vue": "^6.0.8",
+    "@vitest/coverage-v8": "^5.0.2",
+    "@vue/test-utils": "^2.5.1",
     "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.11.1",
     "firebase-tools": "^15.30.2",
+    "globals": "^17.12.0",
+    "happy-dom": "^20.14.5",
     "playwright": "^1.63.0",
+    "prettier": "^3.9.9",
     "typescript": "~6.0.2",
+    "typescript-eslint": "^8.70.1",
     "vite": "^8.3.0",
     "vitest": "^5.0.1",
     "vue-tsc": "^3.3.11"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

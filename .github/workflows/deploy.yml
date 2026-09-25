@@ -1,22 +1,61 @@
-name: Déploiement GitHub Pages
+name: CI et déploiement
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  build-deploy:
+  # Le contrôle qualité passe avant tout : on ne publie jamais une version qui le rate.
+  qualite:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # npm ci : installe exactement le lockfile, et refuse s'il ne correspond plus à package.json.
+      - run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Formatage (Prettier)
+        run: npm run format:check
+
+      - name: Typage (vue-tsc)
+        run: npm run typecheck
+
+      - name: Tests du moteur et des composants
+        run: npm run test
+
+      # L'émulateur Firestore est une application Java.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Tests sur émulateur (règles, parcours, concurrence)
+        run: npm run test:rules
+
+  deploiement:
+    needs: qualite
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -29,10 +68,6 @@ jobs:
           cache: npm
 
       - run: npm ci
-
-      # Le moteur de règles d'abord : on ne publie pas une version qui compte mal.
-      - name: Tests du moteur
-        run: npm run test
 
       # Sans les clés, l'app se croirait en local et chercherait l'émulateur :
       # le site partirait en ligne, mais rien n'y fonctionnerait. On arrête plutôt.
@@ -69,14 +104,12 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$cle"
           GOOGLE_APPLICATION_CREDENTIALS="$cle" npx firebase deploy --only firestore:rules --project prod --non-interactive
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v5
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
-      - name: Deploy to GitHub Pages
+      - name: Publication sur GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

@@ -21,5 +21,6 @@ const texte = computed(() => {
   <span
     class="inline-flex items-center rounded-[4px] bg-ivory px-1 py-px align-baseline text-[0.92em] leading-tight font-bold whitespace-nowrap"
     :class="couleur === 'h' || couleur === 'd' ? 'text-red-card' : 'text-felt-dark'"
-  >{{ texte }}</span>
+    >{{ texte }}</span
+  >
 </template>

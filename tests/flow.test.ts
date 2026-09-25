@@ -6,9 +6,23 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { getDoc, getDocs, orderBy, query, setDoc, updateDoc } from 'firebase/firestore'
 import {
-  ConcurrentWrite, appendEvent, archiveGame, archiveRef, createGame, deal, eventsRef, gameRef,
+  ConcurrentWrite,
+  appendEvent,
+  archiveGame,
+  archiveRef,
+  createGame,
+  deal,
+  eventsRef,
+  gameRef,
   moveCount,
-  handRef, placeBid, playCard, readArchives, readEvents, signIn, takeSeat, type GameDoc,
+  handRef,
+  placeBid,
+  playCard,
+  readArchives,
+  readEvents,
+  signIn,
+  takeSeat,
+  type GameDoc,
 } from '../src/firebase/partie'
 import { biddingFromEvents, playFromEvents } from '../src/game/replay'
 import { outcome } from '../src/game/bidding'
@@ -63,7 +77,10 @@ describe('parcours complet', () => {
     expect(events.map((e) => e.seq)).toEqual([1, 2, 3, 4, 5, 6])
     expect(events.map((e) => e.type)).toEqual([
       'partie_creee',
-      'joueur_connecte', 'joueur_connecte', 'joueur_connecte', 'joueur_connecte',
+      'joueur_connecte',
+      'joueur_connecte',
+      'joueur_connecte',
+      'joueur_connecte',
       'donne_commencee',
     ])
   })
@@ -94,7 +111,11 @@ describe('enchères à travers le journal', () => {
     const events = await readEvents(code)
     const state = biddingFromEvents(events, 'benel')
     expect(outcome(state)).toMatchObject({
-      status: 'contrat', taker: 'roux', value: 100, trump: 'h', multiplier: 2,
+      status: 'contrat',
+      taker: 'roux',
+      value: 100,
+      trump: 'h',
+      multiplier: 2,
     })
 
     // Le contrat est journalisé, et la partie passe au jeu de la carte.
@@ -143,7 +164,7 @@ describe('une donne complète, jouée à travers Firestore', () => {
     expect(game.dealer).toBe('viv') // MAT-3 : le donneur tourne vers la gauche
   }, 60_000)
 
-  it('aucun événement ne laisse filtrer la main d\'un joueur', async () => {
+  it("aucun événement ne laisse filtrer la main d'un joueur", async () => {
     // Le journal est lisible par les quatre : rien de ce qu'il contient ne doit
     // permettre de reconstituer la main d'un adversaire.
     const events = await readEvents(code)
@@ -172,21 +193,16 @@ describe('écriture concurrente', () => {
     const avant = await readEvents(code)
 
     await expect(
-      appendEvent(code, { type: 'message_chat', player: 'viv', text: 'trop tard' },
-        moveCount(avant) - 1),
+      appendEvent(code, { type: 'message_chat', player: 'viv', text: 'trop tard' }, moveCount(avant) - 1),
     ).rejects.toThrow(ConcurrentWrite)
 
     // Rien n'a été écrit : le journal est intact.
     expect(await readEvents(code)).toHaveLength(avant.length)
   })
 
-  it('accepte le coup fondé sur l\'état courant', async () => {
+  it("accepte le coup fondé sur l'état courant", async () => {
     const avant = await readEvents(code)
-    await appendEvent(
-      code,
-      { type: 'message_chat', player: 'viv', text: 'bien joué' },
-      moveCount(avant),
-    )
+    await appendEvent(code, { type: 'message_chat', player: 'viv', text: 'bien joué' }, moveCount(avant))
     expect(await readEvents(code)).toHaveLength(avant.length + 1)
   })
 
@@ -198,7 +214,12 @@ describe('écriture concurrente', () => {
 
     // une conséquence quelconque s'intercale
     await appendEvent(code, {
-      type: 'pli_termine', trickNumber: 99, winner: 'viv', points: 0, cut: false, overcut: false,
+      type: 'pli_termine',
+      trickNumber: 99,
+      winner: 'viv',
+      points: 0,
+      cut: false,
+      overcut: false,
     })
 
     // le joueur, lui, décide sur le même état de jeu : ça doit passer
@@ -212,9 +233,7 @@ describe('écriture concurrente', () => {
     // aucun ne doit échouer, et le journal doit contenir les quatre.
     const avant = await readEvents(code)
     const seqs = await Promise.all(
-      PLAYER_IDS.map((p) =>
-        appendEvent(code, { type: 'message_chat', player: p, text: `moi aussi (${p})` }),
-      ),
+      PLAYER_IDS.map((p) => appendEvent(code, { type: 'message_chat', player: p, text: `moi aussi (${p})` })),
     )
 
     expect(new Set(seqs).size).toBe(4)

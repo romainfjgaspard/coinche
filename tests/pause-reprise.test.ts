@@ -5,8 +5,19 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { getDoc } from 'firebase/firestore'
 import {
-  PartieEnPause, createGame, deal, gameRef, placeBid, readEvents, remplacerParBot, reprendreMaPlace,
-  reprendreSiegeBot, setPause, signIn, takeSeat, type GameDoc,
+  PartieEnPause,
+  createGame,
+  deal,
+  gameRef,
+  placeBid,
+  readEvents,
+  remplacerParBot,
+  reprendreMaPlace,
+  reprendreSiegeBot,
+  setPause,
+  signIn,
+  takeSeat,
+  type GameDoc,
 } from '../src/firebase/partie'
 import { makeClient } from '../src/firebase/app'
 import { DEFAULT_SEATING } from '../src/game/players'
@@ -23,7 +34,7 @@ describe('pause', () => {
     await deal(code)
   }, 30_000)
 
-  it('en pause, aucune enchère ne passe, et rien n\'est écrit', async () => {
+  it("en pause, aucune enchère ne passe, et rien n'est écrit", async () => {
     await setPause(code, 'roux', true)
     expect((await lire(code)).pause?.par).toBe('roux')
     const avant = (await readEvents(code)).length
@@ -47,7 +58,7 @@ describe('pause', () => {
   })
 })
 
-describe('reprise d\'un bot', () => {
+describe("reprise d'un bot", () => {
   let code: string
 
   beforeAll(async () => {
@@ -62,7 +73,7 @@ describe('reprise d\'un bot', () => {
     expect((await lire(code)).seats.romain).toMatchObject({ bot: true, niveau: 'compteur' })
   })
 
-  it('deux onglets le reprennent en même temps : un seul l\'emporte', async () => {
+  it("deux onglets le reprennent en même temps : un seul l'emporte", async () => {
     const ancien = (await lire(code)).seats.romain!.uid
     const [a, b] = [await makeClient('reprise-a'), await makeClient('reprise-b')]
     const resultats = await Promise.allSettled([
@@ -76,9 +87,11 @@ describe('reprise d\'un bot', () => {
     expect([a.auth.currentUser?.uid, b.auth.currentUser?.uid]).toContain(siege.uid)
   })
 
-  it('on ne reprend pas le siège d\'un humain', async () => {
+  it("on ne reprend pas le siège d'un humain", async () => {
     const humain = (await lire(code)).seats.roux!.uid
-    await expect(reprendreSiegeBot(code, 'roux', humain, await makeClient('reprise-c'))).rejects.toThrow(/pas tenu par un bot/)
+    await expect(reprendreSiegeBot(code, 'roux', humain, await makeClient('reprise-c'))).rejects.toThrow(
+      /pas tenu par un bot/,
+    )
   })
 })
 
@@ -103,7 +116,9 @@ describe('un joueur absent remplacé par un bot', () => {
 
   it('on ne remplace pas deux fois : le bot tient déjà la place', async () => {
     const actuel = (await lire(code)).seats.viv!.uid
-    await expect(remplacerParBot(code, 'viv', actuel, 'simple', await makeClient('remplacant-2'))).rejects.toThrow(/déjà/)
+    await expect(
+      remplacerParBot(code, 'viv', actuel, 'simple', await makeClient('remplacant-2')),
+    ).rejects.toThrow(/déjà/)
   })
 
   it('Viv revient et reprend sa place ; la partie reste marquée « avec bot »', async () => {

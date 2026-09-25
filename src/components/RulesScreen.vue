@@ -29,7 +29,7 @@ const SECTIONS: { titre: string; points: string[]; exemples?: boolean }[] = [
   {
     titre: 'Coinche et surcoinche',
     points: [
-      "Un adversaire du preneur peut coincher (×2), à tout moment des enchères, sans attendre son tour.",
+      'Un adversaire du preneur peut coincher (×2), à tout moment des enchères, sans attendre son tour.',
       'Une coinche ferme les enchères : seul le camp du preneur peut encore surcoincher (×4).',
     ],
   },
@@ -37,7 +37,7 @@ const SECTIONS: { titre: string; points: string[]; exemples?: boolean }[] = [
     titre: 'Belote-Rebelote',
     points: [
       "Belote-Rebelote doit être annoncée en cliquant sur l'icône de la carte pour être prise en compte : en posant le Roi, puis en posant la Dame.",
-      "Ses 20 points ne sont jamais marqués : ils aident seulement le preneur à réussir son contrat (voir ci-dessous). Ils ne comptent pas pour la défense.",
+      'Ses 20 points ne sont jamais marqués : ils aident seulement le preneur à réussir son contrat (voir ci-dessous). Ils ne comptent pas pour la défense.',
       'Pas de déclarations (tierce, cinquante, cent, carré).',
     ],
   },
@@ -45,7 +45,7 @@ const SECTIONS: { titre: string; points: string[]; exemples?: boolean }[] = [
     titre: 'Réussir son contrat',
     points: [
       'On ne compte que les enchères : contrat réussi, le preneur marque sa valeur et la défense 0 ; contrat chuté, la défense marque cette valeur.',
-      "Pour réussir, il faut deux choses : atteindre la valeur annoncée, et faire plus de points que la défense (sur les 162 de la donne). Quand le preneur a la belote, ses 20 points comptent dans les deux.",
+      'Pour réussir, il faut deux choses : atteindre la valeur annoncée, et faire plus de points que la défense (sur les 162 de la donne). Quand le preneur a la belote, ses 20 points comptent dans les deux.',
       'À égalité (81 partout), le preneur chute.',
       'Coinché, la valeur est doublée ; surcoinché, quadruplée.',
     ],
@@ -80,17 +80,16 @@ const EXEMPLES = [80, 90, 100].map((contrat) => ({
 
 <template>
   <div class="h-full w-full overflow-y-auto bg-felt-dark text-ivory">
-    <div
-      class="mx-auto max-w-2xl px-5 pt-5 pb-10 lg:pt-8"
-      :style="grand ? { zoom: L.t * 1.15 } : undefined"
-    >
+    <div class="mx-auto max-w-2xl px-5 pt-5 pb-10 lg:pt-8" :style="grand ? { zoom: L.t * 1.15 } : undefined">
       <div class="flex items-center gap-3">
         <h1 class="grow font-display text-3xl leading-none">Les règles</h1>
         <button
           type="button"
           class="shrink-0 cursor-pointer rounded-lg border border-white/15 px-3 py-1.5 text-sm font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
           @click="emit('fermer')"
-        >{{ retour ?? 'Retour' }}</button>
+        >
+          {{ retour ?? 'Retour' }}
+        </button>
       </div>
       <p class="mt-2 text-sm text-sage">Ce qui distingue notre coinche. Le reste se joue comme partout.</p>
 
@@ -123,9 +122,9 @@ const EXEMPLES = [80, 90, 100].map((contrat) => ({
             </tbody>
           </table>
           <p class="mt-2 text-xs leading-relaxed text-sage">
-            À 80 sans belote, il faut 82 : 80 ne suffit pas, il faut aussi être devant la défense (82 contre 80).
-            Avec la belote, 72 suffisent : 72 + 20 = 92, et la défense n'a que 90. À 90, il faut 90 sans belote,
-            72 avec. À 100, il faut 100 sans belote, 80 avec (80 + 20 = 100).
+            À 80 sans belote, il faut 82 : 80 ne suffit pas, il faut aussi être devant la défense (82 contre
+            80). Avec la belote, 72 suffisent : 72 + 20 = 92, et la défense n'a que 90. À 90, il faut 90 sans
+            belote, 72 avec. À 100, il faut 100 sans belote, 80 avec (80 + 20 = 100).
           </p>
         </div>
       </section>

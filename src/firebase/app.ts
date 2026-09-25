@@ -6,9 +6,7 @@
  * Avec les clés renseignées, on parle au vrai projet.
  */
 import { type FirebaseApp, initializeApp } from 'firebase/app'
-import {
-  type Auth, connectAuthEmulator, getAuth, inMemoryPersistence, setPersistence,
-} from 'firebase/auth'
+import { type Auth, connectAuthEmulator, getAuth, inMemoryPersistence, setPersistence } from 'firebase/auth'
 import { type Firestore, connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
 
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID
@@ -22,10 +20,11 @@ const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID
  * émulateurs quelles que soient les clés présentes.
  */
 export const useEmulators =
-  import.meta.env.VITE_USE_EMULATORS === '1' || !projectId
+  import.meta.env.VITE_USE_EMULATORS === '1' ||
+  !projectId ||
   // Vitest charge `.env.local` : sans cette garde, `tests/flow.test.ts` jouait ses
   // parties et déposait ses archives dans la vraie base.
-  || import.meta.env.MODE === 'test'
+  import.meta.env.MODE === 'test'
 
 const config = useEmulators
   ? { projectId: 'demo-coinche', apiKey: 'demo', authDomain: 'demo-coinche.firebaseapp.com' }

@@ -15,14 +15,29 @@ import { type PlayerId, type Seating, teamOfPlayer } from './players'
 
 /** Les annonces possibles à son tour de parole, dans l'ordre de l'échelle. */
 export const CATEGORIES_ANNONCE = [
-  'passe', '80', '90', '100', '110', '120', '130', '140', '150', '160', '170', 'capot', 'generale',
+  'passe',
+  '80',
+  '90',
+  '100',
+  '110',
+  '120',
+  '130',
+  '140',
+  '150',
+  '160',
+  '170',
+  'capot',
+  'generale',
 ] as const
 export type CategorieAnnonce = (typeof CATEGORIES_ANNONCE)[number]
 /** Les paliers seuls, sans la passe : l'axe des courbes. */
 export const PALIERS: CategorieAnnonce[] = CATEGORIES_ANNONCE.filter((c) => c !== 'passe')
 
 export const LIBELLE_ANNONCE: Record<CategorieAnnonce, string> = Object.fromEntries(
-  CATEGORIES_ANNONCE.map((c) => [c, c === 'passe' ? 'Passe' : c === 'capot' ? 'Capot' : c === 'generale' ? 'Gén.' : c]),
+  CATEGORIES_ANNONCE.map((c) => [
+    c,
+    c === 'passe' ? 'Passe' : c === 'capot' ? 'Capot' : c === 'generale' ? 'Gén.' : c,
+  ]),
 ) as Record<CategorieAnnonce, string>
 
 export type Repartition = Partial<Record<CategorieAnnonce, number>>
@@ -30,14 +45,18 @@ export type Repartition = Partial<Record<CategorieAnnonce, number>>
 /** La catégorie d'une prise de parole ; nulle pour une coinche, qui se dit hors tour. */
 export function categorieAnnonce(entry: BiddingEntry): CategorieAnnonce | null {
   switch (entry.kind) {
-    case 'passe': return 'passe'
-    case 'capot': return 'capot'
-    case 'generale': return 'generale'
+    case 'passe':
+      return 'passe'
+    case 'capot':
+      return 'capot'
+    case 'generale':
+      return 'generale'
     case 'contrat': {
       const c = String(entry.value) as CategorieAnnonce
       return (CATEGORIES_ANNONCE as readonly string[]).includes(c) ? c : null
     }
-    default: return null
+    default:
+      return null
   }
 }
 
@@ -81,7 +100,10 @@ export function rolesPrise(events: GameEvent[], seating: Seating): Map<PlayerId,
   const out = new Map<PlayerId, Roles>()
   const pour = (p: PlayerId): Roles => {
     let r = out.get(p)
-    if (!r) { r = rolesVides(); out.set(p, r) }
+    if (!r) {
+      r = rolesVides()
+      out.set(p, r)
+    }
     return r
   }
   let paroles: BiddingEntry[] = []
@@ -124,7 +146,8 @@ export function ecartsAnnonce(events: GameEvent[], seating: Seating): Map<Player
   let contrat: { taker: PlayerId; value: number; auxPoints: boolean } | null = null
   for (const e of events) {
     if (e.type === 'donne_commencee') contrat = null
-    else if (e.type === 'contrat_fixe') contrat = { taker: e.taker, value: e.value, auxPoints: !e.capot && !e.generale }
+    else if (e.type === 'contrat_fixe')
+      contrat = { taker: e.taker, value: e.value, auxPoints: !e.capot && !e.generale }
     else if (e.type === 'donne_terminee' && contrat?.auxPoints && !e.blitz) {
       const faits = e.compared[teamOfPlayer(contrat.taker, seating)]
       const r = out.get(contrat.taker) ?? ecartsVides()
@@ -167,7 +190,11 @@ export interface Tranche {
 }
 
 /** Répartit des valeurs dans des tranches [bornes[i], bornes[i+1]) ; la dernière est ouverte. */
-export function histogramme(valeurs: number[], bornes: number[], label: (a: number, b: number | null) => string): Tranche[] {
+export function histogramme(
+  valeurs: number[],
+  bornes: number[],
+  label: (a: number, b: number | null) => string,
+): Tranche[] {
   const n = valeurs.length
   return bornes.map((a, i) => {
     const b = i + 1 < bornes.length ? bornes[i + 1] : null
@@ -178,14 +205,16 @@ export function histogramme(valeurs: number[], bornes: number[], label: (a: numb
 
 /** Les tranches des temps de réflexion, en secondes. */
 export const BORNES_TEMPS = [0, 2, 5, 10, 20, 40]
-export const labelTemps = (a: number, b: number | null): string => (b === null ? `> ${a}` : a === 0 ? `< ${b}` : `${a}–${b}`)
+export const labelTemps = (a: number, b: number | null): string =>
+  b === null ? `> ${a}` : a === 0 ? `< ${b}` : `${a}–${b}`
 
 /** Les tranches des écarts à l'annonce, de 10 en 10. */
 export const BORNES_ECART = [-Infinity, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50]
 export const labelEcart = (a: number, b: number | null): string =>
   a === -Infinity ? `< ${b}` : b === null ? `≥ ${a}` : a >= 0 ? `+${a}` : `${a}`
 
-export const moyenneDe = (v: number[]): number | null => (v.length ? v.reduce((s, x) => s + x, 0) / v.length : null)
+export const moyenneDe = (v: number[]): number | null =>
+  v.length ? v.reduce((s, x) => s + x, 0) / v.length : null
 
 /** L'enchère moyenne d'un joueur sur les paliers chiffrés, hors capot et générale. */
 export function enchereMoyenneDe(r: Repartition): number | null {

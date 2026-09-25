@@ -25,7 +25,13 @@ export interface PliRevu {
 export interface DonneRevue {
   numero: number
   donneur: PlayerId
-  contrat: { taker: PlayerId; value: number; declaration: Declaration | null; capot: boolean; generale: boolean } | null
+  contrat: {
+    taker: PlayerId
+    value: number
+    declaration: Declaration | null
+    capot: boolean
+    generale: boolean
+  } | null
   plis: PliRevu[]
   /** Chaque main telle que distribuée, triée ; seulement si la donne est allée au bout. */
   mains: Record<PlayerId, Card[]> | null
@@ -49,15 +55,16 @@ export function revoirDonne(events: GameEvent[], numero: number, seating: Seatin
   if (!depart || depart.type !== 'donne_commencee') return null
 
   const contratFixe = evts.find((e) => e.type === 'contrat_fixe')
-  const contrat = contratFixe && contratFixe.type === 'contrat_fixe'
-    ? {
-        taker: contratFixe.taker,
-        value: contratFixe.value,
-        declaration: contratFixe.declaration ?? contratFixe.trump,
-        capot: contratFixe.capot,
-        generale: contratFixe.generale,
-      }
-    : null
+  const contrat =
+    contratFixe && contratFixe.type === 'contrat_fixe'
+      ? {
+          taker: contratFixe.taker,
+          value: contratFixe.value,
+          declaration: contratFixe.declaration ?? contratFixe.trump,
+          capot: contratFixe.capot,
+          generale: contratFixe.generale,
+        }
+      : null
 
   const posees = new Map<number, { player: PlayerId; card: Card; position: number }[]>()
   for (const e of evts) {
@@ -87,12 +94,21 @@ export function revoirDonne(events: GameEvent[], numero: number, seating: Seatin
 
   let mains: Record<PlayerId, Card[]> | null = null
   if (complete) {
-    const atout: Atout = contrat?.declaration === 'ta' ? 'ta'
-      : contrat?.declaration === 'sa' ? null : (contrat?.declaration ?? null)
-    mains = Object.fromEntries(seating.map((p) => [
-      p,
-      sortHand(plis.flatMap((pli) => pli.cartes.filter((c) => c.player === p).map((c) => c.card)), atout),
-    ]))
+    const atout: Atout =
+      contrat?.declaration === 'ta'
+        ? 'ta'
+        : contrat?.declaration === 'sa'
+          ? null
+          : (contrat?.declaration ?? null)
+    mains = Object.fromEntries(
+      seating.map((p) => [
+        p,
+        sortHand(
+          plis.flatMap((pli) => pli.cartes.filter((c) => c.player === p).map((c) => c.card)),
+          atout,
+        ),
+      ]),
+    )
   }
 
   return {

@@ -19,7 +19,9 @@ const signe = (v: number | null): string => (v === null ? '—' : `${v > 0 ? '+'
 const lignes = computed(() =>
   props.joueurs
     .map((p) => ({ p, e: props.ecarts.get(p) }))
-    .filter((x): x is { p: PlayerId; e: Ecarts } => Boolean(x.e && x.e.reussis.length + x.e.chutes.length > 0)),
+    .filter((x): x is { p: PlayerId; e: Ecarts } =>
+      Boolean(x.e && x.e.reussis.length + x.e.chutes.length > 0),
+    ),
 )
 const categories = computed(() => histogramme([], BORNES_ECART, labelEcart).map((t) => t.label))
 /** Tranches de 10 centrées : « +0 » va de 0 à 9, son centre est à l'indice de la tranche. */
@@ -60,10 +62,12 @@ const series = computed<SerieCourbe[]>(() =>
           <tr v-for="{ p, e } in lignes" :key="p" class="border-t border-white/8">
             <td class="py-1.5 font-semibold" :style="{ color: couleurs[p] }">{{ nomDe(p) }}</td>
             <td class="py-1.5 text-right">
-              {{ signe(moyenneDe(e.reussis)) }} <span class="text-[11px] text-dusk">({{ e.reussis.length }})</span>
+              {{ signe(moyenneDe(e.reussis)) }}
+              <span class="text-[11px] text-dusk">({{ e.reussis.length }})</span>
             </td>
             <td class="py-1.5 text-right">
-              {{ signe(moyenneDe(e.chutes)) }} <span class="text-[11px] text-dusk">({{ e.chutes.length }})</span>
+              {{ signe(moyenneDe(e.chutes)) }}
+              <span class="text-[11px] text-dusk">({{ e.chutes.length }})</span>
             </td>
           </tr>
         </tbody>

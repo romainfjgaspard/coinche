@@ -6,7 +6,14 @@ import { type Card, type Rank, type Suit, rankOf, suitOf } from './cards'
 
 /** Index à la française : l'as porte un 1, les figures V, D et R. */
 export const RANK_LABEL: Record<Rank, string> = {
-  '7': '7', '8': '8', '9': '9', '10': '10', J: 'V', Q: 'D', K: 'R', A: '1',
+  '7': '7',
+  '8': '8',
+  '9': '9',
+  '10': '10',
+  J: 'V',
+  Q: 'D',
+  K: 'R',
+  A: '1',
 }
 
 export const SUIT_GLYPH: Record<Suit, string> = { s: '♠', h: '♥', d: '♦', c: '♣' }
@@ -34,7 +41,10 @@ export const isCourt = (rank: Rank): boolean => rank === 'J' || rank === 'Q' || 
 
 const COURT_FILE: Record<'J' | 'Q' | 'K', string> = { J: 'Jack', Q: 'Queen', K: 'King' }
 const SUIT_FILE: Record<Suit, string> = {
-  s: 'spades', h: 'hearts', d: 'diamonds', c: 'clubs',
+  s: 'spades',
+  h: 'hearts',
+  d: 'diamonds',
+  c: 'clubs',
 }
 
 /** Figure au portrait français (svg-cards, David Bellot, LGPL — voir public/cards/LICENCE.md). */
@@ -106,15 +116,56 @@ export interface Pip {
  */
 const LAYOUTS: Partial<Record<Rank, [number, number][]>> = {
   A: [[50, 50]],
-  '7': [[15, 15], [85, 15], [15, 50], [85, 50], [15, 85], [85, 85], [50, 32.5]],
-  '8': [[15, 15], [85, 15], [15, 50], [85, 50], [15, 85], [85, 85], [50, 32.5], [50, 67.5]],
-  '9': [[15, 15], [85, 15], [15, 38.3], [85, 38.3], [15, 61.7], [85, 61.7], [15, 85], [85, 85], [50, 50]],
-  '10': [[15, 15], [85, 15], [15, 38.3], [85, 38.3], [15, 61.7], [85, 61.7], [15, 85], [85, 85], [50, 26.7], [50, 73.3]],
+  '7': [
+    [15, 15],
+    [85, 15],
+    [15, 50],
+    [85, 50],
+    [15, 85],
+    [85, 85],
+    [50, 32.5],
+  ],
+  '8': [
+    [15, 15],
+    [85, 15],
+    [15, 50],
+    [85, 50],
+    [15, 85],
+    [85, 85],
+    [50, 32.5],
+    [50, 67.5],
+  ],
+  '9': [
+    [15, 15],
+    [85, 15],
+    [15, 38.3],
+    [85, 38.3],
+    [15, 61.7],
+    [85, 61.7],
+    [15, 85],
+    [85, 85],
+    [50, 50],
+  ],
+  '10': [
+    [15, 15],
+    [85, 15],
+    [15, 38.3],
+    [85, 38.3],
+    [15, 61.7],
+    [85, 61.7],
+    [15, 85],
+    [85, 85],
+    [50, 26.7],
+    [50, 73.3],
+  ],
 }
 
 export function pipLayout(rank: Rank): Pip[] {
   return (LAYOUTS[rank] ?? []).map(([x, y]) => ({
-    x, y, flipped: y > 52, large: rank === 'A',
+    x,
+    y,
+    flipped: y > 52,
+    large: rank === 'A',
   }))
 }
 
@@ -122,7 +173,14 @@ export function pipLayout(rank: Rank): Pip[] {
 export function cardLabel(card: Card): string {
   const names: Record<Suit, string> = { s: 'pique', h: 'cœur', d: 'carreau', c: 'trèfle' }
   const ranks: Record<Rank, string> = {
-    '7': '7', '8': '8', '9': '9', '10': '10', J: 'valet', Q: 'dame', K: 'roi', A: 'as',
+    '7': '7',
+    '8': '8',
+    '9': '9',
+    '10': '10',
+    J: 'valet',
+    Q: 'dame',
+    K: 'roi',
+    A: 'as',
   }
   return `${ranks[rankOf(card)]} de ${names[suitOf(card)]}`
 }

@@ -78,9 +78,10 @@ export function scoreDeal(
   const wonAllTricks = tricksWon[taker] === tricks.length
 
   // DEC-3 — atteindre le contrat ET être devant. DEC-7 : l'égalité chute.
-  const made = contract.capot || contract.generale
-    ? wonAllTricks
-    : isContractMade(compared[taker], compared[defense], contract.value)
+  const made =
+    contract.capot || contract.generale
+      ? wonAllTricks
+      : isContractMade(compared[taker], compared[defense], contract.value)
 
   const status: DealStatus = !made
     ? 'chute'

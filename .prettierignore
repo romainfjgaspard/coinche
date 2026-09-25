@@ -1,0 +1,6 @@
+dist
+coverage
+public
+pnpm-lock.yaml
+package-lock.json
+*.md

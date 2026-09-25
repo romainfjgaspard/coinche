@@ -5,9 +5,7 @@
  * Chez nous, « annonce » = enchère.
  */
 import type { Suit } from './cards'
-import {
-  type PlayerId, type Seating, nextPlayer, playerAtSeat, seatOf, teamOfPlayer,
-} from './players'
+import { type PlayerId, type Seating, nextPlayer, playerAtSeat, seatOf, teamOfPlayer } from './players'
 import { RULES, type Rules } from './rules'
 
 /** ENC-10 — sans-atout et tout-atout n'existent qu'en capot et en générale. */
@@ -31,7 +29,9 @@ export interface BiddingState {
 }
 
 export const newBidding = (dealer: PlayerId, seating: Seating): BiddingState => ({
-  dealer, seating, entries: [],
+  dealer,
+  seating,
+  entries: [],
 })
 
 /**
@@ -102,11 +102,7 @@ export function outcome(state: BiddingState, rules: Rules = RULES): Outcome {
     status: 'contrat',
     taker: best.player,
     value:
-      best.kind === 'contrat'
-        ? best.value
-        : best.kind === 'capot'
-          ? rules.capotValue
-          : rules.generaleValue,
+      best.kind === 'contrat' ? best.value : best.kind === 'capot' ? rules.capotValue : rules.generaleValue,
     trump: best.kind === 'contrat' ? best.suit : declarationToTrump(best.declaration),
     declaration: best.kind === 'contrat' ? best.suit : best.declaration,
     multiplier: multiplier(state),

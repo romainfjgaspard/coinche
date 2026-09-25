@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --color-felt: #0f3d2e;
@@ -20,9 +20,15 @@
   --font-sans: 'Outfit', system-ui, sans-serif;
 }
 
-html, body, #app { height: 100%; }
+html,
+body,
+#app {
+  height: 100%;
+}
 /* Barres de défilement et contrôles natifs sombres, accordés au tapis */
-html { color-scheme: dark; }
+html {
+  color-scheme: dark;
+}
 body {
   margin: 0;
   background: var(--color-felt);

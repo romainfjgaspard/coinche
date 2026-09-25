@@ -114,10 +114,7 @@ const s = computed(() => {
       </span>
 
       <!-- Pointes -->
-      <span
-        class="absolute"
-        :style="{ left: s.inset, right: s.inset, top: '9%', bottom: '9%' }"
-      >
+      <span class="absolute" :style="{ left: s.inset, right: s.inset, top: '9%', bottom: '9%' }">
         <span
           v-for="(pip, i) in pips"
           :key="i"
@@ -129,7 +126,8 @@ const s = computed(() => {
             color: ink,
             transform: `translate(-50%, -50%) rotate(${pip.flipped ? 180 : 0}deg)`,
           }"
-        >{{ SUIT_GLYPH[suit] }}</span>
+          >{{ SUIT_GLYPH[suit] }}</span
+        >
       </span>
     </template>
 
@@ -147,9 +145,6 @@ const s = computed(() => {
       Carte injouable : un voile opaque par-dessus, identique sur les figures et les
       pointes. La transparence laissait voir la carte voisine à travers.
     -->
-    <span
-      v-if="dimmed"
-      class="pointer-events-none absolute inset-0 bg-[#0c2a20]/60"
-    ></span>
+    <span v-if="dimmed" class="pointer-events-none absolute inset-0 bg-[#0c2a20]/60"></span>
   </component>
 </template>

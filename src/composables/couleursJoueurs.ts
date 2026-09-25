@@ -4,7 +4,16 @@
  */
 import type { PlayerId } from '../game/players'
 
-export const PALETTE = ['#d9a441', '#7fa8c9', '#e0876a', '#8fbf7a', '#b48ead', '#5fb3b3', '#e8d5a3', '#d68fb0']
+export const PALETTE = [
+  '#d9a441',
+  '#7fa8c9',
+  '#e0876a',
+  '#8fbf7a',
+  '#b48ead',
+  '#5fb3b3',
+  '#e8d5a3',
+  '#d68fb0',
+]
 
 export function couleursDe(joueurs: readonly PlayerId[]): Record<PlayerId, string> {
   return Object.fromEntries(joueurs.map((p, i) => [p, PALETTE[i % PALETTE.length]]))

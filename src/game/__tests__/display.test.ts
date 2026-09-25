@@ -3,7 +3,7 @@ import { DECK } from '../cards'
 import { RANK_LABEL, cardLabel, courtImage, isCourt, isRed, pipLayout } from '../display'
 
 describe('index à la française', () => {
-  it('l\'as porte un 1, les figures V, D et R', () => {
+  it("l'as porte un 1, les figures V, D et R", () => {
     expect(RANK_LABEL.A).toBe('1')
     expect(RANK_LABEL.J).toBe('V')
     expect(RANK_LABEL.Q).toBe('D')
@@ -27,7 +27,7 @@ describe('pointes', () => {
     expect(pipLayout('10')).toHaveLength(10)
   })
 
-  it('les figures n\'ont pas de pointes : elles ont une illustration', () => {
+  it("les figures n'ont pas de pointes : elles ont une illustration", () => {
     for (const r of ['J', 'Q', 'K'] as const) {
       expect(pipLayout(r)).toHaveLength(0)
       expect(isCourt(r)).toBe(true)
@@ -37,10 +37,10 @@ describe('pointes', () => {
   it('les pointes de la moitié basse sont retournées', () => {
     const dix = pipLayout('10')
     expect(dix.filter((p) => p.flipped)).toHaveLength(5)
-    expect(dix.every((p) => (p.y > 52) === p.flipped)).toBe(true)
+    expect(dix.every((p) => p.y > 52 === p.flipped)).toBe(true)
   })
 
-  it('l\'as porte une seule grande pointe, au centre', () => {
+  it("l'as porte une seule grande pointe, au centre", () => {
     expect(pipLayout('A')[0]).toEqual({ x: 50, y: 50, flipped: false, large: true })
   })
 })

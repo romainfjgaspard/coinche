@@ -7,13 +7,26 @@ import { buildArchive } from '../archive'
 const ev = (type: string, extra: Record<string, unknown> = {}): GameEvent =>
   ({ type, seq: 0, at: 0, ...extra }) as GameEvent
 
-const donne = (n: number, taker: string, value: number, status: string,
-               scores: [number, number], extra: Record<string, unknown> = {}): GameEvent[] => [
+const donne = (
+  n: number,
+  taker: string,
+  value: number,
+  status: string,
+  scores: [number, number],
+  extra: Record<string, unknown> = {},
+): GameEvent[] => [
   ev('donne_commencee', { dealNumber: n, dealer: 'benel' }),
   ev('contrat_fixe', { taker, value, trump: 's', multiplier: 1, capot: false, generale: false }),
   ev('donne_terminee', {
-    dealNumber: n, status, cardPoints: [81, 81], compared: [81, 81], scores,
-    beloteDeclaredBy: null, beloteForgottenBy: null, etoile: null, ...extra,
+    dealNumber: n,
+    status,
+    cardPoints: [81, 81],
+    compared: [81, 81],
+    scores,
+    beloteDeclaredBy: null,
+    beloteForgottenBy: null,
+    etoile: null,
+    ...extra,
   }),
 ]
 
@@ -41,7 +54,7 @@ describe('archive de fin de partie', () => {
     expect(a.seating).toEqual(DEFAULT_SEATING)
   })
 
-  it('sépare ce que chacun rapporte de ce qu\'il offre', () => {
+  it("sépare ce que chacun rapporte de ce qu'il offre", () => {
     expect(a.players.viv).toMatchObject({ prises: 2, reussies: 2, marques: 200, offerts: 0 })
     expect(a.players.roux).toMatchObject({ prises: 1, chutes: 1, marques: 0, offerts: 100 })
   })
@@ -53,7 +66,7 @@ describe('archive de fin de partie', () => {
     expect(a.players.viv.detail[1].force).toBeGreaterThan(a.players.viv.detail[0].force!)
   })
 
-  it('laisse la force indéfinie quand la main n\'a pas pu être lue', () => {
+  it("laisse la force indéfinie quand la main n'a pas pu être lue", () => {
     const sansMains = buildArchive('KDVA', EVENTS, DEFAULT_SEATING, {})
     expect(sansMains.players.viv.detail[0].force).toBeNull()
   })

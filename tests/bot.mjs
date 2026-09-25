@@ -34,7 +34,11 @@ const code = (await p.locator('.font-display').first().innerText()).trim()
 /** Qui porte l'étiquette « donneur » dans la liste des sièges. */
 async function donneur() {
   for (const t of await p.locator('ul li').allInnerTexts()) {
-    if (t.includes('donneur')) return t.split('\n').find((l) => /\w{3,}/.test(l))?.trim()
+    if (t.includes('donneur'))
+      return t
+        .split('\n')
+        .find((l) => /\w{3,}/.test(l))
+        ?.trim()
   }
   return null
 }
@@ -70,7 +74,8 @@ const demarre = await p
   .then(() => true)
   .catch(() => false)
 console.log(
-  'la table a démarré sans intervention humaine :', demarre,
+  'la table a démarré sans intervention humaine :',
+  demarre,
   demarre ? `(en ${((Date.now() - debut) / 1000).toFixed(1)} s)` : '',
 )
 
@@ -79,18 +84,32 @@ let cartes = 0
 for (let tour = 0; tour < 3000; tour++) {
   if (await p.getByRole('button', { name: 'Quitter la partie' }).count()) break
   const suivante = p.getByRole('button', { name: /Distribuer/ })
-  if (await suivante.count()) { await suivante.first().click().catch(() => {}); continue }
+  if (await suivante.count()) {
+    await suivante
+      .first()
+      .click()
+      .catch(() => {})
+    continue
+  }
   // La carte d'abord : le panneau d'enchères peut encore traîner à l'écran, et
   // cliquer « Passe » hors de son tour bloquait l'humain pour toute la donne.
   if (await p.locator('text=à toi de jouer').count()) {
     const carte = p.locator('button[aria-label^="Jouer le"]').first()
     if (await carte.count()) {
-      await carte.click({ force: true, timeout: 4000 }).then(() => { cartes++ }).catch(() => {})
+      await carte
+        .click({ force: true, timeout: 4000 })
+        .then(() => {
+          cartes++
+        })
+        .catch(() => {})
     }
     continue
   }
   if (await p.locator('text=Ton enchère').count()) {
-    await p.getByRole('button', { name: 'Passe' }).click({ timeout: 3000 }).catch(() => {})
+    await p
+      .getByRole('button', { name: 'Passe' })
+      .click({ timeout: 3000 })
+      .catch(() => {})
     continue
   }
   await p.waitForTimeout(250)
@@ -101,7 +120,8 @@ const ecran = (await p.locator('body').innerText()).replace(/\n+/g, ' | ')
 /** Le journal fait foi : c'est lui qui dit si la table a réellement avancé. */
 const rep = await fetch(
   `http://127.0.0.1:8080/v1/projects/demo-coinche/databases/(default)/documents/parties/${code}/evenements?pageSize=400`,
-  { headers: { Authorization: 'Bearer owner' } })
+  { headers: { Authorization: 'Bearer owner' } },
+)
 const docs = (await rep.json()).documents ?? []
 const types = docs.map((d) => d.fields.type.stringValue)
 const detail = docs.slice(-6).map((d) => {
@@ -110,25 +130,39 @@ const detail = docs.slice(-6).map((d) => {
 })
 const compte = {}
 for (const t of types) compte[t] = (compte[t] ?? 0) + 1
-console.log('cartes posées par l\'humain :', cartes, '· donne :', ecran.match(/DONNE (\d+)/)?.[1] ?? '—')
+console.log("cartes posées par l'humain :", cartes, '· donne :', ecran.match(/DONNE (\d+)/)?.[1] ?? '—')
 console.log('journal :', JSON.stringify(compte))
 console.log('derniers événements :', detail.join(' > '))
 const creation = docs.find((d) => d.fields.type.stringValue === 'partie_creee')
-console.log('placement :', creation?.fields?.seating?.arrayValue?.values?.map((v) => v.stringValue).join(', '))
-const g = await (await fetch(
-  `http://127.0.0.1:8080/v1/projects/demo-coinche/databases/(default)/documents/parties/${code}`,
-  { headers: { Authorization: 'Bearer owner' } })).json()
+console.log(
+  'placement :',
+  creation?.fields?.seating?.arrayValue?.values?.map((v) => v.stringValue).join(', '),
+)
+const g = await (
+  await fetch(
+    `http://127.0.0.1:8080/v1/projects/demo-coinche/databases/(default)/documents/parties/${code}`,
+    { headers: { Authorization: 'Bearer owner' } },
+  )
+).json()
 const f = g.fields ?? {}
-console.log('écran humain : monTour=' + (await p.locator('text=à toi de jouer').count()),
+console.log(
+  'écran humain : monTour=' + (await p.locator('text=à toi de jouer').count()),
   '· cartes cliquables=' + (await p.locator('button[aria-label^="Jouer le"]').count()),
-  '· panneau enchère=' + (await p.locator('text=Ton enchère').count()))
-console.log('partie :', 'phase=' + f.phase?.stringValue, 'donne=' + f.dealNumber?.integerValue,
-  'donneur=' + f.dealer?.stringValue, 'moveSeq=' + f.moveSeq?.integerValue,
-  'eventSeq=' + f.eventSeq?.integerValue)
+  '· panneau enchère=' + (await p.locator('text=Ton enchère').count()),
+)
+console.log(
+  'partie :',
+  'phase=' + f.phase?.stringValue,
+  'donne=' + f.dealNumber?.integerValue,
+  'donneur=' + f.dealer?.stringValue,
+  'moveSeq=' + f.moveSeq?.integerValue,
+  'eventSeq=' + f.eventSeq?.integerValue,
+)
 for (const j of ['benel', 'roux', 'viv', 'romain']) {
   const r = await fetch(
     `http://127.0.0.1:8080/v1/projects/demo-coinche/databases/(default)/documents/parties/${code}/mains/${j}`,
-    { headers: { Authorization: 'Bearer owner' } })
+    { headers: { Authorization: 'Bearer owner' } },
+  )
   const d = await r.json()
   const n = d.fields?.cards?.arrayValue?.values?.length
   console.log(`  main ${j} :`, r.status, n === undefined ? JSON.stringify(d).slice(0, 90) : `${n} cartes`)

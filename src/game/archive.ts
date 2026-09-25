@@ -13,7 +13,13 @@ import { impasseTallies, impassesOfGame } from './impasses'
 import { type PlayerId, type Seating, teamOfPlayer } from './players'
 import { type Reflexion, deals, reflexions } from './stats'
 import {
-  type Ecarts, type Repartition, type Roles, type Temps, ecartsAnnonce, repartitionAnnonces, rolesPrise,
+  type Ecarts,
+  type Repartition,
+  type Roles,
+  type Temps,
+  ecartsAnnonce,
+  repartitionAnnonces,
+  rolesPrise,
   tempsParJoueur,
 } from './statsEncheres'
 
@@ -77,9 +83,20 @@ export interface Archive {
 }
 
 const vide = (): PlayerArchive => ({
-  prises: 0, reussies: 0, chutes: 0, marques: 0, offerts: 0, coinches: 0, coinchesGagnees: 0,
-  belotesAnnoncees: 0, belotesOubliees: 0, etoiles: 0,
-  impasses: 0, impassesReussies: 0, impassesRatees: 0, detail: [],
+  prises: 0,
+  reussies: 0,
+  chutes: 0,
+  marques: 0,
+  offerts: 0,
+  coinches: 0,
+  coinchesGagnees: 0,
+  belotesAnnoncees: 0,
+  belotesOubliees: 0,
+  etoiles: 0,
+  impasses: 0,
+  impassesReussies: 0,
+  impassesRatees: 0,
+  detail: [],
 })
 
 /**
@@ -94,9 +111,7 @@ export function buildArchive(
   bots: PlayerId[] = [],
 ): Archive {
   const list = deals(events).filter((d) => d.status !== null)
-  const players = Object.fromEntries(
-    seating.map((p) => [p, vide()]),
-  ) as Record<PlayerId, PlayerArchive>
+  const players = Object.fromEntries(seating.map((p) => [p, vide()])) as Record<PlayerId, PlayerArchive>
 
   for (const d of list) {
     if (d.taker) {

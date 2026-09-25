@@ -55,10 +55,20 @@ export interface CarteJugee {
  */
 export const SEUILS = { bonne: 5, imprecision: 12, erreur: 30 }
 export const SEUIL_POINTS = 10
-export function qualiteDe(perteChances: number, pertePoints: number, forcee: boolean, meilleure: boolean): Qualite {
+export function qualiteDe(
+  perteChances: number,
+  pertePoints: number,
+  forcee: boolean,
+  meilleure: boolean,
+): Qualite {
   if (forcee) return 'forcee'
   if (meilleure) return 'meilleure'
-  if (perteChances < SEUILS.bonne) return pertePoints >= SEUIL_POINTS ? 'imprecision' : perteChances < 0.5 && pertePoints < 1 ? 'meilleure' : 'bonne'
+  if (perteChances < SEUILS.bonne)
+    return pertePoints >= SEUIL_POINTS
+      ? 'imprecision'
+      : perteChances < 0.5 && pertePoints < 1
+        ? 'meilleure'
+        : 'bonne'
   if (perteChances < SEUILS.imprecision) return 'imprecision'
   if (perteChances < SEUILS.erreur) return 'erreur'
   return 'gaffe'
@@ -68,10 +78,7 @@ export function qualiteDe(perteChances: number, pertePoints: number, forcee: boo
  * Ce qu'un joueur sait des mains des autres : les cartes qu'ils ne peuvent **pas** avoir,
  * déduites des règles de fourniture (JEU-2 à JEU-8) à chaque carte qu'ils ont posée.
  */
-export function cartesImpossibles(
-  plis: { siege: number; carte: Card }[][],
-  trump: Atout,
-): Set<Card>[] {
+export function cartesImpossibles(plis: { siege: number; carte: Card }[][], trump: Atout): Set<Card>[] {
   const interdit: Set<Card>[] = [new Set(), new Set(), new Set(), new Set()]
   const couleurEntiere = (s: string) => DECK.filter((c) => suitOf(c) === s)
   for (const pli of plis) {
@@ -85,8 +92,14 @@ export function cartesImpossibles(
           const c = joues[i].card
           const b = joues[best].card
           if (isTrump(c, trump) && !isTrump(b, trump)) best = i
-          else if (isTrump(c, trump) === isTrump(b, trump) && suitOf(c) === suitOf(b) && strength(c, trump) > strength(b, trump)) best = i
-          else if (!isTrump(c, trump) && !isTrump(b, trump) && suitOf(b) !== entame && suitOf(c) === entame) best = i
+          else if (
+            isTrump(c, trump) === isTrump(b, trump) &&
+            suitOf(c) === suitOf(b) &&
+            strength(c, trump) > strength(b, trump)
+          )
+            best = i
+          else if (!isTrump(c, trump) && !isTrump(b, trump) && suitOf(b) !== entame && suitOf(c) === entame)
+            best = i
         }
         const maitresse = joues[best].card
         const partenaireMaitre = (joues[best].seat & 1) === (siege & 1)
@@ -102,8 +115,12 @@ export function cartesImpossibles(
               for (const c of plusFortes(trump, maitresse)) interdit[siege].add(c)
             }
           }
-        } else if ((entame === trump || trump === 'ta') && !partenaireMaitre
-          && suitOf(maitresse) === entame && strength(carte, trump) < strength(maitresse, trump)) {
+        } else if (
+          (entame === trump || trump === 'ta') &&
+          !partenaireMaitre &&
+          suitOf(maitresse) === entame &&
+          strength(carte, trump) < strength(maitresse, trump)
+        ) {
           // À l'atout, il n'a pas monté : il n'avait pas plus fort.
           for (const c of plusFortes(entame, maitresse)) interdit[siege].add(c)
         }
@@ -117,7 +134,10 @@ export function cartesImpossibles(
 /** Un générateur déterministe : une analyse se rejoue à l'identique. */
 export function hasard(graine: number): () => number {
   let g = graine % 2147483647 || 1
-  return () => { g = (g * 16807) % 2147483647; return g / 2147483647 }
+  return () => {
+    g = (g * 16807) % 2147483647
+    return g / 2147483647
+  }
 }
 
 /**
@@ -125,7 +145,11 @@ export function hasard(graine: number): () => number {
  * cartes de chacun et ce qu'on sait qu'ils n'ont pas. Nulle si le tirage échoue.
  */
 export function tirerRepartition(
-  inconnues: Card[], places: number[], interdit: Set<Card>[], sieges: number[], r: () => number,
+  inconnues: Card[],
+  places: number[],
+  interdit: Set<Card>[],
+  sieges: number[],
+  r: () => number,
 ): Card[][] | null {
   for (let essai = 0; essai < 50; essai++) {
     const mains: Card[][] = [[], [], [], []]
@@ -137,7 +161,10 @@ export function tirerRepartition(
     let ok = true
     for (const { c, possibles } of ordre) {
       const libres = possibles.filter((s) => reste[s] > 0)
-      if (libres.length === 0) { ok = false; break }
+      if (libres.length === 0) {
+        ok = false
+        break
+      }
       const s = libres[Math.floor(r() * libres.length)]
       mains[s].push(c)
       reste[s] -= 1
@@ -180,7 +207,9 @@ export function analyserCartes(donne: DonneRevue, seating: Seating, options: Opt
 
   /** Le contrat passe-t-il, si le preneur finit avec ce total et cette belote ? */
   const passe = (totalPreneur: number, belote: number): boolean =>
-    contrat.capot ? totalPreneur === 8 : totalPreneur + belote >= contrat.value && totalPreneur + belote > 162 - totalPreneur
+    contrat.capot
+      ? totalPreneur === 8
+      : totalPreneur + belote >= contrat.value && totalPreneur + belote > 162 - totalPreneur
 
   for (const p of donne.plis) {
     const pli: { siege: number; carte: Card }[] = []
@@ -192,11 +221,25 @@ export function analyserCartes(donne: DonneRevue, seating: Seating, options: Opt
       const aJuger = !seulement || seulement.has(index)
 
       if (aJuger && permis.length === 1) {
-        out.push({ pli: p.numero, joueur: player, carte: card, qualite: 'forcee', perteChances: 0, pertePoints: 0, meilleure: null, chancesApres: -1, options: [] })
+        out.push({
+          pli: p.numero,
+          joueur: player,
+          carte: card,
+          qualite: 'forcee',
+          perteChances: 0,
+          pertePoints: 0,
+          meilleure: null,
+          chancesApres: -1,
+          options: [],
+        })
       } else if (aJuger) {
         // Ce que le joueur sait : sa main, les cartes tombées, et les cartes impossibles.
         const interdit = cartesImpossibles([...faits, pli], trump)
-        const connues = new Set<Card>([...restantes[s], ...faits.flat().map((x) => x.carte), ...pli.map((x) => x.carte)])
+        const connues = new Set<Card>([
+          ...restantes[s],
+          ...faits.flat().map((x) => x.carte),
+          ...pli.map((x) => x.carte),
+        ])
         const inconnues = DECK.filter((c) => !connues.has(c))
         const autres = [0, 1, 2, 3].filter((x) => x !== s)
         const places = restantes.map((m) => m.length)
@@ -210,23 +253,41 @@ export function analyserCartes(donne: DonneRevue, seating: Seating, options: Opt
           if (!tirage) continue
           const mains = [0, 1, 2, 3].map((x) => (x === s ? restantes[s] : tirage[x]))
           // La belote du preneur, si son camp tient Roi et Dame d'atout dans une même main.
-          const belote = !contrat.capot && trump !== null && trump !== 'ta'
-            && [0, 1, 2, 3].some((x) => (x & 1) === preneur
-              && (mains[x].includes(`K${trump}` as Card) || faits.flat().concat(pli).some((y) => y.siege === x && y.carte === `K${trump}`))
-              && (mains[x].includes(`Q${trump}` as Card) || faits.flat().concat(pli).some((y) => y.siege === x && y.carte === `Q${trump}`)))
-            ? 20 : 0
+          const belote =
+            !contrat.capot &&
+            trump !== null &&
+            trump !== 'ta' &&
+            [0, 1, 2, 3].some(
+              (x) =>
+                (x & 1) === preneur &&
+                (mains[x].includes(`K${trump}` as Card) ||
+                  faits
+                    .flat()
+                    .concat(pli)
+                    .some((y) => y.siege === x && y.carte === `K${trump}`)) &&
+                (mains[x].includes(`Q${trump}` as Card) ||
+                  faits
+                    .flat()
+                    .concat(pli)
+                    .some((y) => y.siege === x && y.carte === `Q${trump}`)),
+            )
+              ? 20
+              : 0
           // Mêmes mains, même camp : les positions calculées pour une carte servent aux autres.
           const memoire: Memoire = new Map()
           for (const c of permis) {
-            const v = resoudre({
-              mains: mains.map((m, x) => (x === s ? m.filter((y) => y !== c) : m)),
-              pli: [...pli, { siege: s, carte: c }],
-              entameur,
-              plisJoues: p.numero - 1,
-              trump,
-              equipe: preneur,
-              objectif,
-            }, memoire)
+            const v = resoudre(
+              {
+                mains: mains.map((m, x) => (x === s ? m.filter((y) => y !== c) : m)),
+                pli: [...pli, { siege: s, carte: c }],
+                entameur,
+                plisJoues: p.numero - 1,
+                trump,
+                equipe: preneur,
+                objectif,
+              },
+              memoire,
+            )
             const totalPreneur = acquis[preneur] + v
             if (passe(totalPreneur, belote)) reussites.set(c, reussites.get(c)! + 1)
             if (objectif === 'points') {
@@ -248,8 +309,8 @@ export function analyserCartes(donne: DonneRevue, seating: Seating, options: Opt
         const jouee = optionsTriees.find((o) => o.carte === card)!
         const perteChances = Math.max(0, pourMoi(meilleure) - pourMoi(jouee))
         const pertePoints = Math.max(0, meilleure.points - jouee.points)
-        const estLaMeilleure = meilleure.carte === card
-          || (perteChances === 0 && Math.abs(meilleure.points - jouee.points) < 0.5)
+        const estLaMeilleure =
+          meilleure.carte === card || (perteChances === 0 && Math.abs(meilleure.points - jouee.points) < 0.5)
         const qualite = qualiteDe(perteChances, pertePoints, false, estLaMeilleure)
         out.push({
           pli: p.numero,
@@ -267,7 +328,10 @@ export function analyserCartes(donne: DonneRevue, seating: Seating, options: Opt
       restantes[s] = restantes[s].filter((c) => c !== card)
       pli.push({ siege: s, carte: card })
       index += 1
-      if (aJuger) { fait += 1; options.progression?.(fait, seulement ? seulement.size : total) }
+      if (aJuger) {
+        fait += 1
+        options.progression?.(fait, seulement ? seulement.size : total)
+      }
     }
     faits.push(pli)
     const gagnant = siege(p.gagnant)

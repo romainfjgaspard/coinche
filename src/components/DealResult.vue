@@ -44,7 +44,10 @@ const final = computed(() => {
 })
 
 const STATUS: Record<string, string> = {
-  reussi: 'Contrat réussi', chute: 'Contrat chuté', capot: 'Capot !', generale: 'Générale !',
+  reussi: 'Contrat réussi',
+  chute: 'Contrat chuté',
+  capot: 'Capot !',
+  generale: 'Générale !',
 }
 
 const iAmDealer = computed(() => session.playerId === session.game?.dealer)
@@ -103,12 +106,13 @@ function next(): void {
 </script>
 
 <template>
-  <div class="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 px-5 py-4 max-lg:items-stretch max-lg:px-3 max-lg:py-3">
+  <div
+    class="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 px-5 py-4 max-lg:items-stretch max-lg:px-3 max-lg:py-3"
+  >
     <div
       class="w-full max-w-sm rounded-2xl border border-white/10 bg-felt-dark p-6 text-center max-lg:flex max-lg:flex-col max-lg:justify-center"
       :style="grand ? { zoom: L.t * 1.3 } : { zoom: 1.12 }"
     >
-
       <!-- DEC-8 : l'étoile de la honte prend toute la place -->
       <!-- En tête : sinon la donne précédente, qui a pu finir sur une étoile, s'afficherait -->
       <template v-if="blanche">
@@ -145,7 +149,9 @@ function next(): void {
         </p>
         <!-- La donne qui vient de clore la partie : sans elle, on ne savait pas comment elle s'était finie -->
         <p v-if="result && contract" class="mt-4 text-[13px] text-sage">
-          {{ `Dernière donne : ${nomDe(contract.taker)} · ${contractText}${contract.trump ? ' ' + SUIT_GLYPH[contract.trump] : ''} — ${(STATUS[result.status] ?? result.status).toLowerCase()}` }}
+          {{
+            `Dernière donne : ${nomDe(contract.taker)} · ${contractText}${contract.trump ? ' ' + SUIT_GLYPH[contract.trump] : ''} — ${(STATUS[result.status] ?? result.status).toLowerCase()}`
+          }}
         </p>
       </template>
 
@@ -160,11 +166,13 @@ function next(): void {
             v-if="contract.trump"
             class="flex size-6 items-center justify-center rounded-full bg-ivory text-base leading-none"
             :class="isRed(contract.trump) ? 'text-red-card' : 'text-felt-dark'"
-          >{{ SUIT_GLYPH[contract.trump] }}</span>
+            >{{ SUIT_GLYPH[contract.trump] }}</span
+          >
           <span
             v-if="contract.multiplier > 1"
             class="rounded-full bg-red-card px-2 py-0.5 text-[11px] font-bold tracking-wide text-ivory"
-          >{{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}</span>
+            >{{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}</span
+          >
         </p>
         <!--
           Points faits (cartes, dix de der, belote du preneur) et points marqués, pour
@@ -192,7 +200,9 @@ function next(): void {
                   :aria-label="detail ? 'Replier le détail' : 'Voir le détail des points'"
                   :aria-expanded="detail"
                   @click="detail = !detail"
-                ><span class="transition" :class="detail ? 'rotate-180' : ''">▼</span></button>
+                >
+                  <span class="transition" :class="detail ? 'rotate-180' : ''">▼</span>
+                </button>
               </td>
             </tr>
             <template v-if="detail && detailComplet && donne">
@@ -214,8 +224,24 @@ function next(): void {
                 <td class="py-0.5 pl-3 text-left">
                   Belote <span class="text-dusk">· {{ nomDe(result.beloteDeclaredBy) }}</span>
                 </td>
-                <td class="py-0.5">{{ beloteCompte && equipeDe(result.beloteDeclaredBy) === nous ? 20 : equipeDe(result.beloteDeclaredBy) === nous ? '—' : '' }}</td>
-                <td class="py-0.5">{{ beloteCompte && equipeDe(result.beloteDeclaredBy) === eux ? 20 : equipeDe(result.beloteDeclaredBy) === eux ? '—' : '' }}</td>
+                <td class="py-0.5">
+                  {{
+                    beloteCompte && equipeDe(result.beloteDeclaredBy) === nous
+                      ? 20
+                      : equipeDe(result.beloteDeclaredBy) === nous
+                        ? '—'
+                        : ''
+                  }}
+                </td>
+                <td class="py-0.5">
+                  {{
+                    beloteCompte && equipeDe(result.beloteDeclaredBy) === eux
+                      ? 20
+                      : equipeDe(result.beloteDeclaredBy) === eux
+                        ? '—'
+                        : ''
+                  }}
+                </td>
                 <td></td>
               </tr>
             </template>
@@ -231,7 +257,9 @@ function next(): void {
           Blitz : donne non jouée, contrat réputé réussi.
         </p>
         <p v-if="result.beloteDeclaredBy" class="mt-1.5 text-[13px] text-sage">
-          {{ `Belote annoncée par ${nomDe(result.beloteDeclaredBy)}${beloteEnDefense ? ' — en défense, elle ne compte pas' : ''}` }}
+          {{
+            `Belote annoncée par ${nomDe(result.beloteDeclaredBy)}${beloteEnDefense ? ' — en défense, elle ne compte pas' : ''}`
+          }}
         </p>
         <p v-else-if="result.beloteForgottenBy" class="mt-1.5 text-[13px] text-red-card">
           {{ nomDe(result.beloteForgottenBy) }} avait la belote et ne l'a pas annoncée
@@ -245,12 +273,16 @@ function next(): void {
           type="button"
           class="h-11 grow cursor-pointer rounded-xl border border-white/15 text-sm font-medium text-mist transition hover:border-white/35"
           @click="revue = true"
-        >Revoir la donne</button>
+        >
+          Revoir la donne
+        </button>
         <button
           type="button"
           class="h-11 grow cursor-pointer rounded-xl border border-white/15 text-sm font-medium text-mist transition hover:border-white/35"
           @click="emit('stats')"
-        >Statistiques</button>
+        >
+          Statistiques
+        </button>
       </div>
       <RevueDonne v-if="revue && donne" :donne="donne" @fermer="revue = false" />
 
@@ -259,7 +291,9 @@ function next(): void {
         type="button"
         class="mt-2.5 h-13 w-full cursor-pointer rounded-xl bg-gold py-3.5 text-base font-bold text-felt transition hover:brightness-110"
         @click="bilanVu = true"
-      >Voir le résultat de la partie</button>
+      >
+        Voir le résultat de la partie
+      </button>
       <p v-else-if="!over && waitingForBot" class="mt-3 text-sm text-mist">
         {{ session.game ? nomDe(session.game.dealer) : '' }} distribue…
       </p>
@@ -269,7 +303,9 @@ function next(): void {
         :disabled="session.busy"
         class="mt-2.5 h-13 w-full cursor-pointer rounded-xl bg-gold py-3.5 text-base font-bold text-felt transition hover:brightness-110 disabled:opacity-40"
         @click="next"
-      >Distribuer la donne suivante</button>
+      >
+        Distribuer la donne suivante
+      </button>
       <p v-else-if="!over" class="mt-3 text-sm text-mist">
         {{ session.game ? nomDe(session.game.dealer) : '' }} distribue.
       </p>
@@ -280,7 +316,9 @@ function next(): void {
           :disabled="session.busy"
           class="mt-2.5 h-13 w-full cursor-pointer rounded-xl bg-gold py-3.5 text-base font-bold text-felt transition hover:brightness-110 disabled:opacity-40"
           @click="session.rejouer()"
-        >{{ session.busy ? 'Nouvelle partie…' : 'Rejouer' }}</button>
+        >
+          {{ session.busy ? 'Nouvelle partie…' : 'Rejouer' }}
+        </button>
         <p class="mt-1.5 text-xs text-sage">
           Mêmes joueurs, même soirée : les équipes se changent au salon avant la première donne.
         </p>
@@ -293,7 +331,9 @@ function next(): void {
         type="button"
         class="mt-2.5 h-12 w-full rounded-xl border border-white/15 text-sm font-medium text-mist"
         @click="session.leave()"
-      >Quitter la partie</button>
+      >
+        Quitter la partie
+      </button>
     </div>
   </div>
 </template>

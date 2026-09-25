@@ -3,7 +3,8 @@
 import { computed } from 'vue'
 
 const props = withDefaults(defineProps<{ width?: number; rotated?: boolean }>(), {
-  width: 26, rotated: false,
+  width: 26,
+  rotated: false,
 })
 
 const size = computed(() => {

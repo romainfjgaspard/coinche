@@ -31,9 +31,20 @@ export interface DealSummary {
 }
 
 const vide = (dealNumber: number, dealer: PlayerId | null): DealSummary => ({
-  dealNumber, dealer, taker: null, value: 0, trump: null, multiplier: 1, capot: false,
-  status: null, scores: [0, 0], cardPoints: [0, 0], coincheurs: [],
-  beloteDeclaredBy: null, beloteForgottenBy: null, etoile: null,
+  dealNumber,
+  dealer,
+  taker: null,
+  value: 0,
+  trump: null,
+  multiplier: 1,
+  capot: false,
+  status: null,
+  scores: [0, 0],
+  cardPoints: [0, 0],
+  coincheurs: [],
+  beloteDeclaredBy: null,
+  beloteForgottenBy: null,
+  etoile: null,
 })
 
 /** Découpe le journal en donnes, y compris celle en cours. */
@@ -144,7 +155,10 @@ export function reflexions(events: GameEvent[]): Map<PlayerId, Reflexion> {
   for (const e of events) {
     if ((e.type !== 'enchere' && e.type !== 'carte_jouee') || e.thinkMs === undefined) continue
     let r = out.get(e.player)
-    if (!r) { r = { encheres: chronoVide(), cartes: chronoVide() }; out.set(e.player, r) }
+    if (!r) {
+      r = { encheres: chronoVide(), cartes: chronoVide() }
+      out.set(e.player, r)
+    }
     const c = e.type === 'enchere' ? r.encheres : r.cartes
     c.total += e.thinkMs
     c.n += 1
@@ -154,8 +168,11 @@ export function reflexions(events: GameEvent[]): Map<PlayerId, Reflexion> {
 }
 
 /** Additionne deux décomptes : d'une partie à l'autre, pour les statistiques globales. */
-export const ajouterChrono = (a: Chrono, b: Chrono): Chrono =>
-  ({ total: a.total + b.total, n: a.n + b.n, max: Math.max(a.max, b.max) })
+export const ajouterChrono = (a: Chrono, b: Chrono): Chrono => ({
+  total: a.total + b.total,
+  n: a.n + b.n,
+  max: Math.max(a.max, b.max),
+})
 
 export const moyenne = (c: Chrono): number | null => (c.n ? c.total / c.n : null)
 
@@ -175,24 +192,33 @@ export interface Tally {
 }
 
 const tallyVide = (): Tally => ({
-  prises: 0, reussies: 0, chutes: 0, marques: 0, offerts: 0,
-  encheres: [], coinches: 0, belotesAnnoncees: 0, belotesOubliees: 0, etoiles: 0,
+  prises: 0,
+  reussies: 0,
+  chutes: 0,
+  marques: 0,
+  offerts: 0,
+  encheres: [],
+  coinches: 0,
+  belotesAnnoncees: 0,
+  belotesOubliees: 0,
+  etoiles: 0,
 })
 
 /** Bilan net : ce qu'on rapporte moins ce qu'on offre. */
 export const bilan = (t: Tally): number => t.marques - t.offerts
 
 export const enchereMoyenne = (t: Tally): number | null =>
-  t.encheres.length === 0
-    ? null
-    : Math.round(t.encheres.reduce((s, v) => s + v, 0) / t.encheres.length)
+  t.encheres.length === 0 ? null : Math.round(t.encheres.reduce((s, v) => s + v, 0) / t.encheres.length)
 
 /** Compte par joueur, sur les donnes terminées. */
 export function tallies(list: DealSummary[], seating: Seating): Map<PlayerId, Tally> {
   const out = new Map<PlayerId, Tally>()
   const pour = (p: PlayerId): Tally => {
     let t = out.get(p)
-    if (!t) { t = tallyVide(); out.set(p, t) }
+    if (!t) {
+      t = tallyVide()
+      out.set(p, t)
+    }
     return t
   }
 
@@ -236,8 +262,14 @@ export interface TeamTally {
 
 export function teamTallies(list: DealSummary[], seating: Seating): [TeamTally, TeamTally] {
   const vide = (): TeamTally & { encheres: number[] } => ({
-    donnesGagnees: 0, prises: 0, reussies: 0, enchereMoyenne: null,
-    coinches: 0, coinchesGagnees: 0, etoiles: 0, encheres: [],
+    donnesGagnees: 0,
+    prises: 0,
+    reussies: 0,
+    enchereMoyenne: null,
+    coinches: 0,
+    coinchesGagnees: 0,
+    etoiles: 0,
+    encheres: [],
   })
   const equipes = [vide(), vide()]
   for (const d of list) {
@@ -260,7 +292,9 @@ export function teamTallies(list: DealSummary[], seating: Seating): [TeamTally, 
   }
   const fin = ({ encheres, ...e }: TeamTally & { encheres: number[] }): TeamTally => ({
     ...e,
-    enchereMoyenne: encheres.length ? Math.round(encheres.reduce((s, v) => s + v, 0) / encheres.length) : null,
+    enchereMoyenne: encheres.length
+      ? Math.round(encheres.reduce((s, v) => s + v, 0) / encheres.length)
+      : null,
   })
   return [fin(equipes[0]), fin(equipes[1])]
 }

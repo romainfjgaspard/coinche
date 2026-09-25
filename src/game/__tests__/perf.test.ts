@@ -9,17 +9,20 @@ import { playFromEvents } from '../replay'
 
 /** Journal synthétique : 16 donnes complètes, la taille d'une vraie partie. */
 function journal(donnes: number): GameEvent[] {
-  const events: GameEvent[] = [
-    { type: 'partie_creee', seating: DEFAULT_SEATING } as unknown as GameEvent,
-  ]
+  const events: GameEvent[] = [{ type: 'partie_creee', seating: DEFAULT_SEATING } as unknown as GameEvent]
   let graine = 42
-  const rnd = () => ((graine = (graine * 1103515245 + 12345) % 2147483648) / 2147483648)
+  const rnd = () => (graine = (graine * 1103515245 + 12345) % 2147483648) / 2147483648
 
   for (let d = 1; d <= donnes; d++) {
     events.push({ type: 'donne_commencee', dealNumber: d, dealer: 'benel' } as GameEvent)
     events.push({
-      type: 'contrat_fixe', taker: 'viv', value: 100, trump: 'h',
-      multiplier: 1, capot: false, generale: false,
+      type: 'contrat_fixe',
+      taker: 'viv',
+      value: 100,
+      trump: 'h',
+      multiplier: 1,
+      capot: false,
+      generale: false,
     } as GameEvent)
     const pile = shuffle([...DECK], rnd)
     const mains = new Map(PLAYER_IDS.map((p, i) => [p, pile.slice(i * 8, i * 8 + 8) as Card[]]))
@@ -30,14 +33,23 @@ function journal(donnes: number): GameEvent[] {
       const c = playableFor(state, j, main)[0]
       main.splice(main.indexOf(c), 1)
       events.push({
-        type: 'carte_jouee', player: j, card: c, trickNumber: state.completed.length + 1,
+        type: 'carte_jouee',
+        player: j,
+        card: c,
+        trickNumber: state.completed.length + 1,
       } as GameEvent)
       state = applyPlayed(state, j, c)
     }
     events.push({
-      type: 'donne_terminee', dealNumber: d, status: 'reussi', cardPoints: [90, 72],
-      compared: [90, 72], scores: [100, 0], beloteDeclaredBy: null,
-      beloteForgottenBy: null, etoile: null,
+      type: 'donne_terminee',
+      dealNumber: d,
+      status: 'reussi',
+      cardPoints: [90, 72],
+      compared: [90, 72],
+      scores: [100, 0],
+      beloteDeclaredBy: null,
+      beloteForgottenBy: null,
+      etoile: null,
     } as GameEvent)
   }
   return events

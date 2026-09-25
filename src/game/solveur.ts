@@ -93,7 +93,12 @@ function gagnante(cartes: ArrayLike<number>, n: number, t: Tables): number {
 
 /** Les coups permis, en masque : JEU-1 à JEU-8, comme `playableCards`. */
 function coupsPermis(
-  main: number, cartes: ArrayLike<number>, sieges: ArrayLike<number>, n: number, siege: number, t: Tables,
+  main: number,
+  cartes: ArrayLike<number>,
+  sieges: ArrayLike<number>,
+  n: number,
+  siege: number,
+  t: Tables,
   toutAtout: boolean,
 ): number {
   if (n === 0) return main
@@ -133,12 +138,25 @@ function equivalentes(a: number, b: number, vivantes: number, t: Tables): boolea
 }
 
 /** Pour les tests : les coups permis, sous forme de cartes. */
-export function coupsPermisCartes(main: Card[], pli: { siege: number; carte: Card }[], siege: number, trump: Atout): Card[] {
+export function coupsPermisCartes(
+  main: Card[],
+  pli: { siege: number; carte: Card }[],
+  siege: number,
+  trump: Atout,
+): Card[] {
   const t = tables(trump)
   let m = 0
   for (const c of main) m |= 1 << indexDe.get(c)!
   const cartes = pli.map((p) => indexDe.get(p.carte)!)
-  const permis = coupsPermis(m >>> 0, cartes, pli.map((p) => p.siege), cartes.length, siege, t, trump === 'ta')
+  const permis = coupsPermis(
+    m >>> 0,
+    cartes,
+    pli.map((p) => p.siege),
+    cartes.length,
+    siege,
+    t,
+    trump === 'ta',
+  )
   return bits(permis).map((i) => DECK[i])
 }
 
@@ -177,7 +195,11 @@ export function resoudre(p: Position, memoire?: Memoire): number {
 
   // L'état, modifié en place et restauré au retour de chaque coup.
   const H = new Uint32Array(4)
-  p.mains.forEach((m, s) => { let x = 0; for (const c of m) x |= 1 << indexDe.get(c)!; H[s] = x >>> 0 })
+  p.mains.forEach((m, s) => {
+    let x = 0
+    for (const c of m) x |= 1 << indexDe.get(c)!
+    H[s] = x >>> 0
+  })
   const TC = new Int32Array(4)
   const TS = new Int32Array(4)
   const totalPlis = p.plisJoues + (p.mains.reduce((n, m) => n + m.length, 0) + p.pli.length) / 4
@@ -192,7 +214,14 @@ export function resoudre(p: Position, memoire?: Memoire): number {
     return s
   }
 
-  function recherche(n: number, entameur: number, plis: number, profondeur: number, alpha: number, beta: number): number {
+  function recherche(
+    n: number,
+    entameur: number,
+    plis: number,
+    profondeur: number,
+    alpha: number,
+    beta: number,
+  ): number {
     let cle = -1
     if (n === 0) {
       const reste = (H[0] | H[1] | H[2] | H[3]) >>> 0
@@ -217,7 +246,10 @@ export function resoudre(p: Position, memoire?: Memoire): number {
       const c = 31 - Math.clz32(permis)
       permis = (permis & ~(1 << c)) >>> 0
       let i = k++
-      while (i > 0 && t.cleTri[coups[i - 1]] < t.cleTri[c]) { coups[i] = coups[i - 1]; i-- }
+      while (i > 0 && t.cleTri[coups[i - 1]] < t.cleTri[c]) {
+        coups[i] = coups[i - 1]
+        i--
+      }
       coups[i] = c
     }
     let vivantes = (H[0] | H[1] | H[2] | H[3]) >>> 0
@@ -242,11 +274,19 @@ export function resoudre(p: Position, memoire?: Memoire): number {
         const g = TS[gagnante(TC, 4, t)]
         const gain = gainDuPli(g, plis)
         // Le pli suivant réécrit TC et TS : on garde celui-ci pour les autres essais.
-        const c0 = TC[0], c1 = TC[1], c2 = TC[2]
-        const s0 = TS[0], s1 = TS[1], s2 = TS[2]
+        const c0 = TC[0],
+          c1 = TC[1],
+          c2 = TC[2]
+        const s0 = TS[0],
+          s1 = TS[1],
+          s2 = TS[2]
         v = gain + recherche(0, g, plis + 1, profondeur + 1, alpha - gain, beta - gain)
-        TC[0] = c0; TC[1] = c1; TC[2] = c2
-        TS[0] = s0; TS[1] = s1; TS[2] = s2
+        TC[0] = c0
+        TC[1] = c1
+        TC[2] = c2
+        TS[0] = s0
+        TS[1] = s1
+        TS[2] = s2
       }
       H[siege] = avant
       if (maximise) {
@@ -262,14 +302,20 @@ export function resoudre(p: Position, memoire?: Memoire): number {
       const e = tt.get(cle) ?? { bas: -Infinity, haut: Infinity }
       if (meilleur <= alpha0) e.haut = Math.min(e.haut, meilleur)
       else if (meilleur >= beta0) e.bas = Math.max(e.bas, meilleur)
-      else { e.bas = meilleur; e.haut = meilleur }
+      else {
+        e.bas = meilleur
+        e.haut = meilleur
+      }
       tt.set(cle, e)
     }
     return meilleur
   }
 
   const n = p.pli.length
-  p.pli.forEach((x, i) => { TC[i] = indexDe.get(x.carte)!; TS[i] = x.siege })
+  p.pli.forEach((x, i) => {
+    TC[i] = indexDe.get(x.carte)!
+    TS[i] = x.siege
+  })
   // Un pli complet (une carte qu'on vient d'essayer en quatrième) : on le compte d'abord.
   if (n === 4) {
     const g = TS[gagnante(TC, 4, t)]

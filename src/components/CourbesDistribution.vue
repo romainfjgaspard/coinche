@@ -22,12 +22,15 @@ export interface SerieCourbe {
   note?: string
 }
 
-const props = withDefaults(defineProps<{
-  series: SerieCourbe[]
-  categories: string[]
-  /** Aucune donnée : on le dit plutôt que de tracer des lignes plates */
-  vide?: string
-}>(), { vide: 'Pas encore assez de données.' })
+const props = withDefaults(
+  defineProps<{
+    series: SerieCourbe[]
+    categories: string[]
+    /** Aucune donnée : on le dit plutôt que de tracer des lignes plates */
+    vide?: string
+  }>(),
+  { vide: 'Pas encore assez de données.' },
+)
 
 /**
  * Le repère suit la largeur réelle du graphe : avec une largeur fixe, le dessin était
@@ -37,7 +40,9 @@ const cadre = ref<HTMLElement | null>(null)
 const largeur = ref(360)
 let observateur: ResizeObserver | null = null
 onMounted(() => {
-  observateur = new ResizeObserver(([e]) => { if (e.contentRect.width > 0) largeur.value = Math.round(e.contentRect.width) })
+  observateur = new ResizeObserver(([e]) => {
+    if (e.contentRect.width > 0) largeur.value = Math.round(e.contentRect.width)
+  })
   if (cadre.value) observateur.observe(cadre.value)
 })
 onBeforeUnmount(() => observateur?.disconnect())
@@ -79,12 +84,14 @@ function chemin(valeurs: number[]): string {
   return d
 }
 
-const courbes = computed(() => props.series.map((s) => ({
-  ...s,
-  d: chemin(s.valeurs),
-  xMoyenne: s.moyenne === null || s.moyenne === undefined ? null : x(s.moyenne),
-  opacite: focus.value === null || focus.value === s.id ? 1 : 0.15,
-})))
+const courbes = computed(() =>
+  props.series.map((s) => ({
+    ...s,
+    d: chemin(s.valeurs),
+    xMoyenne: s.moyenne === null || s.moyenne === undefined ? null : x(s.moyenne),
+    opacite: focus.value === null || focus.value === s.id ? 1 : 0.15,
+  })),
+)
 const graduations = computed(() => [0, max.value / 2, max.value].map((v) => ({ v, y: y(v) })))
 /** Une étiquette sur deux quand l'axe est trop serré, pour qu'elles restent lisibles. */
 const etiquettes = computed(() => {
@@ -109,7 +116,9 @@ const aDesDonnees = computed(() => props.series.some((s) => s.valeurs.some((v) =
       <svg :viewBox="`0 0 ${W} ${H}`" :width="W" :height="H" class="block max-w-full" role="img">
         <g v-for="g in graduations" :key="g.v">
           <line :x1="G" :x2="W - D" :y1="g.y" :y2="g.y" stroke="rgba(255,255,255,.08)" />
-          <text :x="G - 5" :y="g.y + 3.5" text-anchor="end" font-size="10" fill="#8fa89a">{{ Math.round(g.v) }}%</text>
+          <text :x="G - 5" :y="g.y + 3.5" text-anchor="end" font-size="10" fill="#8fa89a">
+            {{ Math.round(g.v) }}%
+          </text>
         </g>
         <text
           v-for="e in etiquettes.filter((v) => v.montre)"
@@ -119,14 +128,28 @@ const aDesDonnees = computed(() => props.series.some((s) => s.valeurs.some((v) =
           :text-anchor="e.ancre"
           font-size="10.5"
           fill="#a9bdb1"
-        >{{ e.c }}</text>
+        >
+          {{ e.c }}
+        </text>
         <g v-for="c in courbes" :key="c.id" :opacity="c.opacite" class="transition-opacity">
           <line
             v-if="c.xMoyenne !== null"
-            :x1="c.xMoyenne" :x2="c.xMoyenne" :y1="HAUT" :y2="H - BAS"
-            :stroke="c.couleur" stroke-width="1.2" stroke-dasharray="3 3"
+            :x1="c.xMoyenne"
+            :x2="c.xMoyenne"
+            :y1="HAUT"
+            :y2="H - BAS"
+            :stroke="c.couleur"
+            stroke-width="1.2"
+            stroke-dasharray="3 3"
           />
-          <path :d="c.d" fill="none" :stroke="c.couleur" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+          <path
+            :d="c.d"
+            fill="none"
+            :stroke="c.couleur"
+            stroke-width="2"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+          />
           <circle v-for="(v, i) in c.valeurs" :key="i" :cx="x(i)" :cy="y(v)" r="1.8" :fill="c.couleur" />
         </g>
       </svg>

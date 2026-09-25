@@ -38,12 +38,7 @@ const sameTeam = (a: number, b: number) => (a & 1) === (b & 1)
  * Retourner la liste complète (plutôt qu'un booléen) permet de la journaliser
  * dans `jouablesAvant[]`, et donc d'analyser plus tard ce qu'un joueur aurait pu jouer.
  */
-export function playableCards(
-  hand: Card[],
-  trick: PlayedCard[],
-  trump: Atout,
-  seat: number,
-): Card[] {
+export function playableCards(hand: Card[], trick: PlayedCard[], trump: Atout, seat: number): Card[] {
   // JEU-1 — celui qui entame joue ce qu'il veut
   if (trick.length === 0) return [...hand]
 

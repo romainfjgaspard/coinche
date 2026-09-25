@@ -9,20 +9,49 @@ import { getDoc } from 'firebase/firestore'
 import { type Card, sortHand } from '../game/cards'
 import type { PlayerId } from '../game/players'
 import {
-  ConcurrentWrite, type GameDoc, allSeatsTaken, cancelGame, createGame, deal, gameRef, placeBid, playCard, readArchives,
-  rejouer as rejouerPartie, reprendreMaPlace as reprendreMaPlaceEnBase, setOptions, setPause, setSeating,
-  signIn, takeSeat, watchEvents, watchGame, watchHand,
+  ConcurrentWrite,
+  type GameDoc,
+  allSeatsTaken,
+  cancelGame,
+  createGame,
+  deal,
+  gameRef,
+  placeBid,
+  playCard,
+  readArchives,
+  rejouer as rejouerPartie,
+  reprendreMaPlace as reprendreMaPlaceEnBase,
+  setOptions,
+  setPause,
+  setSeating,
+  signIn,
+  takeSeat,
+  watchEvents,
+  watchGame,
+  watchHand,
 } from '../firebase/partie'
 import type { Archive } from '../game/archive'
 import type { GameEvent } from '../game/events'
 import {
-  type BiddingEntry, canCoinche, canSurcoinche, currentBidder, legalValues, outcome,
+  type BiddingEntry,
+  canCoinche,
+  canSurcoinche,
+  currentBidder,
+  legalValues,
+  outcome,
 } from '../game/bidding'
 import { type CompletedTrick, canDeclareBelote, currentPlayer, playableFor } from '../game/play'
 import { PLI_VISIBLE_MS } from '../game/display'
 import { beloteAnnonces, biddingFromEvents, currentDeal, playFromEvents, starsInGame } from '../game/replay'
 import {
-  type DealSummary, type Reflexion, type Tally, deals, momentum, reflexions, runningScores, tallies,
+  type DealSummary,
+  type Reflexion,
+  type Tally,
+  deals,
+  momentum,
+  reflexions,
+  runningScores,
+  tallies,
 } from '../game/stats'
 import { DEFAULT_SEATING, type Seating, teamOfPlayer } from '../game/players'
 import { type Impasse, impasseTallies, impassesOfGame } from '../game/impasses'
@@ -65,10 +94,18 @@ export const useSession = defineStore('session', () => {
   const playerId = ref<PlayerId | null>(saved.playerId)
   const code = ref<string | null>(saved.code)
   const game = ref<GameDoc | null>(null)
-  watch(code, (c) => {
-    if (!c) return
-    try { localStorage.setItem(DERNIER_CODE_KEY, c) } catch { /* pré-remplissage perdu, sans gravité */ }
-  }, { immediate: true })
+  watch(
+    code,
+    (c) => {
+      if (!c) return
+      try {
+        localStorage.setItem(DERNIER_CODE_KEY, c)
+      } catch {
+        /* pré-remplissage perdu, sans gravité */
+      }
+    },
+    { immediate: true },
+  )
   /** La pause en cours : qui l'a mise. Nulle : on joue. */
   const pause = computed(() => game.value?.pause ?? null)
   const hand = ref<Card[]>([])
@@ -116,11 +153,13 @@ export const useSession = defineStore('session', () => {
   // Seulement pendant les enchères : l'historique des annonces reste lisible une fois le
   // contrat fixé, et le bouton « Coincher », sorti du panneau, restait affiché en plein jeu.
   const enEncheres = computed(() => game.value?.phase === 'encheres')
-  const mayCoinche = computed(
-    () => Boolean(enEncheres.value && bidding.value && playerId.value && canCoinche(bidding.value, playerId.value)),
+  const mayCoinche = computed(() =>
+    Boolean(enEncheres.value && bidding.value && playerId.value && canCoinche(bidding.value, playerId.value)),
   )
-  const maySurcoinche = computed(
-    () => Boolean(enEncheres.value && bidding.value && playerId.value && canSurcoinche(bidding.value, playerId.value)),
+  const maySurcoinche = computed(() =>
+    Boolean(
+      enEncheres.value && bidding.value && playerId.value && canSurcoinche(bidding.value, playerId.value),
+    ),
   )
 
   const play = computed(() =>
@@ -166,7 +205,9 @@ export const useSession = defineStore('session', () => {
       clearTimeout(heldTimer)
       if (n > avant && pliFerme.value) {
         heldTrick.value = pliFerme.value
-        heldTimer = setTimeout(() => { heldTrick.value = null }, PLI_VISIBLE_MS)
+        heldTimer = setTimeout(() => {
+          heldTrick.value = null
+        }, PLI_VISIBLE_MS)
       } else {
         heldTrick.value = null
       }
@@ -202,9 +243,7 @@ export const useSession = defineStore('session', () => {
   const dealSummaries = computed<DealSummary[]>(() => deals(events.value))
   const scoreCurve = computed(() => runningScores(dealSummaries.value))
   const momentumBars = computed(() => momentum(dealSummaries.value))
-  const playerTallies = computed<Map<PlayerId, Tally>>(
-    () => tallies(dealSummaries.value, seating.value),
-  )
+  const playerTallies = computed<Map<PlayerId, Tally>>(() => tallies(dealSummaries.value, seating.value))
   /** Temps de réflexion de chacun sur la partie, pour annoncer et pour jouer. */
   const reflexionsPartie = computed<Map<PlayerId, Reflexion>>(() => reflexions(events.value))
   /** Les impasses se révèlent au fil des plis : définitives à la fin de chaque donne. */
@@ -212,9 +251,7 @@ export const useSession = defineStore('session', () => {
     game.value ? impassesOfGame(events.value, game.value.dealer, seating.value) : [],
   )
   const impasseCounts = computed(() => impasseTallies(impasses.value))
-  const myTeam = computed(() =>
-    playerId.value ? teamOfPlayer(playerId.value, seating.value) : 0,
-  )
+  const myTeam = computed(() => (playerId.value ? teamOfPlayer(playerId.value, seating.value) : 0))
 
   /** DEC-9 — la honte complète vient d'être atteinte dans cette partie. */
   const shame = computed(() => {
@@ -245,7 +282,10 @@ export const useSession = defineStore('session', () => {
   }
   // Un message d'erreur s'efface de lui-même : il restait affiché des donnes entières.
   watch(error, (e) => {
-    if (e) setTimeout(() => { if (error.value === e) error.value = null }, 6000)
+    if (e)
+      setTimeout(() => {
+        if (error.value === e) error.value = null
+      }, 6000)
   })
 
   /** Charge une partie sans y prendre place — sert à griser les sièges occupés. */
@@ -326,17 +366,29 @@ export const useSession = defineStore('session', () => {
       const botClient = await botClients.get(cle)!
       bots.value.push(
         await startBot(code.value!, player, {
-          level, delayMs, feed, client: botClient,
+          level,
+          delayMs,
+          feed,
+          client: botClient,
           mayDealNext: (n) => dealAcknowledged.value === n,
           reprendDe,
           remplaceHumain,
-          onDetache: () => { bots.value = bots.value.filter((b) => b.player !== player) },
+          onDetache: () => {
+            bots.value = bots.value.filter((b) => b.player !== player)
+          },
         }),
       )
     }
     // Une reprise se fait sans bruit : perdue face à un autre onglet, elle n'est pas une erreur.
-    if (!reprendDe || remplaceHumain) { await run(lancer); return }
-    try { await lancer() } catch (e) { console.warn('[reprise]', player, e) }
+    if (!reprendDe || remplaceHumain) {
+      await run(lancer)
+      return
+    }
+    try {
+      await lancer()
+    } catch (e) {
+      console.warn('[reprise]', player, e)
+    }
   }
 
   function stopBots(): void {
@@ -362,10 +414,13 @@ export const useSession = defineStore('session', () => {
     () => {
       if (!code.value) return
       try {
-        sessionStorage.setItem(BOTS_KEY, JSON.stringify({
-          code: code.value,
-          bots: bots.value.map((b) => ({ player: b.player, level: b.level })),
-        }))
+        sessionStorage.setItem(
+          BOTS_KEY,
+          JSON.stringify({
+            code: code.value,
+            bots: bots.value.map((b) => ({ player: b.player, level: b.level })),
+          }),
+        )
       } catch {
         // Sans stockage, la reprise par un autre onglet prendra le relais.
       }
@@ -377,12 +432,17 @@ export const useSession = defineStore('session', () => {
     if (!g || !code.value || relances === code.value) return
     relances = code.value
     if (g.phase === 'terminee' || g.phase === 'annulee') return
-    let memo: { code: string; bots: { player: PlayerId; level: BotLevel }[] } | null = null
-    try { memo = JSON.parse(sessionStorage.getItem(BOTS_KEY) ?? 'null') } catch { memo = null }
+    let memo: { code: string; bots: { player: PlayerId; level: BotLevel }[] } | null
+    try {
+      memo = JSON.parse(sessionStorage.getItem(BOTS_KEY) ?? 'null')
+    } catch {
+      memo = null
+    }
     if (memo?.code !== code.value) return
     for (const b of memo.bots) {
       const siege = g.seats[b.player]
-      if (siege?.bot && !bots.value.some((x) => x.player === b.player)) void addBot(b.player, b.level, siege.uid)
+      if (siege?.bot && !bots.value.some((x) => x.player === b.player))
+        void addBot(b.player, b.level, siege.uid)
     }
   })
 
@@ -394,9 +454,14 @@ export const useSession = defineStore('session', () => {
     const g = game.value
     if (!g || g.pause || !allSeatsTaken(g)) return null
     const ici = (p: PlayerId) => bots.value.some((b) => b.player === p)
-    const attendu = g.phase === 'encheres' ? toBid.value
-      : g.phase === 'jeu' ? toPlay.value
-        : (g.phase === 'decompte' || (g.phase === 'lobby' && g.dealNumber > 0)) ? g.dealer : null
+    const attendu =
+      g.phase === 'encheres'
+        ? toBid.value
+        : g.phase === 'jeu'
+          ? toPlay.value
+          : g.phase === 'decompte' || (g.phase === 'lobby' && g.dealNumber > 0)
+            ? g.dealer
+            : null
     if (!attendu || !g.seats[attendu]?.bot || ici(attendu)) return null
     return { player: attendu, donneur: g.phase === 'decompte' || g.phase === 'lobby' }
   })
@@ -406,8 +471,12 @@ export const useSession = defineStore('session', () => {
   const horloge = ref(Date.now())
   const silenceDepuis = ref(Date.now())
   watch(
-    () => `${events.value.length}|${game.value?.phase}|${game.value?.dealNumber}|${Boolean(game.value?.pause)}`,
-    () => { dernierProgres = Date.now(); silenceDepuis.value = dernierProgres },
+    () =>
+      `${events.value.length}|${game.value?.phase}|${game.value?.dealNumber}|${Boolean(game.value?.pause)}`,
+    () => {
+      dernierProgres = Date.now()
+      silenceDepuis.value = dernierProgres
+    },
   )
 
   /**
@@ -419,8 +488,14 @@ export const useSession = defineStore('session', () => {
     const g = game.value
     if (!g || g.pause || !playerId.value) return null
     // Entre deux donnes, c'est le donneur qu'on attend : sans lui, personne ne redistribue.
-    const attendu = g.phase === 'encheres' ? toBid.value : g.phase === 'jeu' ? toPlay.value
-      : (g.phase === 'decompte' || (g.phase === 'lobby' && g.dealNumber > 0)) && allSeatsTaken(g) ? g.dealer : null
+    const attendu =
+      g.phase === 'encheres'
+        ? toBid.value
+        : g.phase === 'jeu'
+          ? toPlay.value
+          : (g.phase === 'decompte' || (g.phase === 'lobby' && g.dealNumber > 0)) && allSeatsTaken(g)
+            ? g.dealer
+            : null
     if (!attendu || attendu === playerId.value || g.seats[attendu]?.bot) return null
     return horloge.value - silenceDepuis.value >= ABSENCE_MS ? attendu : null
   })
@@ -534,14 +609,23 @@ export const useSession = defineStore('session', () => {
    */
   let derniereCarteJouee: string | null = null
   watch(
-    () => (myPlayTurn.value && hand.value.length === 1 && heldTrick.value === null && !pause.value ? hand.value[0] : null),
+    () =>
+      myPlayTurn.value && hand.value.length === 1 && heldTrick.value === null && !pause.value
+        ? hand.value[0]
+        : null,
     (carte) => {
       if (!carte) return
       const cle = `${code.value}|${game.value?.dealNumber}|${carte}`
       if (cle === derniereCarteJouee) return
       derniereCarteJouee = cle
       setTimeout(() => {
-        if (myPlayTurn.value && hand.value.length === 1 && hand.value[0] === carte && code.value && playerId.value) {
+        if (
+          myPlayTurn.value &&
+          hand.value.length === 1 &&
+          hand.value[0] === carte &&
+          code.value &&
+          playerId.value
+        ) {
           // Sans temps de réflexion : joué d'office, il fausserait les moyennes.
           void envoyerCarte(carte, beloteCards.value.includes(carte))
         }
@@ -584,7 +668,10 @@ export const useSession = defineStore('session', () => {
     (enPause) => {
       if (monTourDepuis === null) return
       if (enPause) pauseDepuis = Date.now()
-      else if (pauseDepuis !== null) { pauseCumulee += Date.now() - pauseDepuis; pauseDepuis = null }
+      else if (pauseDepuis !== null) {
+        pauseCumulee += Date.now() - pauseDepuis
+        pauseDepuis = null
+      }
     },
   )
   const tempsDeReflexion = (): number | undefined => {
@@ -671,15 +758,76 @@ export const useSession = defineStore('session', () => {
   }
 
   return {
-    uid, playerId, code, game, hand, events, archives, error, busy,
-    seated, ready, takenBy, present, myTeam, seating,
-    bidding, biddingResult, toBid, myBidTurn, bidValues, mayCoinche, maySurcoinche,
-    play, toPlay, myPlayTurn, playable, beloteCards, beloteLabel, annoncesBelote, pause, peutPauser, basculerPause,
-    lastTrick, trickCounts, stars, shame, lastStar, sortedHand, heldTrick, shownTrick,
-    dealSummaries, scoreCurve, momentumBars, playerTallies, impasses, impasseCounts, reflexionsPartie,
-    peek, create, join, chooseSeating, chooseOptions, startDeal, bid, playTheCard, leave, resume, loadArchives,
-    avis, cancel, rejouer,
-    bots, addBot, stopBots, botDealerHere, dealAcknowledged, continueToNextDeal,
-    humainAbsent, remplacerParBot, placePrise, reprendreMaPlace,
+    uid,
+    playerId,
+    code,
+    game,
+    hand,
+    events,
+    archives,
+    error,
+    busy,
+    seated,
+    ready,
+    takenBy,
+    present,
+    myTeam,
+    seating,
+    bidding,
+    biddingResult,
+    toBid,
+    myBidTurn,
+    bidValues,
+    mayCoinche,
+    maySurcoinche,
+    play,
+    toPlay,
+    myPlayTurn,
+    playable,
+    beloteCards,
+    beloteLabel,
+    annoncesBelote,
+    pause,
+    peutPauser,
+    basculerPause,
+    lastTrick,
+    trickCounts,
+    stars,
+    shame,
+    lastStar,
+    sortedHand,
+    heldTrick,
+    shownTrick,
+    dealSummaries,
+    scoreCurve,
+    momentumBars,
+    playerTallies,
+    impasses,
+    impasseCounts,
+    reflexionsPartie,
+    peek,
+    create,
+    join,
+    chooseSeating,
+    chooseOptions,
+    startDeal,
+    bid,
+    playTheCard,
+    leave,
+    resume,
+    loadArchives,
+    avis,
+    cancel,
+    rejouer,
+    bots,
+    addBot,
+    stopBots,
+    botDealerHere,
+    dealAcknowledged,
+    continueToNextDeal,
+    humainAbsent,
+    remplacerParBot,
+    placePrise,
+    reprendreMaPlace,
   }
 })

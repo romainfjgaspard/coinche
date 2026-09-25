@@ -20,7 +20,9 @@ for (const f of FORMATS) {
   const ctx = await nav.newContext({ viewport: { width: f.width, height: f.height } })
   const p = await ctx.newPage()
   p.on('pageerror', (e) => soucis.push(`${f.nom} page: ${e}`))
-  const prise = async (nom) => { await p.screenshot({ path: `${SP}/audit-${f.nom}-${nom}.png` }) }
+  const prise = async (nom) => {
+    await p.screenshot({ path: `${SP}/audit-${f.nom}-${nom}.png` })
+  }
 
   await p.goto(URL, { waitUntil: 'networkidle' })
   await prise('1-qui-es-tu')
@@ -45,7 +47,9 @@ for (const f of FORMATS) {
   // on passe pour arriver au jeu
   for (let i = 0; i < 30; i++) {
     const passe = p.getByRole('button', { name: 'Passe' })
-    if (await passe.count()) { await passe.click({ timeout: 2500 }).catch(() => {}) }
+    if (await passe.count()) {
+      await passe.click({ timeout: 2500 }).catch(() => {})
+    }
     if (await p.locator('text=à toi de jouer').count()) break
     await p.waitForTimeout(500)
   }
@@ -67,10 +71,17 @@ for (const f of FORMATS) {
 
   const stats = p.getByRole('button', { name: 'Stats' })
   if (await stats.count()) await stats.click().catch(() => {})
-  else await p.getByRole('button', { name: 'Voir les statistiques' }).click().catch(() => {})
+  else
+    await p
+      .getByRole('button', { name: 'Voir les statistiques' })
+      .click()
+      .catch(() => {})
   await p.waitForTimeout(1200)
   await prise('8-stats-partie')
-  await p.getByRole('button', { name: 'Toutes les parties' }).click().catch(() => {})
+  await p
+    .getByRole('button', { name: 'Toutes les parties' })
+    .click()
+    .catch(() => {})
   await p.waitForTimeout(1200)
   await prise('9-stats-global')
 

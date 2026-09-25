@@ -6,17 +6,23 @@ import { coupsPermisCartes, resoudre } from '../solveur'
 /** Un générateur déterministe : les échecs se rejouent à l'identique. */
 function hasard(graine: number): () => number {
   let g = graine
-  return () => { g = (g * 16807) % 2147483647; return g / 2147483647 }
+  return () => {
+    g = (g * 16807) % 2147483647
+    return g / 2147483647
+  }
 }
 function distribuer(r: () => number): Card[][] {
   const p = [...DECK]
-  for (let i = p.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]] }
+  for (let i = p.length - 1; i > 0; i--) {
+    const j = Math.floor(r() * (i + 1))
+    ;[p[i], p[j]] = [p[j], p[i]]
+  }
   return [p.slice(0, 8), p.slice(8, 16), p.slice(16, 24), p.slice(24, 32)]
 }
 const ATOUTS: Atout[] = ['s', 'h', 'd', 'c', 'ta', null]
 
 describe('solveur : les mêmes coups que le moteur', () => {
-  it('sur 2000 positions tirées au hasard, à toutes les couleurs d\'atout', () => {
+  it("sur 2000 positions tirées au hasard, à toutes les couleurs d'atout", () => {
     const r = hasard(42)
     for (let n = 0; n < 2000; n++) {
       const trump = ATOUTS[n % ATOUTS.length]
@@ -33,14 +39,26 @@ describe('solveur : les mêmes coups que le moteur', () => {
       }
       const s = (entameur + k) % 4
       const moteur = playableCards(mains[s], pli, trump, s).sort()
-      const solveur = coupsPermisCartes(mains[s], pli.map((x) => ({ siege: x.seat, carte: x.card })), s, trump).sort()
+      const solveur = coupsPermisCartes(
+        mains[s],
+        pli.map((x) => ({ siege: x.seat, carte: x.card })),
+        s,
+        trump,
+      ).sort()
       expect(solveur, `position ${n}`).toEqual(moteur)
     }
   })
 })
 
 /** Minimax sans aucune astuce, avec les fonctions du moteur : la référence. */
-function forceBrute(mains: Card[][], pli: PlayedCard[], entameur: number, plisRestants: number, trump: Atout, equipe: number): number {
+function forceBrute(
+  mains: Card[][],
+  pli: PlayedCard[],
+  entameur: number,
+  plisRestants: number,
+  trump: Atout,
+  equipe: number,
+): number {
   if (plisRestants === 0) return 0
   const s = (entameur + pli.length) % 4
   const permis = playableCards(mains[s], pli, trump, s)
@@ -64,7 +82,15 @@ describe('solveur : la valeur exacte', () => {
       const entameur = n % 4
       const equipe = n % 2
       const attendu = forceBrute(mains, [], entameur, 3, trump, equipe)
-      const obtenu = resoudre({ mains, pli: [], entameur, plisJoues: 5, trump, equipe: equipe as 0 | 1, objectif: 'points' })
+      const obtenu = resoudre({
+        mains,
+        pli: [],
+        entameur,
+        plisJoues: 5,
+        trump,
+        equipe: equipe as 0 | 1,
+        objectif: 'points',
+      })
       expect(obtenu, `fin de donne ${n}`).toBe(attendu)
     }
   })
@@ -74,8 +100,24 @@ describe('solveur : la valeur exacte', () => {
     const debut = Date.now()
     for (let n = 0; n < 3; n++) {
       const mains = distribuer(r)
-      const pour = resoudre({ mains, pli: [], entameur: 0, plisJoues: 0, trump: 's', equipe: 0, objectif: 'points' })
-      const contre = resoudre({ mains, pli: [], entameur: 0, plisJoues: 0, trump: 's', equipe: 1, objectif: 'points' })
+      const pour = resoudre({
+        mains,
+        pli: [],
+        entameur: 0,
+        plisJoues: 0,
+        trump: 's',
+        equipe: 0,
+        objectif: 'points',
+      })
+      const contre = resoudre({
+        mains,
+        pli: [],
+        entameur: 0,
+        plisJoues: 0,
+        trump: 's',
+        equipe: 1,
+        objectif: 'points',
+      })
       // Jeu à somme nulle : ce que l'une garantit, l'autre le concède exactement.
       expect(pour + contre).toBe(162)
       expect(pour).toBeGreaterThanOrEqual(0)
@@ -83,6 +125,8 @@ describe('solveur : la valeur exacte', () => {
     const ms = Date.now() - debut
     console.log(`3 donnes entières (×2) : ${ms} ms`)
     expect(ms).toBeLessThan(60_000)
-    void isTrump; void strength; void value
+    void isTrump
+    void strength
+    void value
   }, 120_000)
 })

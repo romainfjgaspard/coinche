@@ -13,6 +13,8 @@ const emit = defineEmits<{ 'update:modelValue': [id: string] }>()
       class="h-8 shrink-0 grow cursor-pointer rounded-lg px-3 text-[13px] font-semibold whitespace-nowrap transition max-[380px]:px-1.5 max-[380px]:text-[12px]"
       :class="modelValue === o.id ? 'bg-gold text-felt' : 'text-mist hover:bg-white/5'"
       @click="emit('update:modelValue', o.id)"
-    >{{ o.label }}</button>
+    >
+      {{ o.label }}
+    </button>
   </div>
 </template>

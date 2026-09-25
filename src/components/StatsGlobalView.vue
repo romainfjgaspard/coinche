@@ -8,7 +8,15 @@ import { computed, onMounted, ref } from 'vue'
 import type { PlayerId } from '../game/players'
 import { nomDe } from '../stores/roster'
 import {
-  annoncesGlobales, clePaire, duoStats, ecartsGlobaux, joueursDe, joueurStats, pairesJouees, parPalier, rolesGlobaux,
+  annoncesGlobales,
+  clePaire,
+  duoStats,
+  ecartsGlobaux,
+  joueursDe,
+  joueurStats,
+  pairesJouees,
+  parPalier,
+  rolesGlobaux,
   tempsGlobaux,
 } from '../game/statsGlobal'
 import { useSession } from '../stores/session'
@@ -23,7 +31,10 @@ import StatsParties from './StatsParties.vue'
 
 const session = useSession()
 // Rechargé à chaque ouverture : une partie finie depuis la dernière visite doit apparaître.
-onMounted(() => { void session.loadArchives(); void chargerNonFinies() })
+onMounted(() => {
+  void session.loadArchives()
+  void chargerNonFinies()
+})
 
 const BON = '#52a884'
 const MAUVAIS = '#cc6b4a'
@@ -80,7 +91,11 @@ const reperes = computed(() => {
   const dTri = [...duos.value].sort((a, b) => taux(b.gagnees, b.parties) - taux(a.gagnees, a.parties))
   const jTri = [...joueurs.value].sort((a, b) => taux(b.gagnees, b.parties) - taux(a.gagnees, a.parties))
   const carte = (etiquette: string, qui: string, v: number, detail: string, bon: boolean) => ({
-    etiquette, qui, valeur: `${v} %`, detail, couleur: bon ? BON : MAUVAIS,
+    etiquette,
+    qui,
+    valeur: `${v} %`,
+    detail,
+    couleur: bon ? BON : MAUVAIS,
     fond: bon ? 'rgba(82,168,132,.14)' : 'rgba(204,107,74,.12)',
     bord: bon ? BON : 'rgba(204,107,74,.5)',
   })
@@ -92,14 +107,34 @@ const reperes = computed(() => {
   const j0 = jTri[0]
   const jn = jTri[jTri.length - 1]
   return [
-    carte('MEILLEUR DUO', nomPaire(d0.paire), taux(d0.gagnees, d0.parties),
-      `${victoires(d0.gagnees, d0.parties)} · ${signe(parDonne(d0))} point par donne`, true),
-    carte('PIRE DUO', nomPaire(dn.paire), taux(dn.gagnees, dn.parties),
-      `${victoires(dn.gagnees, dn.parties)} · ${signe(parDonne(dn))} point par donne`, false),
-    carte('MEILLEUR JOUEUR', nom(j0.joueur), taux(j0.gagnees, j0.parties),
-      `${gagnees(j0.gagnees, j0.parties)} · ${taux(j0.reussies, j0.prises)} % de contrats tenus`, true),
-    carte('PIRE JOUEUR', nom(jn.joueur), taux(jn.gagnees, jn.parties),
-      `${gagnees(jn.gagnees, jn.parties)} · ${jn.etoiles} étoile${jn.etoiles > 1 ? 's' : ''} de la honte`, false),
+    carte(
+      'MEILLEUR DUO',
+      nomPaire(d0.paire),
+      taux(d0.gagnees, d0.parties),
+      `${victoires(d0.gagnees, d0.parties)} · ${signe(parDonne(d0))} point par donne`,
+      true,
+    ),
+    carte(
+      'PIRE DUO',
+      nomPaire(dn.paire),
+      taux(dn.gagnees, dn.parties),
+      `${victoires(dn.gagnees, dn.parties)} · ${signe(parDonne(dn))} point par donne`,
+      false,
+    ),
+    carte(
+      'MEILLEUR JOUEUR',
+      nom(j0.joueur),
+      taux(j0.gagnees, j0.parties),
+      `${gagnees(j0.gagnees, j0.parties)} · ${taux(j0.reussies, j0.prises)} % de contrats tenus`,
+      true,
+    ),
+    carte(
+      'PIRE JOUEUR',
+      nom(jn.joueur),
+      taux(jn.gagnees, jn.parties),
+      `${gagnees(jn.gagnees, jn.parties)} · ${jn.etoiles} étoile${jn.etoiles > 1 ? 's' : ''} de la honte`,
+      false,
+    ),
   ]
 })
 
@@ -112,7 +147,11 @@ const details = computed(() =>
       nom: nom(j.joueur),
       lignes: [
         { quoi: 'Belotes annoncées', valeur: String(j.belotesAnnoncees), couleur: CLAIR },
-        { quoi: 'Belotes oubliées', valeur: String(j.belotesOubliees), couleur: j.belotesOubliees ? MAUVAIS : CLAIR },
+        {
+          quoi: 'Belotes oubliées',
+          valeur: String(j.belotesOubliees),
+          couleur: j.belotesOubliees ? MAUVAIS : CLAIR,
+        },
         { quoi: 'Impasses tentées', valeur: String(j.impasses), couleur: CLAIR },
         {
           quoi: 'Impasses réussies',
@@ -121,7 +160,11 @@ const details = computed(() =>
         },
         { quoi: 'Étoiles de la honte', valeur: String(j.etoiles), couleur: OR },
         // Temps mesurés depuis le 24/09/2026 : les parties d'avant n'en ont pas.
-        { quoi: "Temps d'annonce", valeur: j.tempsEnchere === null ? '—' : duree(j.tempsEnchere), couleur: CLAIR },
+        {
+          quoi: "Temps d'annonce",
+          valeur: j.tempsEnchere === null ? '—' : duree(j.tempsEnchere),
+          couleur: CLAIR,
+        },
         { quoi: 'Temps de jeu', valeur: j.tempsCarte === null ? '—' : duree(j.tempsCarte), couleur: CLAIR },
       ],
     }
@@ -199,241 +242,290 @@ const panaches = computed(() => {
         Aucune partie terminée dans cette sélection : changez les interrupteurs ci-dessus.
       </p>
       <template v-else>
-      <div>
-      <section v-if="vue === 'duos'">
-
-      <div class="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
-        <div
-          v-for="r in reperes"
-          :key="r.etiquette"
-          class="rounded-xl border px-3.5 py-3"
-          :style="{ borderColor: r.bord, background: r.fond }"
-        >
-          <p class="text-[9px] tracking-widest" :style="{ color: r.couleur }">{{ r.etiquette }}</p>
-          <p class="mt-1 font-display text-lg leading-tight">{{ r.qui }}</p>
-          <p class="font-display text-2xl leading-none" :style="{ color: r.couleur }">{{ r.valeur }}</p>
-          <p class="mt-1 text-[11px] text-mist">{{ r.detail }}</p>
-        </div>
-      </div>
-      </section>
-
-      <section v-if="vue === 'duos'">
-      <h2 class="mt-6 mb-2 font-display text-lg">Duo par duo</h2>
-      <table class="w-full border-collapse text-[12px] [&_td:first-child]:pl-0 [&_th:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:last-child]:pr-0">
-        <thead>
-          <tr class="text-[10px] tracking-wider text-sage">
-            <th class="pb-1.5 text-left font-semibold px-2">DUO</th>
-            <th class="pb-1.5 text-right font-semibold px-2">PARTIES</th>
-            <th class="pb-1.5 text-right font-semibold px-2">GAGNÉES</th>
-            <th class="pb-1.5 text-right font-semibold px-2">%</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">DONNES</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">DONNES&nbsp;%</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">PRISES</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">CONTRATS&nbsp;%</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">MARQUÉS</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">OFFERTS</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">MOYEN</th>
-            <th class="pb-1.5 text-right font-semibold px-2">PIRE</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="d in duos" :key="clePaire(d.paire)" class="border-t border-white/8">
-            <td class="py-2 font-semibold whitespace-nowrap">{{ nomPaire(d.paire) }}</td>
-            <td class="py-2 text-right tabular-nums text-mist px-2">{{ d.parties }}</td>
-            <td class="py-2 text-right tabular-nums text-mist px-2">{{ d.gagnees }}</td>
-            <td class="py-2 text-right px-2">
-              <span
-                class="inline-block rounded px-1.5 py-0.5 font-semibold whitespace-nowrap tabular-nums"
-                :style="{ background: fondTaux(taux(d.gagnees, d.parties)) }"
-              >{{ taux(d.gagnees, d.parties) }} %</span>
-            </td>
-            <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">{{ d.donnes }}</td>
-            <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">
-              {{ taux(d.donnesGagnees, d.donnes) }} %
-            </td>
-            <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">{{ d.prises }}</td>
-            <td class="hidden py-2 text-right lg:table-cell px-2">
-              <span
-                class="inline-block rounded px-1.5 py-0.5 font-semibold whitespace-nowrap tabular-nums"
-                :style="{ background: fondTaux(taux(d.reussies, d.prises)) }"
-              >{{ taux(d.reussies, d.prises) }} %</span>
-            </td>
-            <td class="hidden py-2 text-right tabular-nums lg:table-cell px-2" :style="{ color: BON }">
-              {{ d.marques }}
-            </td>
-            <td class="hidden py-2 text-right tabular-nums lg:table-cell px-2" :style="{ color: MAUVAIS }">
-              {{ d.offerts }}
-            </td>
-            <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">{{ d.scoreMoyen }}</td>
-            <td class="py-2 text-right tabular-nums text-mist px-2">{{ d.pireScore ?? '—' }}</td>
-          </tr>
-        </tbody>
-      </table>
-      </section>
-
-      <section v-if="vue === 'joueurs'">
-      <h2 class="mt-6 mb-2 font-display text-lg">Joueur par joueur</h2>
-      <table class="w-full border-collapse text-[12px] [&_td:first-child]:pl-0 [&_th:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:last-child]:pr-0">
-        <thead>
-          <tr class="text-[10px] tracking-wider text-sage">
-            <th class="pb-1.5 text-left font-semibold px-2">JOUEUR</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">PARTIES</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">GAGNÉES</th>
-            <th class="pb-1.5 text-right font-semibold px-2">PRISES</th>
-            <th class="pb-1.5 text-right font-semibold px-2">RÉUSS.</th>
-            <th class="pb-1.5 text-right font-semibold px-2">%</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">COINCHES</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2" title="annoncées · oubliées">BELOTES</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">MARQUÉS</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">OFFERTS</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">MOYEN</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">PIRE</th>
-            <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">PANACHE</th>
-            <th class="pb-1.5 text-right font-semibold px-2" title="net par donne : marqué en prenant, moins offert en chutant">BILAN</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="j in joueurs" :key="j.joueur" class="border-t border-white/8">
-            <td class="py-2 font-semibold">{{ nom(j.joueur) }}</td>
-            <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">{{ j.parties }}</td>
-            <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">
-              {{ j.gagnees }} · {{ taux(j.gagnees, j.parties) }} %
-            </td>
-            <td class="py-2 text-right tabular-nums text-mist px-2">{{ j.prises }}</td>
-            <td class="py-2 text-right tabular-nums text-mist px-2">{{ j.reussies }}</td>
-            <td class="py-2 text-right px-2">
-              <span
-                class="inline-block rounded px-1.5 py-0.5 font-semibold whitespace-nowrap tabular-nums"
-                :style="{ background: fondTaux(taux(j.reussies, j.prises)) }"
-              >{{ taux(j.reussies, j.prises) }} %</span>
-            </td>
-            <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">{{ j.coinches }}</td>
-            <td class="hidden py-2 text-right tabular-nums lg:table-cell px-2">
-              <span class="text-mist">{{ j.belotesAnnoncees }}</span>
-              <span class="text-dusk"> · </span>
-              <span :style="{ color: j.belotesOubliees ? MAUVAIS : undefined }" class="text-dusk">
-                {{ j.belotesOubliees }}
-              </span>
-            </td>
-            <td class="hidden py-2 text-right tabular-nums lg:table-cell px-2" :style="{ color: BON }">
-              {{ j.marques }}
-            </td>
-            <td class="hidden py-2 text-right tabular-nums lg:table-cell px-2" :style="{ color: MAUVAIS }">
-              {{ j.offerts }}
-            </td>
-            <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">{{ j.scoreMoyen }}</td>
-            <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">{{ j.pireScore ?? '—' }}</td>
-            <td class="hidden py-2 text-right tabular-nums lg:table-cell px-2">
-              <span v-if="j.panache === null" class="text-dusk">—</span>
-              <span v-else :style="{ color: j.panache >= 0 ? BON : MAUVAIS }">
-                {{ j.panache > 0 ? '+' : '' }}{{ j.panache }}
-              </span>
-            </td>
-            <td
-              class="py-2 text-right font-bold tabular-nums px-2"
-              :style="{ color: parDonne(j) >= 0 ? BON : MAUVAIS }"
-            >{{ signe(parDonne(j)) }}</td>
-          </tr>
-        </tbody>
-      </table>
-      </section>
-
-      <section v-if="vue === 'joueurs'">
-      <h2 class="mt-6 mb-2 font-display text-lg">Belotes, impasses, étoiles et réflexion</h2>
-      <div class="grid grid-cols-2 gap-2.5 max-[380px]:gap-2">
-        <div v-for="d in details" :key="d.id" class="rounded-xl border border-white/8 bg-white/4 px-3 py-2.5 max-[380px]:px-2">
-          <p class="mb-1.5 text-[13px] font-semibold">{{ d.nom }}</p>
-          <div v-for="l in d.lignes" :key="l.quoi" class="flex items-baseline gap-2 py-0.5">
-            <span class="grow text-[11px] text-sage">{{ l.quoi }}</span>
-            <span class="text-[12px] font-semibold whitespace-nowrap tabular-nums" :style="{ color: l.couleur }">{{ l.valeur }}</span>
-          </div>
-        </div>
-      </div>
-      </section>
-
-      <section v-if="vue === 'joueurs'">
-      <h2 class="mt-6 mb-1 font-display text-lg">Jusqu'où chacun peut monter</h2>
-      <p class="mb-2 text-[11px] text-sage">
-        Hauteur de la barre = contrats pris à ce palier · part dorée = contrats passés
-      </p>
-      <div class="flex flex-wrap gap-1.5 rounded-xl border border-white/8 bg-white/5 p-2">
-        <button
-          v-for="f in filtres"
-          :key="f.nom"
-          type="button"
-          class="rounded-full border px-2.5 py-1 text-[11px]"
-          :class="filtre.nom === f.nom
-            ? 'border-gold bg-gold/20 font-semibold text-gold'
-            : 'border-white/15 text-mist'"
-          @click="choix = f.nom"
-        >{{ f.nom }}</button>
-      </div>
-      <div v-if="paliers.length" class="mt-3 flex items-end gap-1.5">
-        <div v-for="p in paliers" :key="p.palier" class="flex grow flex-col items-center">
-          <div class="flex items-end" style="height: 150px">
-            <div
-              v-if="p.total"
-              class="relative flex w-6 flex-col gap-0.5"
-              :style="{ height: p.hauteur }"
-              :title="`${p.partReussi} réussis sur ${p.total}`"
-            >
-              <div class="rounded-t bg-[#5d7a70]" :style="{ flexGrow: p.partChute }"></div>
-              <div class="rounded-b bg-gold" :style="{ flexGrow: p.partReussi }"></div>
-              <span
-                class="absolute inset-x-0 bottom-0.5 text-center text-[9px] font-bold"
-                :style="{ color: p.encre }"
-              >{{ p.pct }}</span>
+        <div>
+          <section v-if="vue === 'duos'">
+            <div class="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
+              <div
+                v-for="r in reperes"
+                :key="r.etiquette"
+                class="rounded-xl border px-3.5 py-3"
+                :style="{ borderColor: r.bord, background: r.fond }"
+              >
+                <p class="text-[9px] tracking-widest" :style="{ color: r.couleur }">{{ r.etiquette }}</p>
+                <p class="mt-1 font-display text-lg leading-tight">{{ r.qui }}</p>
+                <p class="font-display text-2xl leading-none" :style="{ color: r.couleur }">{{ r.valeur }}</p>
+                <p class="mt-1 text-[11px] text-mist">{{ r.detail }}</p>
+              </div>
             </div>
-            <div
-              v-else
-              class="w-6 rounded border border-dashed border-white/20"
-              style="height: 10px"
-              title="jamais pris"
-            ></div>
-          </div>
-          <span class="mt-1 text-[9px] font-semibold">{{ p.palier }}</span>
-          <span class="text-[9px] text-dusk">{{ p.total }}</span>
-        </div>
-      </div>
-      <p v-else class="text-sm text-sage">Aucune prise pour cette sélection.</p>
-      </section>
+          </section>
 
-      <section v-if="vue === 'joueurs'">
-      <h2 class="mt-6 mb-1 font-display text-lg">Le panache</h2>
-      <p class="mb-3 text-[11px] leading-relaxed text-sage">
-        Écart moyen entre ce qu'un joueur annonce et ce que <em>les autres</em> annoncent
-        avec une main de force comparable.
-      </p>
-      <div v-if="panaches.length" class="flex flex-col gap-2">
-        <div v-for="p in panaches" :key="p.nom" class="flex items-center gap-2.5">
-          <span class="w-14 text-right text-[13px] font-semibold">{{ p.nom }}</span>
-          <div class="relative h-6 grow">
-            <div class="absolute top-0 bottom-0 left-1/2 w-px bg-white/20"></div>
-            <div
-              class="absolute top-0 h-6 rounded"
-              :style="{ left: p.left, width: p.width, background: p.couleur }"
-            ></div>
-          </div>
-          <span class="w-10 text-[13px] font-bold tabular-nums" :style="{ color: p.couleur }">
-            {{ p.valeur }}
-          </span>
-        </div>
-        <div class="mt-1 ml-16 flex justify-between text-[10px] text-dusk">
-          <span>plus prudent</span><span>plus audacieux</span>
-        </div>
-      </div>
-      <p v-else class="text-sm text-sage">
-        Pas encore assez de prises pour comparer les tempéraments.
-      </p>
-      </section>
+          <section v-if="vue === 'duos'">
+            <h2 class="mt-6 mb-2 font-display text-lg">Duo par duo</h2>
+            <table
+              class="w-full border-collapse text-[12px] [&_td:first-child]:pl-0 [&_th:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:last-child]:pr-0"
+            >
+              <thead>
+                <tr class="text-[10px] tracking-wider text-sage">
+                  <th class="pb-1.5 text-left font-semibold px-2">DUO</th>
+                  <th class="pb-1.5 text-right font-semibold px-2">PARTIES</th>
+                  <th class="pb-1.5 text-right font-semibold px-2">GAGNÉES</th>
+                  <th class="pb-1.5 text-right font-semibold px-2">%</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">DONNES</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">DONNES&nbsp;%</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">PRISES</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">CONTRATS&nbsp;%</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">MARQUÉS</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">OFFERTS</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">MOYEN</th>
+                  <th class="pb-1.5 text-right font-semibold px-2">PIRE</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="d in duos" :key="clePaire(d.paire)" class="border-t border-white/8">
+                  <td class="py-2 font-semibold whitespace-nowrap">{{ nomPaire(d.paire) }}</td>
+                  <td class="py-2 text-right tabular-nums text-mist px-2">{{ d.parties }}</td>
+                  <td class="py-2 text-right tabular-nums text-mist px-2">{{ d.gagnees }}</td>
+                  <td class="py-2 text-right px-2">
+                    <span
+                      class="inline-block rounded px-1.5 py-0.5 font-semibold whitespace-nowrap tabular-nums"
+                      :style="{ background: fondTaux(taux(d.gagnees, d.parties)) }"
+                      >{{ taux(d.gagnees, d.parties) }} %</span
+                    >
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">
+                    {{ d.donnes }}
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">
+                    {{ taux(d.donnesGagnees, d.donnes) }} %
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">
+                    {{ d.prises }}
+                  </td>
+                  <td class="hidden py-2 text-right lg:table-cell px-2">
+                    <span
+                      class="inline-block rounded px-1.5 py-0.5 font-semibold whitespace-nowrap tabular-nums"
+                      :style="{ background: fondTaux(taux(d.reussies, d.prises)) }"
+                      >{{ taux(d.reussies, d.prises) }} %</span
+                    >
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums lg:table-cell px-2" :style="{ color: BON }">
+                    {{ d.marques }}
+                  </td>
+                  <td
+                    class="hidden py-2 text-right tabular-nums lg:table-cell px-2"
+                    :style="{ color: MAUVAIS }"
+                  >
+                    {{ d.offerts }}
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">
+                    {{ d.scoreMoyen }}
+                  </td>
+                  <td class="py-2 text-right tabular-nums text-mist px-2">{{ d.pireScore ?? '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
 
-      <template v-if="vue === 'encheres'">
-        <StatsEncheres :joueurs="lesJoueurs" :couleurs="couleurs" :annonces="annonces" :roles="roles" />
-        <StatsEcarts :joueurs="lesJoueurs" :couleurs="couleurs" :ecarts="ecarts" />
-      </template>
-      <StatsTemps v-if="vue === 'temps'" :joueurs="lesJoueurs" :couleurs="couleurs" :temps="temps" />
-      <StatsParties v-if="vue === 'parties'" :archives="archives" :non-finies="nonFinies" />
-      </div>
+          <section v-if="vue === 'joueurs'">
+            <h2 class="mt-6 mb-2 font-display text-lg">Joueur par joueur</h2>
+            <table
+              class="w-full border-collapse text-[12px] [&_td:first-child]:pl-0 [&_th:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:last-child]:pr-0"
+            >
+              <thead>
+                <tr class="text-[10px] tracking-wider text-sage">
+                  <th class="pb-1.5 text-left font-semibold px-2">JOUEUR</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">PARTIES</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">GAGNÉES</th>
+                  <th class="pb-1.5 text-right font-semibold px-2">PRISES</th>
+                  <th class="pb-1.5 text-right font-semibold px-2">RÉUSS.</th>
+                  <th class="pb-1.5 text-right font-semibold px-2">%</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">COINCHES</th>
+                  <th
+                    class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2"
+                    title="annoncées · oubliées"
+                  >
+                    BELOTES
+                  </th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">MARQUÉS</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">OFFERTS</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">MOYEN</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">PIRE</th>
+                  <th class="hidden pb-1.5 text-right font-semibold lg:table-cell px-2">PANACHE</th>
+                  <th
+                    class="pb-1.5 text-right font-semibold px-2"
+                    title="net par donne : marqué en prenant, moins offert en chutant"
+                  >
+                    BILAN
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="j in joueurs" :key="j.joueur" class="border-t border-white/8">
+                  <td class="py-2 font-semibold">{{ nom(j.joueur) }}</td>
+                  <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">
+                    {{ j.parties }}
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">
+                    {{ j.gagnees }} · {{ taux(j.gagnees, j.parties) }} %
+                  </td>
+                  <td class="py-2 text-right tabular-nums text-mist px-2">{{ j.prises }}</td>
+                  <td class="py-2 text-right tabular-nums text-mist px-2">{{ j.reussies }}</td>
+                  <td class="py-2 text-right px-2">
+                    <span
+                      class="inline-block rounded px-1.5 py-0.5 font-semibold whitespace-nowrap tabular-nums"
+                      :style="{ background: fondTaux(taux(j.reussies, j.prises)) }"
+                      >{{ taux(j.reussies, j.prises) }} %</span
+                    >
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">
+                    {{ j.coinches }}
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums lg:table-cell px-2">
+                    <span class="text-mist">{{ j.belotesAnnoncees }}</span>
+                    <span class="text-dusk"> · </span>
+                    <span :style="{ color: j.belotesOubliees ? MAUVAIS : undefined }" class="text-dusk">
+                      {{ j.belotesOubliees }}
+                    </span>
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums lg:table-cell px-2" :style="{ color: BON }">
+                    {{ j.marques }}
+                  </td>
+                  <td
+                    class="hidden py-2 text-right tabular-nums lg:table-cell px-2"
+                    :style="{ color: MAUVAIS }"
+                  >
+                    {{ j.offerts }}
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">
+                    {{ j.scoreMoyen }}
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums text-mist lg:table-cell px-2">
+                    {{ j.pireScore ?? '—' }}
+                  </td>
+                  <td class="hidden py-2 text-right tabular-nums lg:table-cell px-2">
+                    <span v-if="j.panache === null" class="text-dusk">—</span>
+                    <span v-else :style="{ color: j.panache >= 0 ? BON : MAUVAIS }">
+                      {{ j.panache > 0 ? '+' : '' }}{{ j.panache }}
+                    </span>
+                  </td>
+                  <td
+                    class="py-2 text-right font-bold tabular-nums px-2"
+                    :style="{ color: parDonne(j) >= 0 ? BON : MAUVAIS }"
+                  >
+                    {{ signe(parDonne(j)) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section v-if="vue === 'joueurs'">
+            <h2 class="mt-6 mb-2 font-display text-lg">Belotes, impasses, étoiles et réflexion</h2>
+            <div class="grid grid-cols-2 gap-2.5 max-[380px]:gap-2">
+              <div
+                v-for="d in details"
+                :key="d.id"
+                class="rounded-xl border border-white/8 bg-white/4 px-3 py-2.5 max-[380px]:px-2"
+              >
+                <p class="mb-1.5 text-[13px] font-semibold">{{ d.nom }}</p>
+                <div v-for="l in d.lignes" :key="l.quoi" class="flex items-baseline gap-2 py-0.5">
+                  <span class="grow text-[11px] text-sage">{{ l.quoi }}</span>
+                  <span
+                    class="text-[12px] font-semibold whitespace-nowrap tabular-nums"
+                    :style="{ color: l.couleur }"
+                    >{{ l.valeur }}</span
+                  >
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section v-if="vue === 'joueurs'">
+            <h2 class="mt-6 mb-1 font-display text-lg">Jusqu'où chacun peut monter</h2>
+            <p class="mb-2 text-[11px] text-sage">
+              Hauteur de la barre = contrats pris à ce palier · part dorée = contrats passés
+            </p>
+            <div class="flex flex-wrap gap-1.5 rounded-xl border border-white/8 bg-white/5 p-2">
+              <button
+                v-for="f in filtres"
+                :key="f.nom"
+                type="button"
+                class="rounded-full border px-2.5 py-1 text-[11px]"
+                :class="
+                  filtre.nom === f.nom
+                    ? 'border-gold bg-gold/20 font-semibold text-gold'
+                    : 'border-white/15 text-mist'
+                "
+                @click="choix = f.nom"
+              >
+                {{ f.nom }}
+              </button>
+            </div>
+            <div v-if="paliers.length" class="mt-3 flex items-end gap-1.5">
+              <div v-for="p in paliers" :key="p.palier" class="flex grow flex-col items-center">
+                <div class="flex items-end" style="height: 150px">
+                  <div
+                    v-if="p.total"
+                    class="relative flex w-6 flex-col gap-0.5"
+                    :style="{ height: p.hauteur }"
+                    :title="`${p.partReussi} réussis sur ${p.total}`"
+                  >
+                    <div class="rounded-t bg-[#5d7a70]" :style="{ flexGrow: p.partChute }"></div>
+                    <div class="rounded-b bg-gold" :style="{ flexGrow: p.partReussi }"></div>
+                    <span
+                      class="absolute inset-x-0 bottom-0.5 text-center text-[9px] font-bold"
+                      :style="{ color: p.encre }"
+                      >{{ p.pct }}</span
+                    >
+                  </div>
+                  <div
+                    v-else
+                    class="w-6 rounded border border-dashed border-white/20"
+                    style="height: 10px"
+                    title="jamais pris"
+                  ></div>
+                </div>
+                <span class="mt-1 text-[9px] font-semibold">{{ p.palier }}</span>
+                <span class="text-[9px] text-dusk">{{ p.total }}</span>
+              </div>
+            </div>
+            <p v-else class="text-sm text-sage">Aucune prise pour cette sélection.</p>
+          </section>
+
+          <section v-if="vue === 'joueurs'">
+            <h2 class="mt-6 mb-1 font-display text-lg">Le panache</h2>
+            <p class="mb-3 text-[11px] leading-relaxed text-sage">
+              Écart moyen entre ce qu'un joueur annonce et ce que <em>les autres</em> annoncent avec une main
+              de force comparable.
+            </p>
+            <div v-if="panaches.length" class="flex flex-col gap-2">
+              <div v-for="p in panaches" :key="p.nom" class="flex items-center gap-2.5">
+                <span class="w-14 text-right text-[13px] font-semibold">{{ p.nom }}</span>
+                <div class="relative h-6 grow">
+                  <div class="absolute top-0 bottom-0 left-1/2 w-px bg-white/20"></div>
+                  <div
+                    class="absolute top-0 h-6 rounded"
+                    :style="{ left: p.left, width: p.width, background: p.couleur }"
+                  ></div>
+                </div>
+                <span class="w-10 text-[13px] font-bold tabular-nums" :style="{ color: p.couleur }">
+                  {{ p.valeur }}
+                </span>
+              </div>
+              <div class="mt-1 ml-16 flex justify-between text-[10px] text-dusk">
+                <span>plus prudent</span><span>plus audacieux</span>
+              </div>
+            </div>
+            <p v-else class="text-sm text-sage">Pas encore assez de prises pour comparer les tempéraments.</p>
+          </section>
+
+          <template v-if="vue === 'encheres'">
+            <StatsEncheres :joueurs="lesJoueurs" :couleurs="couleurs" :annonces="annonces" :roles="roles" />
+            <StatsEcarts :joueurs="lesJoueurs" :couleurs="couleurs" :ecarts="ecarts" />
+          </template>
+          <StatsTemps v-if="vue === 'temps'" :joueurs="lesJoueurs" :couleurs="couleurs" :temps="temps" />
+          <StatsParties v-if="vue === 'parties'" :archives="archives" :non-finies="nonFinies" />
+        </div>
       </template>
     </template>
   </div>

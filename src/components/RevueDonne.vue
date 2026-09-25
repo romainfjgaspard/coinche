@@ -119,26 +119,42 @@ const atout = (card: string): boolean => {
             <span class="font-bold text-gold">{{ valeur }}</span>
             <span
               class="flex h-5 min-w-5 items-center justify-center rounded-full bg-ivory px-1 text-xs leading-none font-bold"
-              :class="contrat.declaration && contrat.declaration !== 'sa' && contrat.declaration !== 'ta' && isRed(contrat.declaration) ? 'text-red-card' : 'text-felt-dark'"
-            >{{ declaration }}</span>
+              :class="
+                contrat.declaration &&
+                contrat.declaration !== 'sa' &&
+                contrat.declaration !== 'ta' &&
+                isRed(contrat.declaration)
+                  ? 'text-red-card'
+                  : 'text-felt-dark'
+              "
+              >{{ declaration }}</span
+            >
           </span>
           <button
             type="button"
             class="flex size-8 cursor-pointer items-center justify-center rounded-full text-sage transition hover:bg-white/10 hover:text-mist"
             aria-label="Fermer"
             @click="emit('fermer')"
-          >✕</button>
+          >
+            ✕
+          </button>
         </div>
 
         <div class="mx-5 mt-3 grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
           <button
-            v-for="o in [{ id: 'mains', label: 'Mains' }, { id: 'plis', label: 'Les 8 plis' }, { id: 'analyse', label: 'Analyse' }] as const"
+            v-for="o in [
+              { id: 'mains', label: 'Mains' },
+              { id: 'plis', label: 'Les 8 plis' },
+              { id: 'analyse', label: 'Analyse' },
+            ] as const"
             :key="o.id"
             type="button"
             class="h-9 cursor-pointer rounded-lg text-sm font-semibold transition"
             :class="vue === o.id ? 'bg-gold text-felt' : 'text-mist hover:bg-white/5'"
             @click="ouvrir(o.id)"
-          >{{ o.label }}</button>
+          >
+            {{ o.label }}
+          </button>
         </div>
 
         <div class="mt-3 overflow-y-auto px-5 pb-5">
@@ -151,7 +167,13 @@ const atout = (card: string): boolean => {
                   {{ contrat?.taker === p ? 'preneur' : p === donne.donneur ? 'donneur' : '' }}
                 </p>
               </div>
-              <div class="relative" :style="{ width: `${largeurMain + 7 * pasMain}px`, height: `${Math.round(largeurMain * 1.44)}px` }">
+              <div
+                class="relative"
+                :style="{
+                  width: `${largeurMain + 7 * pasMain}px`,
+                  height: `${Math.round(largeurMain * 1.44)}px`,
+                }"
+              >
                 <div
                   v-for="(c, i) in donne.mains[p]"
                   :key="c"
@@ -175,11 +197,15 @@ const atout = (card: string): boolean => {
               <div class="flex gap-1.5">
                 <div v-for="c in pli.cartes" :key="c.card" class="flex flex-col items-center gap-0.5">
                   <PlayingCard :card="c.card" :width="largeurPli" :winner="c.player === pli.gagnant" />
-                  <span class="max-w-[3.25rem] truncate text-[10px]" :class="couleurNom(c.player)">{{ nomDe(c.player) }}</span>
+                  <span class="max-w-[3.25rem] truncate text-[10px]" :class="couleurNom(c.player)">{{
+                    nomDe(c.player)
+                  }}</span>
                 </div>
               </div>
               <p class="ml-auto shrink-0 text-right text-sm tabular-nums">
-                <span class="font-semibold" :class="couleurNom(pli.gagnant)">+{{ pli.points + (pli.numero === 8 ? 10 : 0) }}</span>
+                <span class="font-semibold" :class="couleurNom(pli.gagnant)"
+                  >+{{ pli.points + (pli.numero === 8 ? 10 : 0) }}</span
+                >
                 <span v-if="pli.numero === 8" class="block text-[10px] text-sage">dont dix de der</span>
               </p>
             </div>
@@ -187,14 +213,20 @@ const atout = (card: string): boolean => {
 
           <!-- À cartes ouvertes : le contrat était-il faisable, et où a-t-il échappé ? -->
           <div v-else-if="vue === 'analyse'" class="text-[14px] leading-relaxed">
-            <p v-if="calcul" class="py-6 text-center text-sm text-sage">Calcul en cours… (quelques secondes)</p>
-            <p v-else-if="analyse?.impossible" class="py-6 text-center text-sm text-sage">{{ analyse.impossible }}</p>
+            <p v-if="calcul" class="py-6 text-center text-sm text-sage">
+              Calcul en cours… (quelques secondes)
+            </p>
+            <p v-else-if="analyse?.impossible" class="py-6 text-center text-sm text-sage">
+              {{ analyse.impossible }}
+            </p>
             <template v-else-if="analyse">
               <p
                 class="rounded-xl px-4 py-3 font-semibold"
                 :class="analyse.faisable ? 'bg-gold/15 text-gold' : 'bg-white/5 text-mist'"
               >
-                {{ analyse.faisable ? 'Le contrat était faisable.' : 'Le contrat n\u2019était pas faisable.' }}
+                {{
+                  analyse.faisable ? 'Le contrat était faisable.' : 'Le contrat n\u2019était pas faisable.'
+                }}
               </p>
               <p class="mt-3 text-mist">
                 À cartes ouvertes, {{ equipeDuPreneur }} pouvaient garantir
@@ -205,15 +237,12 @@ const atout = (card: string): boolean => {
               <template v-if="analyse.tournant">
                 <p class="mt-3 text-mist">
                   Il a échappé au <b class="text-ivory">pli {{ analyse.tournant.pli }}</b> :
-                  {{ nomDe(analyse.tournant.joueur) }} a joué
-                  <CarteTexte :carte="analyse.tournant.carte" /> ;
-                  avec
-                  <CarteTexte :carte="analyse.tournant.mieux" />,
-                  il restait faisable.
+                  {{ nomDe(analyse.tournant.joueur) }} a joué <CarteTexte :carte="analyse.tournant.carte" /> ;
+                  avec <CarteTexte :carte="analyse.tournant.mieux" />, il restait faisable.
                 </p>
                 <div class="mt-3 flex items-end gap-3">
                   <div class="flex flex-col items-center gap-1">
-                  <PlayingCard :card="analyse.tournant.carte" :width="largeurPli" :dimmed="true" />
+                    <PlayingCard :card="analyse.tournant.carte" :width="largeurPli" :dimmed="true" />
                     <span class="text-[11px] text-sage">joué</span>
                   </div>
                   <span class="pb-8 text-sage">→</span>
@@ -225,10 +254,15 @@ const atout = (card: string): boolean => {
               </template>
               <p v-else-if="analyse.faisable" class="mt-3 text-mist">Et il a été fait.</p>
               <p class="mt-4 text-xs text-dusk">
-                Calcul à cartes ouvertes : chacun voit les quatre mains et joue parfaitement. Une indication, pas un reproche —
-                en vrai, personne ne voit les cartes des autres.
+                Calcul à cartes ouvertes : chacun voit les quatre mains et joue parfaitement. Une indication,
+                pas un reproche — en vrai, personne ne voit les cartes des autres.
               </p>
-              <AnalyseCartes :donne="donne" :seating="session.seating" :moi="session.playerId" :nous="session.myTeam" />
+              <AnalyseCartes
+                :donne="donne"
+                :seating="session.seating"
+                :moi="session.playerId"
+                :nous="session.myTeam"
+              />
             </template>
           </div>
         </div>

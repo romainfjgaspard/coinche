@@ -32,25 +32,24 @@ export interface PlayState {
 
 export const TRICKS_PER_DEAL = 8
 
-export const newPlay = (
-  trump: Atout,
-  firstLeader: PlayerId,
-  seating: Seating,
-): PlayState => ({ trump, firstLeader, seating, current: [], completed: [] })
+export const newPlay = (trump: Atout, firstLeader: PlayerId, seating: Seating): PlayState => ({
+  trump,
+  firstLeader,
+  seating,
+  current: [],
+  completed: [],
+})
 
 /** Qui entame le pli en cours : le gagnant du précédent, sinon l'entameur initial. */
 export const leader = (state: PlayState): PlayerId =>
-  state.completed.length === 0
-    ? state.firstLeader
-    : state.completed[state.completed.length - 1].winner
+  state.completed.length === 0 ? state.firstLeader : state.completed[state.completed.length - 1].winner
 
 export function currentPlayer(state: PlayState): PlayerId | null {
   if (isDealOver(state)) return null
   return playerAtSeat(seatOf(leader(state), state.seating) + state.current.length, state.seating)
 }
 
-export const isDealOver = (state: PlayState): boolean =>
-  state.completed.length === TRICKS_PER_DEAL
+export const isDealOver = (state: PlayState): boolean => state.completed.length === TRICKS_PER_DEAL
 
 const toPlayedCards = (plays: Play[], seating: Seating): PlayedCard[] =>
   plays.map((p) => ({ seat: seatOf(p.player, seating), card: p.card }))
@@ -58,7 +57,10 @@ const toPlayedCards = (plays: Play[], seating: Seating): PlayedCard[] =>
 /** Cartes qu'un joueur a le droit de poser, main en main (JEU-2 à JEU-8). */
 export function playableFor(state: PlayState, player: PlayerId, hand: Card[]): Card[] {
   return playableCards(
-    hand, toPlayedCards(state.current, state.seating), state.trump, seatOf(player, state.seating),
+    hand,
+    toPlayedCards(state.current, state.seating),
+    state.trump,
+    seatOf(player, state.seating),
   )
 }
 

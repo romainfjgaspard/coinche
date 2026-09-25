@@ -10,12 +10,12 @@ describe('force de main', () => {
     expect(forceMain(main, 's')).toBe(3)
   })
 
-  it('ajoute le valet et le 9 d\'atout', () => {
+  it("ajoute le valet et le 9 d'atout", () => {
     const main: Card[] = ['Js', '9s', '10s', '7h', '8h', '7d', '8d', '7c']
     expect(forceMain(main, 's')).toBe(3 + BAREME.valetAtout + BAREME.neufAtout)
   })
 
-  it('compte les as extérieurs, pas celui d\'atout', () => {
+  it("compte les as extérieurs, pas celui d'atout", () => {
     const main: Card[] = ['As', '7s', 'Ah', '8h', 'Ad', '8d', '7c', '8c']
     expect(forceMain(main, 's')).toBe(2 + 2 * BAREME.asExterieur)
   })

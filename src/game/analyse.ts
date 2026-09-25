@@ -25,15 +25,26 @@ export interface Analyse {
   /** Belote du preneur comptée (+20) dans l'objectif */
   belote?: boolean
   /** La carte qui a fait échapper le contrat, et celle qui le gardait */
-  tournant?: { pli: number; joueur: PlayerId; carte: Card; mieux: Card; garantiAvant: number; garantiApres: number }
+  tournant?: {
+    pli: number
+    joueur: PlayerId
+    carte: Card
+    mieux: Card
+    garantiAvant: number
+    garantiApres: number
+  }
 }
 
 /** Qui, dans l'équipe du preneur, tient le Roi et la Dame d'atout : la belote compte. */
 function beloteDuPreneur(donne: DonneRevue, seating: Seating, trump: Atout): boolean {
   if (!donne.mains || !donne.contrat || trump === null || trump === 'ta') return false
   const equipe = teamOfPlayer(donne.contrat.taker, seating)
-  return seating.some((p) => teamOfPlayer(p, seating) === equipe
-    && donne.mains![p].includes(`K${trump}` as Card) && donne.mains![p].includes(`Q${trump}` as Card))
+  return seating.some(
+    (p) =>
+      teamOfPlayer(p, seating) === equipe &&
+      donne.mains![p].includes(`K${trump}` as Card) &&
+      donne.mains![p].includes(`Q${trump}` as Card),
+  )
 }
 
 export function analyserDonne(donne: DonneRevue, seating: Seating): Analyse {
@@ -88,7 +99,11 @@ export function analyserDonne(donne: DonneRevue, seating: Seating): Analyse {
       if (avant >= requis && apres < requis && teamOfPlayer(player, seating) === equipe) {
         // Le tournant : parmi les cartes permises, celle qui gardait le contrat faisable.
         resultat.tournant = {
-          pli: p.numero, joueur: player, carte: card, garantiAvant: avant, garantiApres: apres,
+          pli: p.numero,
+          joueur: player,
+          carte: card,
+          garantiAvant: avant,
+          garantiApres: apres,
           mieux: meilleureCarte(donne, seating, p.numero, player, permis, trump, equipe, objectif) ?? card,
         }
         return resultat
@@ -101,8 +116,14 @@ export function analyserDonne(donne: DonneRevue, seating: Seating): Analyse {
 
 /** Rejoue jusqu'au coup donné, essaie chaque carte permise, garde la meilleure. */
 function meilleureCarte(
-  donne: DonneRevue, seating: Seating, numeroPli: number, joueur: PlayerId, permis: Card[],
-  trump: Atout, equipe: 0 | 1, objectif: Objectif,
+  donne: DonneRevue,
+  seating: Seating,
+  numeroPli: number,
+  joueur: PlayerId,
+  permis: Card[],
+  trump: Atout,
+  equipe: 0 | 1,
+  objectif: Objectif,
 ): Card | null {
   const siege = (p: PlayerId) => seatOf(p, seating)
   const mains: Card[][] = seating.map((p) => [...donne.mains![p]])
@@ -126,7 +147,11 @@ function meilleureCarte(
       const s = siege(player)
       mains[s] = mains[s].filter((x) => x !== card)
       pli = [...pli, { siege: s, carte: card }]
-      if (pli.length === 4) { pli = []; entameur = siege(p.gagnant); plisJoues += 1 }
+      if (pli.length === 4) {
+        pli = []
+        entameur = siege(p.gagnant)
+        plisJoues += 1
+      }
     }
   }
   return null

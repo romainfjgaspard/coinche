@@ -41,8 +41,9 @@ export function useTableState() {
   function remaining(player: PlayerId): number {
     const st = session.play
     if (!st) return HAND_SIZE
-    const played = [...st.completed.flatMap((t) => t.plays), ...st.current]
-      .filter((p) => p.player === player).length
+    const played = [...st.completed.flatMap((t) => t.plays), ...st.current].filter(
+      (p) => p.player === player,
+    ).length
     return HAND_SIZE - played
   }
 
@@ -75,15 +76,20 @@ export function useTableState() {
   const trickOrder = computed(() => {
     const order: Partial<Record<Place, number>> = {}
     session.shownTrick.plays.forEach((p, i) => {
-      const place: Place = p.player === me.value ? 'me'
-        : p.player === around.value.left ? 'left'
-          : p.player === around.value.top ? 'top' : 'right'
+      const place: Place =
+        p.player === me.value
+          ? 'me'
+          : p.player === around.value.left
+            ? 'left'
+            : p.player === around.value.top
+              ? 'top'
+              : 'right'
       order[place] = i
     })
     return order
   })
-  const trickWinnerCard = computed(() =>
-    session.shownTrick.plays.find((p) => p.player === session.shownTrick.winner)?.card ?? null,
+  const trickWinnerCard = computed(
+    () => session.shownTrick.plays.find((p) => p.player === session.shownTrick.winner)?.card ?? null,
   )
 
   const isTrump = (card: Card): boolean => {
@@ -93,8 +99,7 @@ export function useTableState() {
     return trump != null && card.endsWith(trump)
   }
 
-  const canPlay = (card: Card): boolean =>
-    session.myPlayTurn && session.playable.includes(card)
+  const canPlay = (card: Card): boolean => session.myPlayTurn && session.playable.includes(card)
 
   const starsOf = (p: PlayerId): number => session.stars.get(p) ?? 0
 
@@ -111,15 +116,27 @@ export function useTableState() {
     if (session.game?.phase !== 'encheres') return out
     for (const e of currentDeal(session.events)) {
       if (e.type === 'coinche' || e.type === 'surcoinche') {
-        out.set(e.player, { texte: e.type === 'coinche' ? 'Coinche' : 'Surcoinche', couleur: null, passe: false, coinche: true })
+        out.set(e.player, {
+          texte: e.type === 'coinche' ? 'Coinche' : 'Surcoinche',
+          couleur: null,
+          passe: false,
+          coinche: true,
+        })
       } else if (e.type === 'enchere') {
         const b = e.entry
         // Le symbole à part : il s'affiche en couleur sur un rond ivoire, comme le contrat.
-        const couleur = b.kind === 'contrat' ? b.suit
-          : b.kind === 'capot' || b.kind === 'generale' ? b.declaration : null
-        const texte = b.kind === 'passe' ? 'Passe'
-          : b.kind === 'contrat' ? String(b.value)
-            : b.kind === 'capot' ? 'Capot' : b.kind === 'generale' ? 'Générale' : ''
+        const couleur =
+          b.kind === 'contrat' ? b.suit : b.kind === 'capot' || b.kind === 'generale' ? b.declaration : null
+        const texte =
+          b.kind === 'passe'
+            ? 'Passe'
+            : b.kind === 'contrat'
+              ? String(b.value)
+              : b.kind === 'capot'
+                ? 'Capot'
+                : b.kind === 'generale'
+                  ? 'Générale'
+                  : ''
         if (texte) out.set(e.player, { texte, couleur, passe: b.kind === 'passe', coinche: false })
       }
     }
@@ -137,13 +154,27 @@ export function useTableState() {
     const n = session.annoncesBelote.get(p) ?? 0
     if (n >= 2) return 'rebelote'
     if (n === 0) return null
-    const posees = [...st.completed.flatMap((t) => t.plays), ...st.current]
-      .filter((x) => x.player === p && (x.card === `K${trump}` || x.card === `Q${trump}`)).length
+    const posees = [...st.completed.flatMap((t) => t.plays), ...st.current].filter(
+      (x) => x.player === p && (x.card === `K${trump}` || x.card === `Q${trump}`),
+    ).length
     return posees >= 2 ? null : 'belote'
   }
 
   return {
-    session, me, around, remaining, contract, contractLabel,
-    trickAt, trickOrder, trickWinnerCard, isTrump, canPlay, starsOf, isActive, lastBid, beloteDe,
+    session,
+    me,
+    around,
+    remaining,
+    contract,
+    contractLabel,
+    trickAt,
+    trickOrder,
+    trickWinnerCard,
+    isTrump,
+    canPlay,
+    starsOf,
+    isActive,
+    lastBid,
+    beloteDe,
   }
 }

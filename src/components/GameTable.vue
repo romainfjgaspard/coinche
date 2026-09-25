@@ -18,13 +18,26 @@ import { useTableLayout } from '../composables/useTableLayout'
 import { nomDe } from '../stores/roster'
 
 const emit = defineEmits<{ stats: []; regles: [] }>()
-const tailleScore = computed(() => (Math.max(...(session.game?.scores ?? [0, 0])) >= 1000 ? 'text-[25px]' : 'text-[30px]'))
+const tailleScore = computed(() =>
+  Math.max(...(session.game?.scores ?? [0, 0])) >= 1000 ? 'text-[25px]' : 'text-[30px]',
+)
 /** Toucher le contrat rouvre l'historique complet des enchères de la donne. */
 const encheresVisibles = ref(false)
 
 const {
-  session, me, around, remaining, contract, contractLabel, trickAt, trickWinnerCard,
-  isTrump, canPlay, starsOf, lastBid, beloteDe,
+  session,
+  me,
+  around,
+  remaining,
+  contract,
+  contractLabel,
+  trickAt,
+  trickWinnerCard,
+  isTrump,
+  canPlay,
+  starsOf,
+  lastBid,
+  beloteDe,
 } = useTableState()
 
 /** Tailles de cartes : la table double de largeur sur un écran d'ordinateur. */
@@ -105,12 +118,15 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
     <!-- Tapis : feutre tissé, rebord de bois, liseré cousu -->
     <div
       class="absolute rounded-[28px] border-[13px] border-[#33241a] shadow-[inset_0_0_0_3px_rgba(217,164,65,.22),inset_0_26px_64px_rgba(0,0,0,.3),0_22px_54px_rgba(0,0,0,.55)] lg:rounded-[40px] lg:border-[16px]"
-      :style="tapis + `
+      :style="
+        tapis +
+        `
         background-color: #15583f;
         background-image:
           repeating-linear-gradient(45deg, rgba(255,255,255,.028) 0 2px, transparent 2px 5px),
           repeating-linear-gradient(-45deg, rgba(0,0,0,.055) 0 2px, transparent 2px 5px);
-      `"
+      `
+      "
     ></div>
     <div
       class="absolute rounded-[18px] border border-dashed border-gold/30 lg:rounded-[26px]"
@@ -122,23 +138,23 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
       <QuitGame />
       <!-- Le numéro de donne passe au-dessus des scores : à gauche, la place va à « Quitter » -->
       <div class="flex grow flex-col items-center">
-      <span class="text-[10px] font-medium tracking-wider text-sage">
-        DONNE {{ session.game?.dealNumber ?? 0 }}
-      </span>
-      <!--
+        <span class="text-[10px] font-medium tracking-wider text-sage">
+          DONNE {{ session.game?.dealNumber ?? 0 }}
+        </span>
+        <!--
         Les scores en grand, dans les couleurs des équipes (or pour nous, bleu pour eux) :
         les mots « Nous » et « Eux » prenaient la place, et à 1000 points les boutons
         de droite sortaient de l'écran. Un cran plus petits au-delà de 999.
       -->
-      <div class="flex items-baseline justify-center gap-2">
-        <span class="font-display leading-none text-gold" :class="tailleScore" title="Nous">
-          {{ session.game?.scores[session.myTeam] ?? 0 }}
-        </span>
-        <span class="text-sm text-dusk">·</span>
-        <span class="font-display leading-none text-them" :class="tailleScore" title="Eux">
-          {{ session.game?.scores[session.myTeam === 0 ? 1 : 0] ?? 0 }}
-        </span>
-      </div>
+        <div class="flex items-baseline justify-center gap-2">
+          <span class="font-display leading-none text-gold" :class="tailleScore" title="Nous">
+            {{ session.game?.scores[session.myTeam] ?? 0 }}
+          </span>
+          <span class="text-sm text-dusk">·</span>
+          <span class="font-display leading-none text-them" :class="tailleScore" title="Eux">
+            {{ session.game?.scores[session.myTeam === 0 ? 1 : 0] ?? 0 }}
+          </span>
+        </div>
       </div>
       <!-- La pause, en icône comme les règles : il n'y avait pas la place d'un mot de plus -->
       <button
@@ -149,7 +165,12 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
         title="Mettre en pause"
         :disabled="session.busy"
         @click="session.basculerPause()"
-      ><svg viewBox="0 0 10 12" class="h-3 w-2.5" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="2.6" height="10" rx="0.8" /><rect x="6.4" y="1" width="2.6" height="10" rx="0.8" /></svg></button>
+      >
+        <svg viewBox="0 0 10 12" class="h-3 w-2.5" fill="currentColor" aria-hidden="true">
+          <rect x="1" y="1" width="2.6" height="10" rx="0.8" />
+          <rect x="6.4" y="1" width="2.6" height="10" rx="0.8" />
+        </svg>
+      </button>
       <!-- Les règles en « ? » : à 360 px, un bouton de plus en toutes lettres ne tenait pas -->
       <button
         type="button"
@@ -157,12 +178,16 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
         aria-label="Les règles"
         title="Les règles"
         @click="emit('regles')"
-      >?</button>
+      >
+        ?
+      </button>
       <button
         type="button"
         class="shrink-0 cursor-pointer rounded-lg border border-white/15 px-2.5 py-1.5 text-sm font-semibold text-mist"
         @click="emit('stats')"
-      >Stats</button>
+      >
+        Stats
+      </button>
     </header>
 
     <!-- Contrat en cours -->
@@ -177,13 +202,17 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
         <span
           class="flex h-6 min-w-6 items-center justify-center rounded-full bg-ivory px-1 text-base leading-none font-bold"
           :class="contract.trump === 'h' || contract.trump === 'd' ? 'text-red-card' : 'text-felt-dark'"
-        >{{ contract.trump ? SUIT_GLYPH[contract.trump] : (contract.declaration === 'sa' ? 'SA' : 'TA') }}</span>
+          >{{
+            contract.trump ? SUIT_GLYPH[contract.trump] : contract.declaration === 'sa' ? 'SA' : 'TA'
+          }}</span
+        >
         <span class="text-sm font-bold text-gold">{{ contractLabel }}</span>
         <span class="text-xs text-mist">par {{ nomDe(contract.taker) }}</span>
         <span
           v-if="contract.multiplier > 1"
           class="rounded-full bg-red-card px-2 py-0.5 text-[11px] font-bold tracking-wide text-ivory"
-        >{{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}</span>
+          >{{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}</span
+        >
         <span class="text-[11px] text-sage" aria-hidden="true">▾</span>
       </button>
     </div>
@@ -201,7 +230,9 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
             type="button"
             class="mt-2 h-11 w-full cursor-pointer rounded-xl border border-white/15 bg-felt-dark text-sm font-semibold text-mist"
             @click="encheresVisibles = false"
-          >Fermer</button>
+          >
+            Fermer
+          </button>
         </div>
       </div>
     </Teleport>
@@ -212,31 +243,46 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
         <CardBack v-for="i in remaining(around.top)" :key="i" :width="largeurDos" class="-ml-2.5" />
       </div>
       <PlayerChip
-        :player="around.top" :dealer="session.game?.dealer === around.top"
+        :player="around.top"
+        :dealer="session.game?.dealer === around.top"
         :active="session.toPlay === around.top || session.toBid === around.top"
-        :stars="starsOf(around.top)" :belote="beloteDe(around.top)" :annonce="lastBid.get(around.top)"
+        :stars="starsOf(around.top)"
+        :belote="beloteDe(around.top)"
+        :annonce="lastBid.get(around.top)"
       />
     </div>
 
     <!-- Adversaires, sur les côtés -->
-    <div :style="grand ? undefined : cote" class="absolute left-2 flex flex-col items-center gap-1.5 lg:top-1/2 lg:-translate-y-1/2 lg:left-[5%] lg:gap-3">
+    <div
+      :style="grand ? undefined : cote"
+      class="absolute left-2 flex flex-col items-center gap-1.5 lg:top-1/2 lg:-translate-y-1/2 lg:left-[5%] lg:gap-3"
+    >
       <div class="flex flex-col max-lg:ml-3 max-lg:self-start">
         <CardBack v-for="i in remaining(around.left)" :key="i" :width="largeurDos" rotated class="-mt-2.5" />
       </div>
       <PlayerChip
-        :player="around.left" :dealer="session.game?.dealer === around.left"
+        :player="around.left"
+        :dealer="session.game?.dealer === around.left"
         :active="session.toPlay === around.left || session.toBid === around.left"
-        :stars="starsOf(around.left)" :belote="beloteDe(around.left)" :annonce="lastBid.get(around.left)"
+        :stars="starsOf(around.left)"
+        :belote="beloteDe(around.left)"
+        :annonce="lastBid.get(around.left)"
       />
     </div>
-    <div :style="grand ? undefined : cote" class="absolute right-2 flex flex-col items-center gap-1.5 lg:top-1/2 lg:-translate-y-1/2 lg:right-[5%] lg:gap-3">
+    <div
+      :style="grand ? undefined : cote"
+      class="absolute right-2 flex flex-col items-center gap-1.5 lg:top-1/2 lg:-translate-y-1/2 lg:right-[5%] lg:gap-3"
+    >
       <div class="flex flex-col max-lg:mr-3 max-lg:self-end">
         <CardBack v-for="i in remaining(around.right)" :key="i" :width="largeurDos" rotated class="-mt-2.5" />
       </div>
       <PlayerChip
-        :player="around.right" :dealer="session.game?.dealer === around.right"
+        :player="around.right"
+        :dealer="session.game?.dealer === around.right"
         :active="session.toPlay === around.right || session.toBid === around.right"
-        :stars="starsOf(around.right)" :belote="beloteDe(around.right)" :annonce="lastBid.get(around.right)"
+        :stars="starsOf(around.right)"
+        :belote="beloteDe(around.right)"
+        :annonce="lastBid.get(around.right)"
       />
     </div>
 
@@ -246,16 +292,36 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
       :style="grand ? undefined : pliCourant"
     >
       <div class="absolute left-1/2 top-0 -translate-x-1/2">
-        <PlayingCard v-if="trickAt.top" :card="trickAt.top" :width="largeurCarte" :winner="trickAt.top === trickWinnerCard" />
+        <PlayingCard
+          v-if="trickAt.top"
+          :card="trickAt.top"
+          :width="largeurCarte"
+          :winner="trickAt.top === trickWinnerCard"
+        />
       </div>
       <div class="absolute left-0 top-1/2 -translate-y-1/2">
-        <PlayingCard v-if="trickAt.left" :card="trickAt.left" :width="largeurCarte" :winner="trickAt.left === trickWinnerCard" />
+        <PlayingCard
+          v-if="trickAt.left"
+          :card="trickAt.left"
+          :width="largeurCarte"
+          :winner="trickAt.left === trickWinnerCard"
+        />
       </div>
       <div class="absolute right-0 top-1/2 -translate-y-1/2">
-        <PlayingCard v-if="trickAt.right" :card="trickAt.right" :width="largeurCarte" :winner="trickAt.right === trickWinnerCard" />
+        <PlayingCard
+          v-if="trickAt.right"
+          :card="trickAt.right"
+          :width="largeurCarte"
+          :winner="trickAt.right === trickWinnerCard"
+        />
       </div>
       <div class="absolute bottom-0 left-1/2 -translate-x-1/2">
-        <PlayingCard v-if="trickAt.me" :card="trickAt.me" :width="largeurCarte" :winner="trickAt.me === trickWinnerCard" />
+        <PlayingCard
+          v-if="trickAt.me"
+          :card="trickAt.me"
+          :width="largeurCarte"
+          :winner="trickAt.me === trickWinnerCard"
+        />
         <span
           v-else-if="session.myPlayTurn"
           class="block rounded-lg border-2 border-dashed border-gold/50 bg-black/10"
@@ -265,10 +331,7 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
     </div>
 
     <!-- Dernier pli et plis de la donne, dans le tapis en bas à droite : comme sur PC -->
-    <div
-      class="absolute right-[7%] flex items-end gap-3.5"
-      :style="{ bottom: `${plisBas}px` }"
-    >
+    <div class="absolute right-[7%] flex items-end gap-3.5" :style="{ bottom: `${plisBas}px` }">
       <div class="flex flex-col gap-1">
         <span class="text-[10px] tracking-widest text-sage">DERNIER PLI</span>
         <!-- En croix : chaque carte à la place de celui qui l'a jouée -->
@@ -291,7 +354,9 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
           class="flex items-center gap-2"
         >
           <span class="w-9 text-xs font-semibold" :class="row.color">{{ row.team }}</span>
-          <span class="w-4 text-right font-display text-xl leading-none tabular-nums" :class="row.color">{{ row.count }}</span>
+          <span class="w-4 text-right font-display text-xl leading-none tabular-nums" :class="row.color">{{
+            row.count
+          }}</span>
         </div>
       </div>
     </div>
@@ -302,20 +367,19 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
       :style="{ bottom: `${visibleMain + 10}px` }"
     >
       <PlayerChip
-        :player="me" :dealer="session.game?.dealer === me" :active="session.myPlayTurn"
-        :stars="starsOf(me)" :belote="beloteDe(me)" me
+        :player="me"
+        :dealer="session.game?.dealer === me"
+        :active="session.myPlayTurn"
+        :stars="starsOf(me)"
+        :belote="beloteDe(me)"
+        me
       />
       <span v-if="session.myPlayTurn" class="text-[13px] font-semibold text-gold">à toi de jouer</span>
     </div>
 
     <!-- Ma main, tenue en main : coupée par le bas de l'écran -->
     <div data-testid="main" class="absolute inset-x-0 bottom-0" :style="{ height: `${visibleMain}px` }">
-      <div
-        v-for="c in main.cartes"
-        :key="c.card"
-        class="absolute top-0"
-        :style="{ left: `${c.left}px` }"
-      >
+      <div v-for="c in main.cartes" :key="c.card" class="absolute top-0" :style="{ left: `${c.left}px` }">
         <PlayingCard
           :card="c.card"
           :width="carteMain"
@@ -337,7 +401,10 @@ const cote = computed(() => ({ bottom: `${plisBas.value + hauteurDernierPli.valu
           :style="{ width: `${main.pas}px`, top: `${visibleMain - 34 - hausseBelote(c.card)}px` }"
           @click.stop="session.playTheCard(c.card, true)"
         >
-          <span class="flex h-7 items-center rounded-full border-2 border-felt bg-gold px-2 text-xs font-bold whitespace-nowrap text-felt shadow-md">{{ session.beloteLabel }}</span>
+          <span
+            class="flex h-7 items-center rounded-full border-2 border-felt bg-gold px-2 text-xs font-bold whitespace-nowrap text-felt shadow-md"
+            >{{ session.beloteLabel }}</span
+          >
         </button>
       </div>
     </div>

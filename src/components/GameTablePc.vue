@@ -27,8 +27,21 @@ import { useTableLayout } from '../composables/useTableLayout'
 const emit = defineEmits<{ stats: []; regles: [] }>()
 
 const {
-  session, me, around, remaining, contract, contractLabel, trickAt, trickOrder,
-  trickWinnerCard, isTrump, canPlay, starsOf, isActive, lastBid, beloteDe,
+  session,
+  me,
+  around,
+  remaining,
+  contract,
+  contractLabel,
+  trickAt,
+  trickOrder,
+  trickWinnerCard,
+  isTrump,
+  canPlay,
+  starsOf,
+  isActive,
+  lastBid,
+  beloteDe,
 } = useTableState()
 const L = useTableLayout()
 
@@ -98,17 +111,26 @@ const teams = computed(() => [
             class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3.5 py-1.5 text-sm font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
             :disabled="session.busy"
             @click="session.basculerPause()"
-          ><svg viewBox="0 0 10 12" class="h-3 w-2.5" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="2.6" height="10" rx="0.8" /><rect x="6.4" y="1" width="2.6" height="10" rx="0.8" /></svg>Pause</button>
+          >
+            <svg viewBox="0 0 10 12" class="h-3 w-2.5" fill="currentColor" aria-hidden="true">
+              <rect x="1" y="1" width="2.6" height="10" rx="0.8" />
+              <rect x="6.4" y="1" width="2.6" height="10" rx="0.8" /></svg
+            >Pause
+          </button>
           <button
             type="button"
             class="cursor-pointer rounded-lg border border-white/20 px-3.5 py-1.5 text-sm font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
             @click="emit('regles')"
-          >Règles</button>
+          >
+            Règles
+          </button>
           <button
             type="button"
             class="cursor-pointer rounded-lg border border-white/20 px-3.5 py-1.5 text-sm font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
             @click="emit('stats')"
-          >Stats</button>
+          >
+            Stats
+          </button>
         </div>
       </div>
     </header>
@@ -117,7 +139,10 @@ const teams = computed(() => [
     <div
       class="absolute shadow-[inset_0_0_0_3px_rgba(217,164,65,.22),inset_0_26px_64px_rgba(0,0,0,.3),0_22px_54px_rgba(0,0,0,.55)]"
       :style="{
-        left: px(L.tapis.x), top: px(L.tapis.y), width: px(L.tapis.w), height: px(L.tapis.h),
+        left: px(L.tapis.x),
+        top: px(L.tapis.y),
+        width: px(L.tapis.w),
+        height: px(L.tapis.h),
         borderRadius: px(Math.round(44 * L.u)),
         border: `${L.rim}px solid #33241a`,
         backgroundColor: '#15583f',
@@ -136,7 +161,10 @@ const teams = computed(() => [
     <div
       v-if="contract"
       class="absolute"
-      :style="{ left: px(L.tapis.x + L.rim + Math.round(28 * L.u)), top: px(L.tapis.y + L.rim + Math.round(24 * L.u)) }"
+      :style="{
+        left: px(L.tapis.x + L.rim + Math.round(28 * L.u)),
+        top: px(L.tapis.y + L.rim + Math.round(24 * L.u)),
+      }"
     >
       <div :style="{ zoom: L.t }">
         <p class="text-xs font-semibold tracking-widest text-sage">CONTRAT</p>
@@ -146,9 +174,14 @@ const teams = computed(() => [
           <span
             class="flex h-9 min-w-9 items-center justify-center rounded-full bg-ivory px-1.5 text-2xl leading-none font-bold"
             :class="contract.trump && isRed(contract.trump) ? 'text-red-card' : 'text-felt-dark'"
-          >{{ contract.trump ? SUIT_GLYPH[contract.trump] : (contract.declaration === 'sa' ? 'SA' : 'TA') }}</span>
+            >{{
+              contract.trump ? SUIT_GLYPH[contract.trump] : contract.declaration === 'sa' ? 'SA' : 'TA'
+            }}</span
+          >
         </div>
-        <p class="mt-1.5 text-base text-mist">par <span class="font-semibold text-ivory">{{ nomDe(contract.taker) }}</span></p>
+        <p class="mt-1.5 text-base text-mist">
+          par <span class="font-semibold text-ivory">{{ nomDe(contract.taker) }}</span>
+        </p>
         <!-- Qui a dit quoi, et pas seulement qui a pris : l'historique complet de la donne -->
         <button
           v-if="session.game?.phase === 'jeu'"
@@ -156,11 +189,15 @@ const teams = computed(() => [
           class="mt-2 cursor-pointer text-sm text-sage underline underline-offset-4 transition hover:text-mist"
           :aria-expanded="encheresVisibles"
           @click="encheresVisibles = !encheresVisibles"
-        >{{ encheresVisibles ? 'Masquer les enchères' : 'Voir les enchères' }}</button>
+        >
+          {{ encheresVisibles ? 'Masquer les enchères' : 'Voir les enchères' }}
+        </button>
         <p
           v-if="contract.multiplier > 1"
           class="mt-2 inline-block rounded-full bg-red-card px-3 py-1 text-sm font-bold tracking-wide text-ivory"
-        >{{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}</p>
+        >
+          {{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}
+        </p>
         <!-- L'historique s'ouvre juste en dessous, là où l'on a cliqué -->
         <div v-if="session.game?.phase === 'jeu' && encheresVisibles" class="relative z-30 mt-3 w-[300px]">
           <BiddingHistory />
@@ -194,7 +231,9 @@ const teams = computed(() => [
           <p class="mb-1.5 text-sm font-semibold tracking-widest text-sage">PLIS</p>
           <div v-for="t in teams" :key="t.label" class="flex h-10 items-center gap-3">
             <span class="w-12 text-base font-semibold" :class="t.color">{{ t.label }}</span>
-            <span class="w-6 text-right font-display text-3xl leading-none tabular-nums" :class="t.color">{{ t.count }}</span>
+            <span class="w-6 text-right font-display text-3xl leading-none tabular-nums" :class="t.color">{{
+              t.count
+            }}</span>
           </div>
         </div>
       </div>
@@ -207,35 +246,56 @@ const teams = computed(() => [
     >
       <div class="flex">
         <CardBack
-          v-for="i in remaining(around.top)" :key="i" :width="L.backW"
+          v-for="i in remaining(around.top)"
+          :key="i"
+          :width="L.backW"
           :style="{ marginLeft: i === 1 ? '0' : px(L.backStep - L.backW) }"
         />
       </div>
       <div :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
-          :player="around.top" :dealer="session.game?.dealer === around.top"
-          :active="isActive(around.top)" :stars="starsOf(around.top)" :belote="beloteDe(around.top)" :annonce="lastBid.get(around.top)" grand :reflechit="session.toBid === around.top"
+          :player="around.top"
+          :dealer="session.game?.dealer === around.top"
+          :active="isActive(around.top)"
+          :stars="starsOf(around.top)"
+          :belote="beloteDe(around.top)"
+          :annonce="lastBid.get(around.top)"
+          grand
+          :reflechit="session.toBid === around.top"
         />
       </div>
     </div>
 
     <!-- Adversaires, de part et d'autre du tapis -->
     <div
-      v-for="side in (['left', 'right'] as const)"
+      v-for="side in ['left', 'right'] as const"
       :key="side"
       class="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
-      :style="{ left: px(side === 'left' ? L.sideX : L.width - L.sideX), top: px(L.tapis.y + L.tapis.h / 2), gap: px(Math.round(14 * L.u)) }"
+      :style="{
+        left: px(side === 'left' ? L.sideX : L.width - L.sideX),
+        top: px(L.tapis.y + L.tapis.h / 2),
+        gap: px(Math.round(14 * L.u)),
+      }"
     >
       <div class="flex flex-col">
         <CardBack
-          v-for="i in remaining(around[side])" :key="i" :width="L.backW" rotated
+          v-for="i in remaining(around[side])"
+          :key="i"
+          :width="L.backW"
+          rotated
           :style="{ marginTop: i === 1 ? '0' : px(L.backStep - L.backW) }"
         />
       </div>
       <div :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
-          :player="around[side]" :dealer="session.game?.dealer === around[side]"
-          :active="isActive(around[side])" :stars="starsOf(around[side])" :belote="beloteDe(around[side])" :annonce="lastBid.get(around[side])" grand :reflechit="session.toBid === around[side]"
+          :player="around[side]"
+          :dealer="session.game?.dealer === around[side]"
+          :active="isActive(around[side])"
+          :stars="starsOf(around[side])"
+          :belote="beloteDe(around[side])"
+          :annonce="lastBid.get(around[side])"
+          grand
+          :reflechit="session.toBid === around[side]"
         />
       </div>
     </div>
@@ -264,7 +324,12 @@ const teams = computed(() => [
     >
       <div class="flex items-center gap-3" :style="{ zoom: L.t * 1.35 }">
         <PlayerChip
-          :player="me" :dealer="session.game?.dealer === me" :active="isActive(me)" :stars="starsOf(me)" :belote="beloteDe(me)" me
+          :player="me"
+          :dealer="session.game?.dealer === me"
+          :active="isActive(me)"
+          :stars="starsOf(me)"
+          :belote="beloteDe(me)"
+          me
         />
         <span v-if="session.myPlayTurn" class="text-sm font-semibold text-gold">à toi de jouer</span>
         <span v-else-if="session.myBidTurn" class="text-sm font-semibold text-gold">à toi de parler</span>
@@ -278,7 +343,10 @@ const teams = computed(() => [
     <div
       v-if="session.game?.phase === 'encheres'"
       class="absolute z-30"
-      :style="{ left: px(L.tapis.x + L.rim + Math.round(28 * L.u)), top: px(L.tapis.y + L.rim + Math.round(24 * L.u)) }"
+      :style="{
+        left: px(L.tapis.x + L.rim + Math.round(28 * L.u)),
+        top: px(L.tapis.y + L.rim + Math.round(24 * L.u)),
+      }"
     >
       <div class="w-[300px]" :style="{ zoom: L.t }">
         <BiddingHistory />
@@ -335,7 +403,8 @@ const teams = computed(() => [
           <span
             class="flex h-8 items-center rounded-full border-2 border-felt bg-gold px-3 text-sm font-bold text-felt shadow-md transition hover:brightness-110"
             :style="{ zoom: L.t }"
-          >{{ session.beloteLabel }}</span>
+            >{{ session.beloteLabel }}</span
+          >
         </button>
       </div>
     </div>
