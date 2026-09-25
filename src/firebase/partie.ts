@@ -31,9 +31,20 @@ import { isGameOver, RULES } from '../game/rules'
 
 export type Phase = 'lobby' | 'encheres' | 'jeu' | 'decompte' | 'terminee' | 'annulee'
 
+/** Un siège : le compte qui l'occupe, et s'il est tenu par un bot. */
+export interface Siege {
+  uid: string
+  bot?: boolean
+  niveau?: BotLevel
+  /** Un bot a pris la place d'un joueur qui ne répondait plus : le joueur peut la reprendre. */
+  remplace?: boolean
+  /** Le joueur a repris sa place : un bot a joué pour lui, la partie compte comme « avec bot ». */
+  aideBot?: boolean
+}
+
 export interface GameDoc {
   /** playerId → compte anonyme qui occupe le siège, et s'il est tenu par un bot */
-  seats: Partial<Record<PlayerId, { uid: string; bot?: boolean; niveau?: BotLevel }>>
+  seats: Partial<Record<PlayerId, Siege>>
   /** Dénormalisé pour que les règles Firestore restent simples et peu coûteuses */
   seatedUids: string[]
   dealer: PlayerId
@@ -57,6 +68,11 @@ export interface GameDoc {
   createur?: PlayerId
   /** « Rejouer » : le code de la partie suivante, où chacun est rebasculé. */
   suivante?: string
+  /**
+   * La soirée : le code de la première partie d'une chaîne de « Rejouer ». Absent sur
+   * la première, qui est sa propre soirée. Sert aux statistiques par soirée.
+   */
+  soiree?: string
   /** En pause : qui l'a mise, et depuis quand. Absent ou nul : on joue. */
   pause?: { par: PlayerId; depuis: number } | null
 }
@@ -228,7 +244,7 @@ export async function createGame(
   seating: Seating | null = null,
   dealer: PlayerId = seating?.[1] ?? creator,
   c: Client = mainClient,
-  options: { objectif?: number; blitz?: boolean } = {},
+  options: { objectif?: number; blitz?: boolean; soiree?: string } = {},
 ): Promise<string> {
   const uid = await signIn(c)
   const code = newCode()
@@ -246,6 +262,7 @@ export async function createGame(
     createur: creator,
     ...(options.objectif ? { objectif: options.objectif } : {}),
     ...(options.blitz ? { blitz: true } : {}),
+    ...(options.soiree ? { soiree: options.soiree } : {}),
   }
   await setDoc(gameRef(code, c), game)
   // Le snapshot des règles part avec la partie : sans lui, une partie archivée
@@ -319,6 +336,48 @@ export async function reprendreSiegeBot(
     if (siege.uid !== ancienUid) throw new ConcurrentWrite('Ce bot a déjà été repris')
     tx.update(gameRef(code, c), {
       [`seats.${player}`]: { ...siege, uid },
+      seatedUids: arrayUnion(uid),
+    })
+  })
+}
+
+/**
+ * Un bot prend la place d'un joueur qui ne répond plus (onglet fermé, téléphone éteint) :
+ * sans cela, toute la table attendait. Refusé si le joueur a joué ou repris sa place
+ * depuis la lecture de `ancienUid`.
+ */
+export async function remplacerParBot(
+  code: string,
+  player: PlayerId,
+  ancienUid: string,
+  niveau: BotLevel,
+  c: Client = mainClient,
+): Promise<void> {
+  const uid = await signIn(c)
+  await runTransaction(c.db, async (tx) => {
+    const snap = await tx.get(gameRef(code, c))
+    if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
+    const siege = (snap.data() as GameDoc).seats[player]
+    if (!siege) throw new Error('Ce siège est vide')
+    if (siege.bot) throw new Error('Un bot tient déjà ce siège')
+    if (siege.uid !== ancienUid) throw new ConcurrentWrite('Le joueur est revenu')
+    tx.update(gameRef(code, c), {
+      [`seats.${player}`]: { uid, bot: true, niveau, remplace: true },
+      seatedUids: arrayUnion(uid),
+    })
+  })
+}
+
+/** De retour, le joueur reprend sa place au bot qui la tenait. */
+export async function reprendreMaPlace(code: string, player: PlayerId, c: Client = mainClient): Promise<void> {
+  const uid = await signIn(c)
+  await runTransaction(c.db, async (tx) => {
+    const snap = await tx.get(gameRef(code, c))
+    if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
+    const siege = (snap.data() as GameDoc).seats[player]
+    if (!siege?.bot || !siege.remplace) throw new Error('Ta place n\u2019est pas tenue par un bot')
+    tx.update(gameRef(code, c), {
+      [`seats.${player}`]: { uid, aideBot: true },
       seatedUids: arrayUnion(uid),
     })
   })
@@ -763,6 +822,8 @@ export async function rejouer(code: string, player: PlayerId, c: Client = mainCl
   const suivante = await createGame(player, table, nextPlayer(ancienne.dealer, table), c, {
     objectif: ancienne.objectif,
     blitz: ancienne.blitz,
+    // Même soirée : on remonte à la première partie de la chaîne.
+    soiree: ancienne.soiree ?? code,
   })
   // Le premier arrivé l'emporte : un second « Rejouer » simultané rejoint sa partie.
   return runTransaction(c.db, async (tx) => {
@@ -826,13 +887,14 @@ export async function archiveGame(
   // permet de sortir ces parties des statistiques, ou de les y remettre au filtre.
   const partie = (await getDoc(gameRef(code, c))).data() as GameDoc | undefined
   const bots = partie
-    ? (Object.keys(partie.seats) as PlayerId[]).filter((p) => partie.seats[p]?.bot)
+    ? (Object.keys(partie.seats) as PlayerId[]).filter((p) => partie.seats[p]?.bot || partie.seats[p]?.aideBot)
     : []
   const archive: Archive = {
     ...buildArchive(code, events, seating, mains, bots),
     // Une partie en 500 ou en blitz ne se compare pas tout à fait aux autres : on le garde.
     ...(partie?.objectif && partie.objectif !== RULES.target ? { objectif: partie.objectif } : {}),
     ...(partie?.blitz ? { blitz: true } : {}),
+    soiree: partie?.soiree ?? code,
   }
   await setDoc(archiveRef(code, c), archive)
   return archive
@@ -842,4 +904,43 @@ export async function archiveGame(
 export async function readArchives(c: Client = mainClient): Promise<Archive[]> {
   const snap = await getDocs(query(collection(c.db, 'archives'), orderBy('finishedAt', 'desc')))
   return snap.docs.map((d) => d.data() as Archive)
+}
+
+/** Une partie commencée qui n'est pas allée au bout : annulée, abandonnée, ou en cours. */
+export interface PartieNonFinie {
+  code: string
+  /** Création, en ms ; nulle pour une partie trop ancienne pour l'avoir notée */
+  creeLe: number | null
+  joueurs: PlayerId[]
+  bots: PlayerId[]
+  donnes: number
+  scores: [number, number]
+  seating: Seating | null
+  annulee: boolean
+}
+
+/**
+ * Les parties commencées (au moins une donne) et non terminées. Seul le document de
+ * partie est lu : le journal, lui, n'est lisible que par ceux qui y ont joué.
+ */
+export async function readPartiesNonFinies(c: Client = mainClient): Promise<PartieNonFinie[]> {
+  await signIn(c)
+  const snap = await getDocs(query(collection(c.db, 'parties'), where('dealNumber', '>', 0)))
+  return snap.docs
+    .map((d) => ({ code: d.id, g: d.data() as GameDoc }))
+    .filter(({ g }) => g.phase !== 'terminee')
+    .map(({ code, g }) => {
+      const cree = g.createdAt as { toMillis?: () => number } | null
+      return {
+        code,
+        creeLe: cree?.toMillis ? cree.toMillis() : null,
+        joueurs: g.seating ? [...g.seating] : (Object.keys(g.seats) as PlayerId[]),
+        bots: (Object.keys(g.seats) as PlayerId[]).filter((p) => g.seats[p]?.bot || g.seats[p]?.aideBot),
+        donnes: g.dealNumber,
+        scores: g.scores,
+        seating: g.seating,
+        annulee: g.phase === 'annulee',
+      }
+    })
+    .sort((a, b) => (b.creeLe ?? 0) - (a.creeLe ?? 0))
 }

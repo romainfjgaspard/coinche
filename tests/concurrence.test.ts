@@ -124,8 +124,18 @@ describe('table formée par les arrivées', () => {
     const nom = `Test ${Date.now() % 100000}`
     const j = await addPlayer(nom, c)
     expect(j.id).toMatch(/^test-\d+$/)
+    expect(j.existait).toBe(false)
     expect((await readRoster(c)).map((x) => x.id)).toContain(j.id)
-    await expect(addPlayer(nom, c)).rejects.toThrow('existe déjà')
+    // Le même nom ne crée rien : on retrouve le joueur existant, pour le remettre dans sa liste.
+    const encore = await addPlayer(nom, c)
+    expect(encore).toEqual({ id: j.id, nom, existait: true })
+    expect((await readRoster(c)).filter((x) => x.id === j.id)).toHaveLength(1)
+  })
+
+  it('un des quatre du départ n\'est jamais recréé en base', async () => {
+    const c = await makeClient(`concurrence-${n}-fondateur`)
+    expect(await addPlayer('viv', c)).toEqual({ id: 'viv', nom: 'Viv', existait: true })
+    expect((await readRoster(c)).map((x) => x.id)).not.toContain('viv')
   })
 })
 
@@ -205,14 +215,16 @@ describe('partie en 500, en blitz, puis « Rejouer »', () => {
     const finie = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
     expect(finie.phase).toBe('terminee')
     const archive = (await getDoc(archiveRef(code, clients.benel))).data()
-    expect(archive).toMatchObject({ objectif: 500, blitz: true })
+    // Première partie de la chaîne : elle est sa propre soirée.
+    expect(archive).toMatchObject({ objectif: 500, blitz: true, soiree: code })
 
     const suivante = await rejouer(code, 'benel', clients.benel)
     expect(await rejouer(code, 'benel', clients.benel)).toBe(suivante) // un seul « Rejouer »
     const nouvelle = (await getDoc(gameRef(suivante, clients.benel))).data() as GameDoc
     expect(nouvelle.seating).toEqual(finie.seating)
     expect(nouvelle.dealer).toBe(nextPlayer(finie.dealer, finie.seating!))
-    expect(nouvelle).toMatchObject({ objectif: 500, blitz: true, phase: 'lobby' })
+    // « Rejouer » garde la soirée : celle de la première partie.
+    expect(nouvelle).toMatchObject({ objectif: 500, blitz: true, phase: 'lobby', soiree: code })
     expect(((await getDoc(gameRef(code, clients.viv))).data() as GameDoc).suivante).toBe(suivante)
   }, 60_000)
 })

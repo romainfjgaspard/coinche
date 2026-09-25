@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import {
-  type PlayerId, type Seating, pairingKey, pairingsOf, partnerOf, playerAtSeat, randomSeating, seatOf,
-  teamOfPlayer,
+  type NiveauBot, type PlayerId, type Seating, botId, estBotId, pairingKey, pairingsOf, partnerOf,
+  playerAtSeat, randomSeating, seatOf, teamOfPlayer,
 } from '../game/players'
 import DealerChip from './DealerChip.vue'
 import { OBJECTIFS } from '../firebase/partie'
@@ -58,10 +58,47 @@ const places = computed<Record<Place, PlayerId | null>>(() => {
   const autres = session.present.filter((p) => p !== moi)
   return { bas: moi, gauche: autres[0] ?? null, haut: autres[1] ?? null, droite: autres[2] ?? null }
 })
-/** Ceux qui ne sont pas encore là : on peut confier leur place à un bot. */
-const absents = computed<PlayerId[]>(() =>
-  seatedCount.value >= 4 ? [] : roster.joueurs.filter((p) => !session.takenBy[p]),
-)
+/**
+ * Un bot sans nom sur une place libre. On ne propose plus la liste des absents : les
+ * autres apparaissent quand ils rejoignent, un bot n'est plus « le bot de Viv ».
+ */
+function ajouterBot(niveau: NiveauBot): void {
+  void session.addBot(botId(niveau, Object.keys(session.game?.seats ?? {})), niveau)
+}
+
+/** Le lien de la partie : l'ouvrir remplit le code sur l'accueil. */
+const lien = computed(() => `${location.origin}${import.meta.env.BASE_URL}?code=${session.code ?? ''}`)
+/** Copié : oui, non (on affiche alors le lien à copier à la main), ou rien à dire. */
+const lienCopie = ref<boolean | null>(null)
+/** La bulle d'aide du blitz, ouverte au toucher sur téléphone. */
+const aideBlitz = ref(false)
+/** Sur téléphone, le menu de partage du système ; sinon, le lien copié. */
+async function partager(): Promise<void> {
+  const texte = `Rejoins ma partie de coinche (code ${session.code})`
+  if (typeof navigator.share === 'function' && !grand.value) {
+    try { await navigator.share({ title: 'Coinche', text: texte, url: lien.value }) } catch { /* partage annulé */ }
+    return
+  }
+  lienCopie.value = await copier(lien.value)
+  setTimeout(() => (lienCopie.value = null), 4000)
+}
+
+/** Le presse-papiers moderne, sinon l'ancienne méthode (page non sécurisée, cadre). */
+async function copier(texte: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(texte)
+    return true
+  } catch {
+    const champ = document.createElement('textarea')
+    champ.value = texte
+    champ.style.cssText = 'position:fixed;opacity:0'
+    document.body.appendChild(champ)
+    champ.select()
+    const ok = document.execCommand('copy')
+    champ.remove()
+    return ok
+  }
+}
 /** Mon équipe en or, l'autre en bleu — comme à la table, quel que soit le numéro d'équipe. */
 const avatarClass = (p: PlayerId): string => {
   const moi = session.playerId
@@ -92,8 +129,8 @@ const duos = computed(() =>
 )
 /** Un siège tenu par un bot : les parties concernées sortent des stats par défaut. */
 const estUnBot = (p: PlayerId): boolean => Boolean(session.game?.seats[p]?.bot)
-/** Le niveau n'est connu que de l'onglet qui fait tourner le bot. */
-const niveauBot = (p: PlayerId) => session.bots.find((b) => b.player === p)?.level ?? null
+/** Un joueur remplacé par un bot garde son nom : on précise alors que c'est un bot. */
+const niveauBot = (p: PlayerId) => session.game?.seats[p]?.niveau ?? null
 
 const monPartenaire = computed(() =>
   session.playerId && seating.value ? partnerOf(session.playerId, seating.value) : null,
@@ -114,9 +151,16 @@ const monPartenaire = computed(() =>
     :style="grand ? { zoom } : undefined"
   >
     <!-- Sur une ligne, sans en faire un titre : il suffit de pouvoir le lire aux autres -->
-    <div class="flex items-baseline gap-2.5">
+    <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1.5">
       <span class="text-sm text-sage">Code de la partie :</span>
       <span class="font-display text-2xl tracking-[0.15em] leading-none">{{ session.code }}</span>
+      <button
+        type="button"
+        class="order-last basis-full cursor-pointer text-left text-[13px] text-sage underline underline-offset-4 transition hover:text-mist lg:order-none lg:basis-auto lg:self-center lg:rounded-full lg:border lg:border-white/20 lg:px-2.5 lg:py-0.5 lg:text-xs lg:font-semibold lg:text-mist lg:no-underline lg:hover:border-gold/60 lg:hover:text-gold"
+        :title="lien"
+        @click="partager"
+      >{{ lienCopie ? 'Lien copié ✓' : 'Partager le lien' }}</button>
+      <span v-if="lienCopie === false" class="order-last basis-full text-xs break-all text-sage select-all">{{ lien }}</span>
       <button
         type="button"
         class="ml-auto text-[13px] text-sage underline underline-offset-4 hover:text-mist"
@@ -140,7 +184,11 @@ const monPartenaire = computed(() =>
         @click="session.chooseOptions({ objectif: o })"
       >{{ o }}</button>
     </div>
-    <label class="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/15 px-3.5 py-2.5 transition hover:border-white/35 lg:mt-0 lg:items-center lg:rounded-lg lg:py-0">
+    <!-- Blitz : ce que c'est, dans une bulle — au survol sur PC, au toucher du « ? » sur téléphone -->
+    <label
+      class="group relative mt-3 flex cursor-pointer items-center gap-3 rounded-xl border border-white/15 px-3.5 py-2.5 transition hover:border-white/35 lg:mt-0 lg:rounded-lg lg:py-0"
+      @mouseleave="aideBlitz = false"
+    >
       <input
         type="checkbox"
         class="mt-0.5 size-4 accent-[#d9a441]"
@@ -148,11 +196,21 @@ const monPartenaire = computed(() =>
         :disabled="session.busy"
         @change="session.chooseOptions({ blitz: ($event.target as HTMLInputElement).checked })"
       />
-      <span>
-        <span class="block text-sm font-semibold">Blitz</span>
-        <span class="block text-xs text-sage lg:hidden">
-          Donne non coinchée : pas jouée, le contrat compte.
-        </span>
+      <span class="grow text-sm font-semibold">Blitz</span>
+      <button
+        type="button"
+        class="flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/25 text-[11px] font-bold text-sage transition hover:border-white/50 hover:text-mist"
+        aria-label="Qu'est-ce que le blitz ?"
+        :aria-expanded="aideBlitz"
+        @click.prevent.stop="aideBlitz = !aideBlitz"
+      >?</button>
+      <span
+        role="tooltip"
+        class="absolute top-full right-0 z-20 mt-2 w-64 rounded-xl border border-white/15 bg-felt-dark px-3.5 py-2.5 text-left text-xs leading-relaxed font-normal text-mist shadow-xl lg:group-hover:block"
+        :class="aideBlitz ? 'block' : 'hidden'"
+      >
+        <b class="text-ivory">Blitz</b> : une donne qui n'est pas coinchée ne se joue pas. Le contrat est réputé
+        réussi : le preneur marque sa valeur, et on passe à la donne suivante. Seules les donnes coinchées se jouent.
       </span>
     </label>
     </div>
@@ -187,7 +245,7 @@ const monPartenaire = computed(() =>
           </span>
           <span class="text-sm leading-tight font-semibold whitespace-nowrap">
             {{ nomDe(places[place]!) }}<span v-if="places[place] === session.playerId" class="text-xs text-sage"> · toi</span><span
-              v-if="estUnBot(places[place]!)"
+              v-if="estUnBot(places[place]!) && !estBotId(places[place]!)"
               class="text-xs font-normal text-sage"
             > · {{ niveauBot(places[place]!) === 'compteur' ? 'bot ★' : 'bot' }}</span>
           </span>
@@ -199,39 +257,29 @@ const monPartenaire = computed(() =>
       </div>
     </div>
 
-    <!-- Les absents : on peut confier leur place à un bot -->
-    <div v-if="absents.length" class="mt-4 flex flex-col gap-2 lg:grid lg:grid-cols-3">
-      <div
-        v-for="p in absents"
-        :key="p"
-        class="flex min-h-11 items-center gap-3 rounded-xl border border-dashed border-white/15 px-3.5 lg:flex-wrap lg:gap-x-2 lg:gap-y-1.5 lg:px-3 lg:py-2"
-      >
-        <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-mist">
-          {{ nomDe(p).charAt(0) }}
-        </span>
-        <span class="grow text-sm font-semibold text-dusk lg:basis-[calc(100%-2.5rem)]">{{ nomDe(p) }}</span>
+    <!-- Une place libre : on la confie à un bot, sans nom. Chaque bouton porte son explication. -->
+    <div v-if="seatedCount < 4" class="mt-4 grid grid-cols-2 gap-2.5">
+      <div class="flex flex-col items-center gap-1">
         <button
           type="button"
           :disabled="session.busy"
-          class="cursor-pointer rounded-lg border border-white/20 px-2.5 py-1 text-xs font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
-          title="Un bot qui ne voit que sa propre main"
-          @click="session.addBot(p, 'simple')"
+          class="h-11 w-full cursor-pointer rounded-xl border border-dashed border-white/25 text-sm font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
+          @click="ajouterBot('simple')"
         >+ bot</button>
+        <span class="text-center text-xs text-sage">ne voit que sa main</span>
+      </div>
+      <div class="flex flex-col items-center gap-1">
         <button
           type="button"
           :disabled="session.busy"
-          class="cursor-pointer rounded-lg border border-white/20 px-2.5 py-1 text-xs font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
-          title="Le même, mais il retient les cartes déjà tombées"
-          @click="session.addBot(p, 'compteur')"
+          class="h-11 w-full cursor-pointer rounded-xl border border-dashed border-white/25 text-sm font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
+          @click="ajouterBot('compteur')"
         >+ bot ★</button>
+        <span class="text-center text-xs text-sage">retient aussi les cartes tombées</span>
       </div>
     </div>
-    <p v-if="seatedCount < 4" class="mt-2.5 text-center text-xs text-sage">
-      <span class="font-semibold text-mist">bot</span> : ne voit que sa main ·
-      <span class="font-semibold text-mist">bot ★</span> : retient aussi les cartes tombées
-    </p>
-    <p v-if="!seating" class="mt-2 text-center text-xs text-sage">
-      Équipes tirées au sort dès que la table est complète.
+    <p v-if="!seating" class="mt-3 text-center text-xs text-sage">
+      Équipes tirées au sort ou choisies dès que la table est complète.
     </p>
 
     <!-- La table complète : les équipes, sous la table, à choisir ou à retirer au sort -->

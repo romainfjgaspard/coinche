@@ -12,6 +12,10 @@ import { forceMain } from './force'
 import { impasseTallies, impassesOfGame } from './impasses'
 import { type PlayerId, type Seating, teamOfPlayer } from './players'
 import { type Reflexion, deals, reflexions } from './stats'
+import {
+  type Ecarts, type Repartition, type Roles, type Temps, ecartsAnnonce, repartitionAnnonces, rolesPrise,
+  tempsParJoueur,
+} from './statsEncheres'
 
 /** Une prise, avec la main qui l'a permise — la matière du panache. */
 export interface PriseDetail {
@@ -44,6 +48,15 @@ export interface PlayerArchive {
   detail: PriseDetail[]
   /** Temps de réflexion mesurés. Absent des archives déposées avant le 24/09/2026. */
   reflexion?: Reflexion
+  // Absents des archives déposées avant le 25/09/2026 :
+  /** Ses prises de parole, par annonce (passe, 80… 170, capot, générale) */
+  annonces?: Repartition
+  /** Lanceur, suiveur ou seul, sur les donnes où son équipe avait le contrat */
+  roles?: Roles
+  /** Points faits moins l'annonce, quand il a pris */
+  ecarts?: Ecarts
+  /** Chaque temps de réflexion, en secondes */
+  temps?: Temps
 }
 
 export interface Archive {
@@ -56,6 +69,8 @@ export interface Archive {
   /** Sièges tenus par un bot. Vide pour une partie entre humains. */
   bots: PlayerId[]
   players: Record<PlayerId, PlayerArchive>
+  /** La soirée (code de sa première partie). Absente des archives d'avant le 25/09/2026. */
+  soiree?: string
   /** Points à dépasser, et partie en blitz. Absents : 1000 et partie normale. */
   objectif?: number
   blitz?: boolean
@@ -117,6 +132,10 @@ export function buildArchive(
   }
 
   for (const [p, r] of reflexions(events)) if (players[p]) players[p].reflexion = r
+  for (const [p, r] of repartitionAnnonces(events)) if (players[p]) players[p].annonces = r
+  for (const [p, r] of rolesPrise(events, seating)) if (players[p]) players[p].roles = r
+  for (const [p, r] of ecartsAnnonce(events, seating)) if (players[p]) players[p].ecarts = r
+  for (const [p, r] of tempsParJoueur(events)) if (players[p]) players[p].temps = r
 
   for (const [p, t] of impasseTallies(impassesOfGame(events, seating[1], seating))) {
     players[p].impasses = t.tentees

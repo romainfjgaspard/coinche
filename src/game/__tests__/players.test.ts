@@ -62,3 +62,24 @@ describe('tirage au sort', () => {
     expect(randomSeating(rng)).toEqual(a)
   })
 })
+
+describe('bots sans nom', () => {
+  it('prennent le premier identifiant libre de leur niveau', async () => {
+    const { botId, estBotId, niveauDeBotId } = await import('../players')
+    expect(botId('simple', ['romain'])).toBe('bot-simple-1')
+    expect(botId('simple', ['romain', 'bot-simple-1'])).toBe('bot-simple-2')
+    expect(botId('compteur', ['bot-simple-1'])).toBe('bot-etoile-1')
+    expect(estBotId('bot-etoile-1')).toBe(true)
+    expect(estBotId('benel')).toBe(false)
+    expect(niveauDeBotId('bot-etoile-2')).toBe('compteur')
+    expect(niveauDeBotId('bot-simple-1')).toBe('simple')
+  })
+
+  it('s\'affichent « Bot », « Bot ★ », puis numérotés', async () => {
+    const { nomDe } = await import('../../stores/roster')
+    expect(nomDe('bot-simple-1')).toBe('Bot')
+    expect(nomDe('bot-simple-2')).toBe('Bot 2')
+    expect(nomDe('bot-etoile-1')).toBe('Bot ★')
+    expect(nomDe('viv')).toBe('Viv')
+  })
+})

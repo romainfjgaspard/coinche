@@ -1,11 +1,17 @@
 <script setup lang="ts">
+import { ecartsAnnonce, repartitionAnnonces, rolesPrise, tempsParJoueur } from '../game/statsEncheres'
+import { couleursPartie } from '../composables/couleursJoueurs'
+import StatsEncheres from './StatsEncheres.vue'
+import StatsEcarts from './StatsEcarts.vue'
+import StatsTemps from './StatsTemps.vue'
+import StatsDonnes from './StatsDonnes.vue'
 /**
  * Statistiques de la partie en cours, sur grand écran — la maquette validée
  * « Stats — partie en cours — ordinateur ». Dessinée pour 1920 px de large ; le parent
  * la met à l'échelle de l'écran.
  */
 import { computed } from 'vue'
-import { type PlayerId, teamOfPlayer } from '../game/players'
+import { type PlayerId, partnerOf, playerAtSeat, seatOf, teamOfPlayer } from '../game/players'
 import { nomDe } from '../stores/roster'
 import { type Chrono, bilan, cascade, enchereMoyenne, moyenne, teamTallies } from '../game/stats'
 import { duree } from '../game/display'
@@ -187,10 +193,25 @@ const faits = computed(() => {
     },
   ]
 })
+
+// --- Les sous-onglets : enchères, écarts, temps et donnes, comme sur téléphone.
+defineProps<{ vue: string }>()
+const joueursPartie = computed<PlayerId[]>(() => {
+  const t = session.seating
+  const moi = session.playerId && t.includes(session.playerId) ? session.playerId : t[0]
+  const i = seatOf(moi, t)
+  return [moi, partnerOf(moi, t), playerAtSeat(i + 1, t), playerAtSeat(i + 3, t)]
+})
+const couleursJoueursPartie = computed(() => couleursPartie(joueursPartie.value))
+const annoncesPartie = computed(() => repartitionAnnonces(session.events))
+const rolesPartie = computed(() => rolesPrise(session.events, session.seating))
+const ecartsPartie = computed(() => ecartsAnnonce(session.events, session.seating))
+const tempsPartie = computed(() => tempsParJoueur(session.events))
 </script>
 
 <template>
-  <div class="mt-[26px] grid grid-cols-2 gap-10">
+  <div class="mt-[26px] grid grid-cols-2 items-start gap-x-10">
+    <template v-if="vue === 'score'">
     <section>
       <div class="flex items-baseline gap-3.5">
         <div>
@@ -338,7 +359,17 @@ const faits = computed(() => {
         rien.
       </p>
 
-      <h2 class="mt-6 mb-2 text-[13px] font-semibold">Temps de réflexion</h2>
+    </section>
+    </template>
+
+    <template v-else-if="vue === 'encheres'">
+      <StatsEncheres :joueurs="joueursPartie" :couleurs="couleursJoueursPartie" :annonces="annoncesPartie" :roles="rolesPartie" />
+    </template>
+
+    <template v-else-if="vue === 'jeu'">
+      <StatsEcarts :joueurs="joueursPartie" :couleurs="couleursJoueursPartie" :ecarts="ecartsPartie" />
+      <section>
+      <h2 class="mt-6 mb-2 text-[15px] font-semibold">Temps de réflexion</h2>
       <p v-if="aucunTemps" class="text-sm text-sage">Pas encore mesuré sur cette partie.</p>
       <table v-else class="w-full border-collapse text-[13px]">
         <thead>
@@ -362,7 +393,14 @@ const faits = computed(() => {
         Moyennes, mesurées sur l'écran de chacun depuis que c'est à lui. La coinche, prise hors tour, n'en a pas.
       </p>
 
-      <h2 class="mt-6 mb-2.5 text-[13px] font-semibold">Ce qui s'est passé</h2>
+      </section>
+      <StatsTemps :joueurs="joueursPartie" :couleurs="couleursJoueursPartie" :temps="tempsPartie" />
+    </template>
+
+    <template v-else>
+      <StatsDonnes :events="session.events" :seating="session.seating" :nous="session.myTeam" />
+      <section>
+      <h2 class="mt-5 mb-2.5 text-[15px] font-semibold">Ce qui s'est passé</h2>
       <div class="grid grid-cols-2 gap-2.5">
         <div v-for="f in faits" :key="f.titre" class="rounded-[10px] border border-white/8 bg-white/4 px-3.5 py-3">
           <p class="text-[11px] text-sage">{{ f.titre }}</p>
@@ -370,6 +408,7 @@ const faits = computed(() => {
           <p v-if="f.detail" class="mt-0.5 text-xs text-mist">{{ f.detail }}</p>
         </div>
       </div>
-    </section>
+      </section>
+    </template>
   </div>
 </template>

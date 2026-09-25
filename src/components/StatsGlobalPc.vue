@@ -1,4 +1,12 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import { annoncesGlobales, ecartsGlobaux, rolesGlobaux, tempsGlobaux } from '../game/statsGlobal'
+import { couleursDe } from '../composables/couleursJoueurs'
+import { useFiltreArchives } from '../composables/useFiltreArchives'
+import StatsEncheres from './StatsEncheres.vue'
+import StatsEcarts from './StatsEcarts.vue'
+import StatsTemps from './StatsTemps.vue'
+import StatsParties from './StatsParties.vue'
 /**
  * Statistiques de toutes les parties, sur grand écran — la maquette validée
  * « Stats — toutes les parties — ordinateur ». Dessinée pour 1920 px ; le parent la
@@ -14,7 +22,17 @@ import {
 import { BAREME, habitudeDuGroupe, LARGEUR_BANDE } from '../game/force'
 import type { Archive } from '../game/archive'
 
-const props = defineProps<{ archives: Archive[] }>()
+const props = defineProps<{ archives: Archive[]; vue: string }>()
+
+// --- Enchères, temps et parties : les mêmes sections que sur téléphone, sur deux colonnes.
+const lesJoueurs = computed(() => joueursDe(props.archives))
+const couleursJ = computed(() => couleursDe(lesJoueurs.value))
+const annonces = computed(() => annoncesGlobales(props.archives))
+const roles = computed(() => rolesGlobaux(props.archives))
+const ecarts = computed(() => ecartsGlobaux(props.archives))
+const temps = computed(() => tempsGlobaux(props.archives))
+const { nonFinies, chargerNonFinies } = useFiltreArchives()
+onMounted(() => { void chargerNonFinies() })
 
 const OR = '#d9a441'
 const BON = '#52a884'
@@ -332,6 +350,7 @@ const nuages = computed(() => {
 
 <template>
   <div>
+    <template v-if="vue === 'duos'">
     <!-- Quatre repères : le meilleur et le pire, en duo et en individuel -->
     <div class="mt-4 grid grid-cols-4 gap-3.5">
       <div
@@ -387,6 +406,8 @@ const nuages = computed(() => {
       </tbody>
     </table>
 
+    </template>
+    <template v-else-if="vue === 'joueurs'">
     <h2 class="mt-7 mb-[3px] font-display text-xl font-normal">Joueur par joueur</h2>
     <p class="mb-2.5 text-xs text-sage">
       {{ joueursDe(archives).length <= 4
@@ -626,7 +647,19 @@ const nuages = computed(() => {
       </section>
     </div>
 
-    <p class="mt-6 text-xs leading-relaxed text-dusk">
+    </template>
+    <div v-else-if="vue === 'encheres'" class="mt-4 grid grid-cols-2 items-start gap-x-10">
+      <StatsEncheres :joueurs="lesJoueurs" :couleurs="couleursJ" :annonces="annonces" :roles="roles" />
+      <StatsEcarts :joueurs="lesJoueurs" :couleurs="couleursJ" :ecarts="ecarts" />
+    </div>
+    <div v-else-if="vue === 'temps'" class="mt-4 grid grid-cols-2 items-start gap-x-10">
+      <StatsTemps :joueurs="lesJoueurs" :couleurs="couleursJ" :temps="temps" />
+    </div>
+    <div v-else class="mt-4 grid grid-cols-2 items-start gap-x-10">
+      <StatsParties :archives="archives" :non-finies="nonFinies" />
+    </div>
+
+    <p v-if="vue === 'duos' || vue === 'joueurs'" class="mt-6 text-xs leading-relaxed text-dusk">
       <b class="text-mist">Lecture.</b>
       L'or et le bleu désignent les équipes, jamais la qualité d'un résultat ; le vert et le rouge sont réservés aux
       valeurs, et le signe est toujours écrit. Les pourcentages portent un fond dégradé, d'autant plus soutenu que le
