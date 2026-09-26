@@ -11,7 +11,6 @@ import { RULES, type Rules } from './rules'
 
 export const TOTAL_CARD_POINTS = 152
 export const LAST_TRICK_BONUS = 10 // ORD-4 — dix de der
-export const TOTAL_POINTS = TOTAL_CARD_POINTS + LAST_TRICK_BONUS // 162
 export const BELOTE_POINTS = 20
 
 export type Team = 0 | 1
@@ -19,7 +18,7 @@ export const teamOf = (seat: number): Team => (seat % 2) as Team
 
 export interface Contract {
   takerSeat: number
-  /** Valeur annoncée : 80–160, ou capotValue / generaleValue */
+  /** Valeur annoncée : 80–170, ou capotValue / generaleValue */
   value: number
   trump: Atout
   /** 1 = simple, 2 = coinché, 4 = surcoinché (CO-1, CO-2) */
@@ -76,10 +75,13 @@ export function scoreDeal(
   compared[defense] = cardPoints[defense]
 
   const wonAllTricks = tricksWon[taker] === tricks.length
+  // ENC-9 — la générale se fait seul : un pli ramassé par le partenaire la fait chuter.
+  const takerAlone = tricks.every((trick) => trickWinner(trick, contract.trump) === contract.takerSeat)
 
   // DEC-3 — atteindre le contrat ET être devant. DEC-7 : l'égalité chute.
-  const made =
-    contract.capot || contract.generale
+  const made = contract.generale
+    ? takerAlone
+    : contract.capot
       ? wonAllTricks
       : isContractMade(compared[taker], compared[defense], contract.value)
 

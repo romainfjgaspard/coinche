@@ -2,8 +2,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Il n'y a pas de serveur : ces règles sont la seule barrière. Elles empêchent un
+    // inconnu d'entrer dans une partie ou d'y prendre un siège, un joueur d'usurper le
+    // siège ou la main d'un autre, et quiconque de détruire des données. Un joueur assis
+    // qui bricole depuis la console garde de quoi fausser la partie en cours : sans
+    // serveur pour rejouer chaque coup, on ne peut pas tout vérifier.
+
     function game(code) {
       return get(/databases/$(database)/documents/parties/$(code)).data;
+    }
+    // La partie telle qu'elle sera à la fin de la transaction en cours.
+    function gameAfter(code) {
+      return getAfter(/databases/$(database)/documents/parties/$(code)).data;
     }
     // Un joueur = un identifiant stable de la liste ('benel', 'roux', 'viv', 'romain', puis les ajouts).
     // `seats` associe cet identifiant au compte anonyme qui l'occupe pour cette partie.
@@ -15,26 +25,122 @@ service cloud.firestore {
     function isPlayer(code) {
       return request.auth != null && request.auth.uid in game(code).seatedUids;
     }
-    // Un joueur qui rejoint n'est pas encore assis : il doit pouvoir prendre un siège,
-    // mais seulement le sien, et sans jamais déloger les autres. Le quatrième arrivé
-    // complète la table : lui seul fixe le placement (et le donneur), une seule fois.
-    function claimsSeat() {
-      return request.auth != null
-             && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seats', 'seatedUids'])
-                 || (resource.data.get('seating', null) == null
-                     && request.resource.data.diff(resource.data).affectedKeys()
-                          .hasOnly(['seats', 'seatedUids', 'seating', 'dealer'])))
-             && request.resource.data.seats.size() <= 4
-             && request.auth.uid in request.resource.data.seatedUids
-             && request.resource.data.seatedUids.toSet().hasAll(resource.data.seatedUids.toSet());
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+    // Un placement : les quatre joueurs assis, le donneur étant le deuxième (MAT-3).
+    function validSeating(d) {
+      return d.seating is list
+             && d.seating.size() == 4
+             && d.seating.toSet() == d.seats.keys().toSet()
+             && d.dealer == d.seating[1];
+    }
+    // Changer les équipes au salon : les quatre mêmes joueurs, dans un autre ordre. Après
+    // « Rejouer », le placement est connu avant que tout le monde soit revenu s'asseoir.
+    function reorderedSeating(d, o) {
+      return (o.seating == null && validSeating(d))
+             || (o.seating != null
+                 && d.seating is list
+                 && d.seating.size() == 4
+                 && d.seating.toSet() == o.seating.toSet()
+                 && d.dealer == d.seating[1]);
+    }
+
+    // --- Les sièges
+    //
+    // Un changement de siège ne touche qu'un siège, nommé dans `dernierSiege`, et prend
+    // l'une de ces formes :
+    //   1. un siège libre, pour soi ou pour un bot qu'on héberge ;
+    //   2. reprendre un bot muet (son onglet a disparu) : un joueur assis, rien d'autre ne change ;
+    //   3. remplacer par un bot un joueur qui ne répond plus : un joueur assis, qui garde le
+    //      compte du joueur dans `ancien` ;
+    //   4. reprendre sa place : seul le compte noté dans `ancien`.
+    // Le quatrième arrivé fixe le placement, une seule fois.
+    function seatChange() {
+      let d = request.resource.data;
+      let k = d.dernierSiege;
+      let s = d.seats[k];
+      let avant = resource.data.seats;
+      let assis = request.auth.uid in resource.data.seatedUids;
+      return changed().hasOnly(['seats', 'seatedUids', 'dernierSiege', 'seating', 'dealer'])
+             && d.seats.diff(avant).affectedKeys() == [k].toSet()
+             && s.uid == request.auth.uid
+             && d.seatedUids.toSet().hasAll(resource.data.seatedUids.toSet())
+             && d.seatedUids.toSet().difference(resource.data.seatedUids.toSet()).hasOnly([request.auth.uid])
+             && request.auth.uid in d.seatedUids
+             && (
+               // 1. un siège libre
+               (!(k in avant)
+                 && d.seats.size() <= 4
+                 && (resource.data.seating == null || k in resource.data.seating)
+                 && s.keys().hasOnly(['uid', 'bot', 'niveau']))
+               // 2. reprendre un bot muet
+               || (k in avant && avant[k].get('bot', false) == true && assis
+                 && s.diff(avant[k]).affectedKeys().hasOnly(['uid']))
+               // 3. remplacer un absent par un bot
+               || (k in avant && avant[k].get('bot', false) != true && assis
+                 && s.keys().hasOnly(['uid', 'bot', 'niveau', 'remplace', 'ancien'])
+                 && s.bot == true && s.remplace == true && s.ancien == avant[k].uid)
+               // 4. reprendre sa place
+               || (k in avant && avant[k].get('remplace', false) == true
+                 && avant[k].get('ancien', '') == request.auth.uid
+                 && s.keys().hasOnly(['uid', 'aideBot']) && s.aideBot == true)
+             )
+             && (!changed().hasAny(['seating', 'dealer'])
+                 || (resource.data.seating == null && validSeating(d)));
+    }
+
+    // --- Le salon : l'objectif et le blitz, avant la première donne.
+    function lobbyOptions(code) {
+      let d = request.resource.data;
+      return isPlayer(code)
+             && changed().hasOnly(['objectif', 'blitz'])
+             && resource.data.dealNumber == 0
+             && resource.data.phase == 'lobby'
+             && d.get('objectif', 1000) in [500, 1000, 1500, 2000]
+             && d.get('blitz', false) is bool;
+    }
+
+    // --- Le cours de la partie : chaque écriture accompagne un événement du journal.
+    function progress(code) {
+      let d = request.resource.data;
+      let o = resource.data;
+      let objectif = o.get('objectif', 1000);
+      return isPlayer(code)
+             && changed().hasOnly(['eventSeq', 'moveSeq', 'phase', 'dealNumber', 'scores', 'dealer', 'pause', 'seating'])
+             && !(o.phase in ['terminee', 'annulee'])
+             && d.eventSeq == o.eventSeq + 1
+             && (d.moveSeq == o.moveSeq || d.moveSeq == o.moveSeq + 1)
+             && (d.dealNumber == o.dealNumber
+                 || (d.dealNumber == o.dealNumber + 1 && o.phase in ['lobby', 'decompte'] && d.phase == 'encheres'))
+             && d.phase in ['lobby', 'encheres', 'jeu', 'decompte', 'terminee', 'annulee']
+             // Les scores ne font que monter, d'au plus une donne (une générale surcoinchée : 1000).
+             && d.scores.size() == 2
+             && d.scores[0] >= o.scores[0] && d.scores[1] >= o.scores[1]
+             && d.scores[0] + d.scores[1] - o.scores[0] - o.scores[1] <= 1000
+             // Une partie ne se termine que sur un objectif dépassé (FIN-1).
+             && (d.phase != 'terminee' || d.scores[0] > objectif || d.scores[1] > objectif)
+             // Les équipes ne changent qu'au salon, avant la première donne.
+             && (!changed().hasAny(['seating'])
+                 || (o.dealNumber == 0 && o.phase == 'lobby' && reorderedSeating(d, o)));
+    }
+
+    // --- « Rejouer » : la partie finie garde le code de la suivante, une seule fois.
+    function nextGame(code) {
+      return isPlayer(code)
+             && changed().hasOnly(['suivante'])
+             && resource.data.phase == 'terminee'
+             && !('suivante' in resource.data)
+             && request.resource.data.suivante is string;
     }
 
     // Les joueurs ajoutés : on en crée, on n'en modifie ni n'en supprime jamais —
-    // leurs statistiques portent leur identifiant.
+    // leurs statistiques portent leur identifiant. Le préfixe « bot » est réservé.
     match /joueurs/{playerId} {
       allow read:   if request.auth != null;
       allow create: if request.auth != null
                     && playerId.matches('^[a-z0-9-]{1,20}$')
+                    && !playerId.matches('^bot.*')
                     && request.resource.data.keys().hasOnly(['nom', 'creeLe'])
                     && request.resource.data.nom is string
                     && request.resource.data.nom.size() > 0
@@ -45,36 +151,67 @@ service cloud.firestore {
 
     match /parties/{code} {
       allow read:   if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if isPlayer(code) || claimsSeat();
+      // Une partie neuve : son créateur seul assis, rien de joué. Une partie qui existe
+      // déjà n'est jamais écrasée (ce serait une mise à jour, refusée ci-dessous).
+      allow create: if request.auth != null
+                    && request.resource.data.seatedUids == [request.auth.uid]
+                    && request.resource.data.seats.size() == 1
+                    && request.resource.data.seats[request.resource.data.createur].uid == request.auth.uid
+                    && request.resource.data.phase == 'lobby'
+                    && request.resource.data.dealNumber == 0
+                    && request.resource.data.eventSeq == 0
+                    && request.resource.data.moveSeq == 0
+                    && request.resource.data.scores == [0, 0];
+      allow update: if request.auth != null
+                    && (seatChange() || lobbyOptions(code) || progress(code) || nextGame(code));
       allow delete: if false;
 
-      // La règle qui compte : chacun ne lit que la main du siège qu'il occupe.
+      // La distribution : le donneur écrit les mains dans la transaction qui ouvre la donne.
+      function dealing() {
+        return isPlayer(code)
+               && request.auth.uid == game(code).seats[game(code).dealer].uid
+               && gameAfter(code).dealNumber == game(code).dealNumber + 1;
+      }
+
+      // La règle qui compte : chacun ne lit que la main du siège qu'il occupe, et ne peut
+      // qu'en retirer une carte, celle qu'il pose.
       match /mains/{playerId} {
-        allow read:  if holdsSeat(code, playerId);
-        allow write: if holdsSeat(code, playerId)
-                     || (isPlayer(code) && request.auth.uid == game(code).seats[game(code).dealer].uid);
+        allow read:   if holdsSeat(code, playerId);
+        allow create: if dealing();
+        allow update: if dealing()
+                      || (holdsSeat(code, playerId)
+                          && request.resource.data.keys().hasOnly(['cards'])
+                          && resource.data.cards.toSet().hasAll(request.resource.data.cards.toSet())
+                          && request.resource.data.cards.size() == resource.data.cards.size() - 1);
       }
 
       // Donne distribuée : scellée jusqu'à la fin de la partie, puis ouverte pour l'analyse.
       match /donne/{numero} {
         allow read:   if request.auth != null && game(code).phase == 'terminee';
-        allow create: if isPlayer(code) && request.auth.uid == game(code).seats[game(code).dealer].uid;
+        allow create: if dealing() && int(numero) == gameAfter(code).dealNumber;
         allow update, delete: if false;
       }
 
-      // Journal : append-only, jamais réécrit.
-      match /evenements/{seq} {
+      // Journal : append-only, jamais réécrit. Chaque événement prend le numéro que la
+      // partie vient d'allouer, et un joueur n'écrit qu'en son propre nom (la honte
+      // complète, conséquence d'une donne, est écrite par qui clôt la donne).
+      match /evenements/{id} {
         allow read:   if isPlayer(code);
-        allow create: if isPlayer(code);
+        allow create: if isPlayer(code)
+                      && request.resource.data.seq == gameAfter(code).eventSeq
+                      && (!('player' in request.resource.data)
+                          || request.resource.data.type == 'honte_complete'
+                          || holdsSeat(code, request.resource.data.player));
         allow update, delete: if false;
       }
     }
 
-    // Le condensé de fin de partie, écrit une fois et jamais retouché.
+    // Le condensé de fin de partie, écrit une fois, par un joueur, une fois la partie finie.
     match /archives/{code} {
       allow read:   if request.auth != null;
-      allow create: if isPlayer(code);
+      allow create: if isPlayer(code)
+                    && game(code).phase == 'terminee'
+                    && request.resource.data.code == code;
       allow update, delete: if false;
     }
   }

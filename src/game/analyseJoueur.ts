@@ -117,7 +117,6 @@ export function cartesImpossibles(plis: { siege: number; carte: Card }[][], trum
           }
         } else if (
           (entame === trump || trump === 'ta') &&
-          !partenaireMaitre &&
           suitOf(maitresse) === entame &&
           strength(carte, trump) < strength(maitresse, trump)
         ) {

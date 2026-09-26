@@ -98,6 +98,14 @@ describe('cartes jouables', () => {
     expect(playableCards(hand, trick, 's', 2)).toEqual(hand)
   })
 
+  it('JEU-6 — atout entamé : on monte, même sur son partenaire', () => {
+    // Le siège 0 (partenaire du siège 2) est maître au 9 d'atout : le siège 2 doit quand même monter.
+    const trick = [play(0, '9s'), play(1, '7s')]
+    expect(playableCards(['Js', '8s', 'Kd'], trick, 's', 2)).toEqual(['Js'])
+    // Sans atout plus fort, n'importe quel atout.
+    expect(playableCards(['8s', 'Ks', 'Kd'], [play(0, 'Js'), play(1, '7s')], 's', 2)).toEqual(['8s', 'Ks'])
+  })
+
   it("celui qui entame joue ce qu'il veut", () => {
     expect(playableCards(['Ad', '7s'], [], 's', 0)).toEqual(['Ad', '7s'])
   })
@@ -167,6 +175,16 @@ describe('décompte', () => {
     const res = scoreDeal(allTricksTo(0), contract({ capot: true, value: RULES.capotValue }), RULES)
     expect(res.status).toBe('capot')
     expect(res.scores).toEqual([250, 0])
+  })
+
+  it('ENC-9 — la générale se fait seul : un pli du partenaire la fait chuter', () => {
+    const generale = contract({ generale: true, value: RULES.generaleValue })
+    expect(scoreDeal(allTricksTo(0), generale, RULES).status).toBe('generale')
+    // Sept plis au preneur (siège 0), le dernier à son partenaire (siège 2).
+    const tricks = [...allTricksTo(0).slice(0, 7), ...allTricksTo(2).slice(0, 1)]
+    const res = scoreDeal(tricks, generale, RULES)
+    expect(res.status).toBe('chute')
+    expect(res.scores).toEqual([0, 250])
   })
 
   it("BEL-5 — la belote n'est jamais marquée, seulement comparée", () => {

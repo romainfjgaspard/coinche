@@ -34,9 +34,16 @@ const SECTIONS: { titre: string; points: string[]; exemples?: boolean }[] = [
     ],
   },
   {
+    titre: 'Jeu de la carte',
+    points: [
+      'Il faut fournir la couleur demandée ; à défaut, couper si un adversaire est maître, en montant sur sa coupe si on le peut. Si le partenaire est maître, on se défausse librement.',
+      "Quand on demande atout, tout le monde monte s'il le peut, même sur son partenaire.",
+    ],
+  },
+  {
     titre: 'Belote-Rebelote',
     points: [
-      "Belote-Rebelote doit être annoncée en cliquant sur l'icône de la carte pour être prise en compte : en posant le Roi, puis en posant la Dame.",
+      'Belote-Rebelote doit être annoncée avec la pastille « Belote », aux deux cartes : la première tête posée dit « belote », la seconde « rebelote ».',
       'Ses 20 points ne sont jamais marqués : ils aident seulement le preneur à réussir son contrat (voir ci-dessous). Ils ne comptent pas pour la défense.',
       'Pas de déclarations (tierce, cinquante, cent, carré).',
     ],

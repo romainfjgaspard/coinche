@@ -16,7 +16,6 @@ import {
   type Transaction,
   arrayUnion,
   serverTimestamp,
-  setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore'
@@ -56,6 +55,8 @@ export interface Siege {
   remplace?: boolean
   /** Le joueur a repris sa place : un bot a joué pour lui, la partie compte comme « avec bot ». */
   aideBot?: boolean
+  /** Remplacé par un bot : le compte du joueur, seul autorisé à reprendre sa place. */
+  ancien?: string
 }
 
 export interface GameDoc {
@@ -89,6 +90,11 @@ export interface GameDoc {
    * la première, qui est sa propre soirée. Sert aux statistiques par soirée.
    */
   soiree?: string
+  /**
+   * Le siège touché par le dernier changement de siège : les règles Firestore ne savent pas
+   * retrouver seules quelle clé a changé dans `seats`, et doivent contrôler ce changement.
+   */
+  dernierSiege?: PlayerId
   /** En pause : qui l'a mise, et depuis quand. Absent ou nul : on joue. */
   pause?: { par: PlayerId; depuis: number } | null
 }
@@ -262,7 +268,7 @@ export async function createGame(
   options: { objectif?: number; blitz?: boolean; soiree?: string } = {},
 ): Promise<string> {
   const uid = await signIn(c)
-  const code = newCode()
+  let code = newCode()
   const game: GameDoc = {
     seats: { [creator]: { uid } },
     seatedUids: [uid],
@@ -279,7 +285,18 @@ export async function createGame(
     ...(options.blitz ? { blitz: true } : {}),
     ...(options.soiree ? { soiree: options.soiree } : {}),
   }
-  await setDoc(gameRef(code, c), game)
+  // Un code déjà pris n'est jamais écrasé : 24⁴ codes seulement, une ancienne partie
+  // pouvait être remplacée (son journal mêlé au nouveau). On en tire un autre.
+  for (let essai = 0; ; essai++) {
+    const libre = await runTransaction(c.db, async (tx) => {
+      if ((await tx.get(gameRef(code, c))).exists()) return false
+      tx.set(gameRef(code, c), game)
+      return true
+    })
+    if (libre) break
+    if (essai >= 5) throw new Error('Impossible de trouver un code de partie libre')
+    code = newCode()
+  }
   // Le snapshot des règles part avec la partie : sans lui, une partie archivée
   // devient ininterprétable dès qu'un réglage change.
   await appendWith(c, code, {
@@ -309,6 +326,9 @@ export async function takeSeat(
     const game = snap.data() as GameDoc
     const holder = game.seats[player]?.uid
     if (holder && holder !== uid) throw new Error(`Ce siège est déjà pris`)
+    // Déjà assis ici (un onglet rouvert) : rien à écrire, et surtout pas le siège, dont
+    // la réécriture effaçait le drapeau « aidé par un bot ».
+    if (holder === uid) return
     const assis = Object.keys(game.seats)
     if (!holder) {
       if (assis.length >= 4) throw new Error('La table est complète')
@@ -327,6 +347,7 @@ export async function takeSeat(
     tx.update(gameRef(code, c), {
       [`seats.${player}`]: asBot ? { uid, bot: true, ...(niveau ? { niveau } : {}) } : { uid },
       seatedUids: arrayUnion(uid),
+      dernierSiege: player,
       ...(table ? { seating: table, dealer: table[1] } : {}),
     })
   })
@@ -351,9 +372,11 @@ export async function reprendreSiegeBot(
     const siege = (snap.data() as GameDoc).seats[player]
     if (!siege?.bot) throw new Error("Ce siège n'est pas tenu par un bot")
     if (siege.uid !== ancienUid) throw new ConcurrentWrite('Ce bot a déjà été repris')
+    if (siege.uid === uid) return
     tx.update(gameRef(code, c), {
       [`seats.${player}`]: { ...siege, uid },
       seatedUids: arrayUnion(uid),
+      dernierSiege: player,
     })
   })
 }
@@ -379,8 +402,9 @@ export async function remplacerParBot(
     if (siege.bot) throw new Error('Un bot tient déjà ce siège')
     if (siege.uid !== ancienUid) throw new ConcurrentWrite('Le joueur est revenu')
     tx.update(gameRef(code, c), {
-      [`seats.${player}`]: { uid, bot: true, niveau, remplace: true },
+      [`seats.${player}`]: { uid, bot: true, niveau, remplace: true, ancien: siege.uid },
       seatedUids: arrayUnion(uid),
+      dernierSiege: player,
     })
   })
 }
@@ -397,9 +421,11 @@ export async function reprendreMaPlace(
     if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
     const siege = (snap.data() as GameDoc).seats[player]
     if (!siege?.bot || !siege.remplace) throw new Error('Ta place n\u2019est pas tenue par un bot')
+    if (siege.ancien !== uid) throw new Error('Ta place ne peut être reprise que depuis ton appareil')
     tx.update(gameRef(code, c), {
       [`seats.${player}`]: { uid, aideBot: true },
       seatedUids: arrayUnion(uid),
+      dernierSiege: player,
     })
   })
 }
@@ -426,7 +452,8 @@ export async function deal(
   if (!distribuable(game)) throw new ConcurrentWrite('La donne est déjà distribuée')
 
   const cut = 1 + Math.floor(Math.random() * 30)
-  const pile = previousTricks && !RULES.shuffleEveryDeal ? gatherAndCut(previousTricks, cut) : shuffle(DECK)
+  const plis = RULES.shuffleEveryDeal ? null : (previousTricks ?? (await plisDeLaDonnePrecedente(code, c)))
+  const pile = plis ? gatherAndCut(plis, cut) : shuffle(DECK)
 
   const hands = dealHands(pile, game.dealer, tableDe(game))
   const dealNumber = game.dealNumber + 1
@@ -454,23 +481,20 @@ export async function deal(
   })
 }
 
+/**
+ * DIS-2 — les plis de la dernière donne, dans l'ordre où ils ont été gagnés. Nuls quand
+ * elle n'a pas été jouée jusqu'au bout (première donne, donne blanche, blitz) : les mains
+ * sont alors inconnues de celui qui distribue, et on rebat.
+ */
+async function plisDeLaDonnePrecedente(code: string, c: Client): Promise<Card[][] | null> {
+  const plis = currentDeal(await readJournal(code, c)).flatMap((e) =>
+    e.type === 'pli_termine' ? [e.cards] : [],
+  )
+  return plis.length === 8 ? plis : null
+}
+
 export const watchGame = (code: string, cb: (game: GameDoc | null) => void, c: Client = mainClient) =>
   onSnapshot(gameRef(code, c), (s) => cb(s.exists() ? (s.data() as GameDoc) : null))
-
-/**
- * Lecture ponctuelle d'une main.
- *
- * Un bot s'en sert au lieu d'ouvrir une écoute permanente : le navigateur plafonne
- * le nombre de connexions par origine, et trois bots qui gardent chacun un flux
- * ouvert bloquaient leurs propres écritures — la distribution prenait 57 secondes.
- */
-export async function readHand(code: string, player: PlayerId, c: Client = mainClient): Promise<Card[]> {
-  // `getDocFromServer`, pas `getDoc` : un client sans écoute ouverte n'a rien en
-  // cache et `getDoc` se contentait de ce cache vide. Le bot croyait alors n'avoir
-  // aucune carte jouable et restait muet, sans la moindre erreur — la table gelait.
-  const snap = await getDocFromServer(handRef(code, player, c))
-  return (snap.data()?.cards as Card[]) ?? []
-}
 
 export const watchHand = (
   code: string,
@@ -893,14 +917,25 @@ export async function setOptions(
   await updateDoc(gameRef(code, c), options)
 }
 
-/** Change le placement avant la première donne : au hasard, ou choisi. */
-export async function setSeating(code: string, seating: Seating, c: Client = mainClient): Promise<void> {
-  const snap = await getDoc(gameRef(code, c))
-  if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
-  if ((snap.data() as GameDoc).dealNumber > 0) {
-    throw new Error('Les équipes ne changent plus une fois la partie commencée')
-  }
-  await updateDoc(gameRef(code, c), { seating, dealer: seating[1] })
+/**
+ * Change le placement avant la première donne : au hasard, ou choisi. Écrit au journal
+ * dans la même transaction : après « Rejouer », le placement de `partie_creee` sinon
+ * l'emportait au rejeu, et les enchères suivaient les anciennes équipes.
+ */
+export async function setSeating(
+  code: string,
+  seating: Seating,
+  player: PlayerId,
+  c: Client = mainClient,
+): Promise<void> {
+  await appendWith(c, code, { type: 'placement', player, seating, dealer: seating[1] }, undefined, {
+    game: { seating, dealer: seating[1] },
+    verifier: (g) => {
+      if (g.dealNumber > 0 || g.phase !== 'lobby') {
+        throw new Error('Les équipes ne changent plus une fois la partie commencée')
+      }
+    },
+  })
 }
 
 /**
@@ -932,8 +967,13 @@ export async function archiveGame(code: string, seating: Seating, c: Client = ma
     ...(partie?.blitz ? { blitz: true } : {}),
     soiree: partie?.soiree ?? code,
   }
-  await setDoc(archiveRef(code, c), archive)
-  return archive
+  // Écrite une seule fois : un second dépôt (deux clients à la fin) relit la première.
+  return runTransaction(c.db, async (tx) => {
+    const deja = await tx.get(archiveRef(code, c))
+    if (deja.exists()) return deja.data() as Archive
+    tx.set(archiveRef(code, c), archive)
+    return archive
+  })
 }
 
 /** Toutes les parties terminées, pour la page de statistiques globales. */

@@ -1,15 +1,16 @@
 /**
  * Le bot branché sur une vraie partie.
  *
- * Il tient un siège avec **sa propre session anonyme** : les règles Firestore lui
- * interdisent donc de lire la main des autres, exactement comme à un humain. Rien
- * ici ne contourne `partie.ts` — le bot passe par les mêmes fonctions que l'écran,
- * donc il subit les mêmes validations et écrit les mêmes événements.
+ * Il ne lit que sa propre main et le journal public : ce qu'il décide ne dépend de rien
+ * d'autre (voir `bot.ts` et `botExpert.ts`). Attention, ce sont le code et les tests
+ * qui le garantissent, pas les règles Firestore : les bots d'un même onglet partagent
+ * une session anonyme, qui a donc accès à leurs mains à tous. Rien ici ne contourne
+ * `partie.ts` — le bot passe par les mêmes fonctions que l'écran, donc il subit les
+ * mêmes validations et écrit les mêmes événements.
  */
 import type { Card } from '../game/cards'
 import type { GameEvent } from '../game/events'
 import type { PlayerId } from '../game/players'
-import { teamOfPlayer } from '../game/players'
 import { type BiddingEntry, canCoinche, currentBidder } from '../game/bidding'
 import { beloteAnnonces, biddingFromEvents, currentDeal, playFromEvents } from '../game/replay'
 import { canDeclareBelote, currentPlayer, playableFor } from '../game/play'
@@ -378,12 +379,3 @@ async function poser(
   await playCard(code, player, carte, annonce, c, thinkMs)
   return true
 }
-
-/** Vrai si ce siège est tenu par un bot. */
-export const isBotSeat = (game: GameDoc, player: PlayerId): boolean => Boolean(game.seats[player]?.bot)
-
-/** Les sièges tenus par des bots, pour marquer l'archive. */
-export const botSeats = (game: GameDoc): PlayerId[] =>
-  (Object.keys(game.seats) as PlayerId[]).filter((p) => game.seats[p]?.bot)
-
-export { teamOfPlayer }
