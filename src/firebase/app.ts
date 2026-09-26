@@ -21,6 +21,8 @@ const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID
  */
 export const useEmulators =
   import.meta.env.VITE_USE_EMULATORS === '1' ||
+  // `npm run dev:emu` (vite --mode emu)
+  import.meta.env.MODE === 'emu' ||
   !projectId ||
   // Vitest charge `.env.local` : sans cette garde, `tests/flow.test.ts` jouait ses
   // parties et déposait ses archives dans la vraie base.
@@ -65,14 +67,14 @@ export const mainClient: Client = { app, auth, db }
  * mémoire, sinon Firebase lui rendrait la session déjà stockée pour cette origine
  * et le bot se retrouverait à être le joueur humain.
  */
-export async function makeClient(nom: string): Promise<Client> {
-  const a = initializeApp(config, nom)
-  const au = getAuth(a)
-  await setPersistence(au, inMemoryPersistence)
+export async function makeClient(name: string): Promise<Client> {
+  const a = initializeApp(config, name)
+  const botAuth = getAuth(a)
+  await setPersistence(botAuth, inMemoryPersistence)
   const d = getFirestore(a)
   if (useEmulators) {
-    connectAuthEmulator(au, 'http://127.0.0.1:9099', { disableWarnings: true })
+    connectAuthEmulator(botAuth, 'http://127.0.0.1:9099', { disableWarnings: true })
     connectFirestoreEmulator(d, '127.0.0.1', 8080)
   }
-  return { app: a, auth: au, db: d }
+  return { app: a, auth: botAuth, db: d }
 }

@@ -29,23 +29,23 @@ describe('PlayingCard', () => {
   it('une carte à points porte ses quatre index et le bon nombre de pointes', () => {
     const w = mount(PlayingCard, { props: { card: '9d', width: 120 } })
     expect(w.find('img').exists()).toBe(false)
-    const glyphes = w
+    const glyphs = w
       .text()
       .split('')
       .filter((c) => c === '♦')
     // 4 index + 9 pointes
-    expect(glyphes).toHaveLength(13)
+    expect(glyphs).toHaveLength(13)
   })
 
   it('les pointes du centre dominent nettement celles des index', () => {
     const w = mount(PlayingCard, { props: { card: '7s', width: 100 } })
-    const tailles = w
+    const sizes = w
       .findAll('span')
       .filter((s) => s.text() === '♠')
       .map((s) => parseInt(s.attributes('style')?.match(/font-size: (\d+)px/)?.[1] ?? '0', 10))
-    const index = Math.min(...tailles)
-    const pointe = Math.max(...tailles)
-    expect(pointe).toBeGreaterThanOrEqual(index * 1.8)
+    const index = Math.min(...sizes)
+    const tip = Math.max(...sizes)
+    expect(tip).toBeGreaterThanOrEqual(index * 1.8)
   })
 
   it('une carte injouable reçoit un voile opaque, pas de la transparence', () => {
@@ -56,25 +56,25 @@ describe('PlayingCard', () => {
 
   it("l'atout est encadré tout autour, pas seulement en tête", () => {
     const w = mount(PlayingCard, { props: { card: 'Jh', width: 100, trump: true } })
-    const cadre = w.findAll('span').find((s) => s.attributes('style')?.includes('inset 0 0 0'))
-    expect(cadre).toBeDefined()
-    expect(cadre!.classes()).toContain('inset-0')
+    const frame = w.findAll('span').find((s) => s.attributes('style')?.includes('inset 0 0 0'))
+    expect(frame).toBeDefined()
+    expect(frame!.classes()).toContain('inset-0')
   })
 
   it('seule une carte jouable est un bouton, avec un libellé explicite', () => {
-    const jouable = mount(PlayingCard, { props: { card: 'Ah', clickable: true } })
-    expect(jouable.element.tagName).toBe('BUTTON')
-    expect(jouable.attributes('aria-label')).toBe('Jouer le as de cœur')
-    const posee = mount(PlayingCard, { props: { card: 'Ah' } })
-    expect(posee.element.tagName).toBe('DIV')
+    const playable = mount(PlayingCard, { props: { card: 'Ah', clickable: true } })
+    expect(playable.element.tagName).toBe('BUTTON')
+    expect(playable.attributes('aria-label')).toBe('Jouer le as de cœur')
+    const placedCard = mount(PlayingCard, { props: { card: 'Ah' } })
+    expect(placedCard.element.tagName).toBe('DIV')
   })
 
   it('un clic sur une carte jouable la joue, pas sur une carte posée', async () => {
-    const jouable = mount(PlayingCard, { props: { card: '10c', clickable: true } })
-    await jouable.trigger('click')
-    expect(jouable.emitted('select')).toEqual([['10c']])
-    const posee = mount(PlayingCard, { props: { card: '10c' } })
-    await posee.trigger('click')
-    expect(posee.emitted('select')).toBeUndefined()
+    const playable = mount(PlayingCard, { props: { card: '10c', clickable: true } })
+    await playable.trigger('click')
+    expect(playable.emitted('select')).toEqual([['10c']])
+    const placedCard = mount(PlayingCard, { props: { card: '10c' } })
+    await placedCard.trigger('click')
+    expect(placedCard.emitted('select')).toBeUndefined()
   })
 })

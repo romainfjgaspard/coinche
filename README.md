@@ -13,7 +13,8 @@ places libres se confient à des bots.
 | Robustesse         | Pause ; bots repris par un autre onglet si le leur se ferme ; joueur absent remplaçable par un bot, qui peut reprendre sa place |
 | Fin de donne       | Décompte détaillé pli par pli ; « Revoir la donne » : mains de départ, huit plis                                               |
 | Analyse            | À cartes ouvertes (le contrat était-il faisable ?) et carte par carte, avec l'information du joueur, comme aux échecs          |
-| Statistiques       | Partie en cours et toutes les parties, en sous-onglets : score, enchères, jeu, temps de réflexion, donnes, duos, soirées       |
+| Bots               | « bot » : les réflexes d'un bon joueur (soutien, tirage d'atout, coinche) ; « bot ★ » : chaque carte réfléchie au solveur. Aucun ne voit le jeu des autres |
+| Statistiques       | Partie en cours (score, enchères, jeu, donnes) et toutes les parties (duos, joueurs, enchères, temps, soirées), avec ou sans les parties à bots |
 | Mise en page       | Téléphone (une colonne) et PC (table dédiée, à l'échelle de l'écran)                                                           |
 
 Stack : Vue 3 + TypeScript + Vite + Pinia + Tailwind v4, Firebase (Firestore, authentification anonyme), GitHub Pages.
@@ -21,9 +22,13 @@ Stack : Vue 3 + TypeScript + Vite + Pinia + Tailwind v4, Firebase (Firestore, au
 ## Documents
 
 - **`docs/REGLES.md`** — nos règles ; chaque point porte un identifiant (`ENC-5`…)
+- **`docs/BOTS.md`** — les deux niveaux de bots, comment ils enchérissent et jouent, le tournoi qui les mesure
+- **`docs/ANALYSE.md`** — revoir une donne, « Aurait-on pu gagner ? », l'analyse carte par carte et le solveur
+- **`docs/STATISTIQUES.md`** — chaque statistique, et comment elle se calcule (panache, bilan, lanceur…)
+- **`docs/SECURITE.md`** — ce que les règles Firestore garantissent, et leurs limites sans serveur
 - **`docs/MODELE-DONNEES.md`** — journal d'événements, archives, conservation intégrale pour les stats
 - **`docs/QUALITE.md`** — outils de qualité (équivalents Python : ruff → ESLint + Prettier, uv → npm), audit
-- **`docs/FIREBASE.md`** — création du projet Firebase, pas à pas
+- **`docs/FIREBASE.md`** — le projet Firebase, les clés, le déploiement, et comment le refaire
 
 ## Prérequis (Windows)
 
@@ -43,19 +48,19 @@ npm run emu          # émulateur Firestore + Auth (nécessite Java) — premier
 npm run dev:emu      # site branché sur l'émulateur — second terminal : http://localhost:5173/coinche/
 ```
 
-Pour essayer seul : choisir son nom, créer une partie, puis « + bot » sur les autres places.
+Pour essayer seul : choisir son nom, créer une partie, puis « + bot » ou « + bot ★ » sur les autres places.
 `?botDelay=150` dans l'adresse accélère les bots. Une fenêtre de navigation privée compte comme un autre
 joueur.
 
 ## Vérifier
 
 ```powershell
-npm run check        # tout d'un coup, comme la CI : lint, formatage, types, tests
+npm run check        # lint, formatage, types, tests : ce que fait la CI, hors émulateur et build
 npm run lint         # ESLint (lint:fix pour corriger ce qui peut l'être)
 npm run format       # Prettier (format:check pour vérifier sans écrire)
 npm run typecheck    # vue-tsc
 npm test             # moteur de règles et composants, sans réseau
-npm run test:rules   # règles Firestore, parcours, concurrence — lance son propre émulateur
+npm run test:rules   # règles Firestore, parcours, concurrence, pause — lance son propre émulateur
 npm run coverage     # couverture des tests
 npm run tournoi      # bots contre bots, donnes jouées deux fois ($env:A, $env:B : base, expert, hasard)
 ```
@@ -65,19 +70,21 @@ l'émulateur dès que le mode est `test`.
 
 Parcours dans de vrais navigateurs (Playwright), avec l'émulateur et `npm run dev:emu` déjà lancés :
 `npm run test:e2e` (partie complète à quatre), `npm run test:bot` (un humain, trois bots),
-`npm run test:apercu` (captures des stats). Captures dans `$env:SORTIE`. Chromium s'installe avec
+`npm run test:apercu` (captures des stats), `node tests/audit.mjs` (revue d'affichage). Captures dans
+`captures/` (ignoré par git), ou dans `$env:OUT_DIR`. Chromium s'installe avec
 `npx playwright install chromium`.
 
 Pour remplir les statistiques de l'émulateur : `npm run seed:stats` (émulateur lancé ;
-`$env:PARTIES=12` pour le nombre de parties). Il refuse de tourner hors émulateur.
+`$env:GAMES=12` pour le nombre de parties, 8 par défaut). Il ne vise la vraie base que par
+`npm run seed:stats:prod`, avec `$env:SEED_CONFIRM='coinche-e708b'`.
 
 ## Mise en ligne
 
 `.github/workflows/deploy.yml` :
 
-- **À chaque PR et à chaque push sur `main`** : lint, formatage, types, tests, tests sur émulateur.
-- **Sur `main`, si tout passe** : déploiement des règles Firestore (compte de service en secret GitHub),
-  build avec les clés Firebase, publication sur GitHub Pages.
+- **À chaque PR et à chaque push sur `main`** : lint, formatage, types, tests, build, tests sur émulateur.
+- **Sur `main`, si tout passe** : build avec les clés Firebase, déploiement des règles Firestore (compte
+  de service en secret GitHub), puis publication sur GitHub Pages.
 
 On travaille donc par branche et PR ; merger dans `main` met en ligne. À régler une seule fois sur GitHub :
 

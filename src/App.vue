@@ -12,9 +12,9 @@ const session = useSession()
 onMounted(() => void session.resume())
 
 /** L'historique se consulte depuis l'accueil, sans rejoindre de partie. */
-const statsAccueil = ref(false)
+const homeStats = ref(false)
 /** Les règles aussi, depuis l'accueil. */
-const reglesAccueil = ref(false)
+const homeRules = ref(false)
 
 type Screen = 'join' | 'loading' | 'lobby' | 'table'
 
@@ -28,13 +28,9 @@ const screen = computed<Screen>(() => {
 </script>
 
 <template>
-  <StatsScreen v-if="screen === 'join' && statsAccueil" global-seulement @fermer="statsAccueil = false" />
-  <RulesScreen
-    v-else-if="screen === 'join' && reglesAccueil"
-    retour="Accueil"
-    @fermer="reglesAccueil = false"
-  />
-  <JoinScreen v-else-if="screen === 'join'" @stats="statsAccueil = true" @regles="reglesAccueil = true" />
+  <StatsScreen v-if="screen === 'join' && homeStats" global-only @close="homeStats = false" />
+  <RulesScreen v-else-if="screen === 'join' && homeRules" back-label="Accueil" @close="homeRules = false" />
+  <JoinScreen v-else-if="screen === 'join'" @stats="homeStats = true" @rules="homeRules = true" />
   <LobbyScreen v-else-if="screen === 'lobby'" />
   <GameScreen v-else-if="screen === 'table'" />
   <div v-else class="flex min-h-full items-center justify-center text-sm text-sage">

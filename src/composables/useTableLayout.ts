@@ -24,7 +24,7 @@ export interface TableLayout {
   width: number
   height: number
   header: number
-  tapis: Box
+  felt: Box
   /** Épaisseur du rebord de bois */
   rim: number
   /** Ma main : largeur d'une carte, pas entre deux cartes, part visible */
@@ -64,9 +64,9 @@ export function tableLayout(width: number, height: number): TableLayout {
   const meZone = r(60)
   const side = r(180)
 
-  const tapisTop = header + partnerZone
-  const tapisBottom = height - handVisible - meZone
-  const tapis: Box = { x: side, y: tapisTop, w: width - 2 * side, h: tapisBottom - tapisTop }
+  const feltTop = header + partnerZone
+  const feltBottom = height - handVisible - meZone
+  const felt: Box = { x: side, y: feltTop, w: width - 2 * side, h: feltBottom - feltTop }
 
   return {
     u,
@@ -74,7 +74,7 @@ export function tableLayout(width: number, height: number): TableLayout {
     width,
     height,
     header,
-    tapis,
+    felt,
     rim: r(16),
     cardW,
     cardH,
@@ -83,7 +83,7 @@ export function tableLayout(width: number, height: number): TableLayout {
     trickW: Math.round(cardW * 0.74),
     backW,
     backStep: Math.round(backW * 0.42),
-    meY: tapisBottom + Math.round(meZone / 2),
+    meY: feltBottom + Math.round(meZone / 2),
     sideX: Math.round(side / 2),
     partnerY: header + gap,
   }
@@ -93,11 +93,11 @@ export function tableLayout(width: number, height: number): TableLayout {
 export function useTableLayout() {
   const w = ref(window.innerWidth)
   const h = ref(window.innerHeight)
-  const suivre = () => {
+  const follow = () => {
     w.value = window.innerWidth
     h.value = window.innerHeight
   }
-  onMounted(() => window.addEventListener('resize', suivre))
-  onUnmounted(() => window.removeEventListener('resize', suivre))
+  onMounted(() => window.addEventListener('resize', follow))
+  onUnmounted(() => window.removeEventListener('resize', follow))
   return computed(() => tableLayout(w.value, h.value))
 }

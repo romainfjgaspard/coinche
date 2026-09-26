@@ -26,9 +26,9 @@ describe('placement autour de la table', () => {
   })
 
   it('changer de placement change les équipes', () => {
-    const autre: Seating = ['romain', 'viv', 'roux', 'benel']
-    expect(partnerOf('romain', autre)).toBe('roux')
-    expect(teamOfPlayer('viv', autre)).toBe(1)
+    const another: Seating = ['romain', 'viv', 'roux', 'benel']
+    expect(partnerOf('romain', another)).toBe('roux')
+    expect(teamOfPlayer('viv', another)).toBe(1)
   })
 
   it('les sièges bouclent dans les deux sens', () => {
@@ -73,21 +73,21 @@ describe('tirage au sort', () => {
 
 describe('bots sans nom', () => {
   it('prennent le premier identifiant libre de leur niveau', async () => {
-    const { botId, estBotId, niveauDeBotId } = await import('../players')
-    expect(botId('simple', ['romain'])).toBe('bot-simple-1')
-    expect(botId('simple', ['romain', 'bot-simple-1'])).toBe('bot-simple-2')
-    expect(botId('compteur', ['bot-simple-1'])).toBe('bot-etoile-1')
-    expect(estBotId('bot-etoile-1')).toBe(true)
-    expect(estBotId('benel')).toBe(false)
-    expect(niveauDeBotId('bot-etoile-2')).toBe('compteur')
-    expect(niveauDeBotId('bot-simple-1')).toBe('simple')
+    const { botId, isBotId, levelOfBotId } = await import('../players')
+    expect(botId('basic', ['romain'])).toBe('bot-basic-1')
+    expect(botId('basic', ['romain', 'bot-basic-1'])).toBe('bot-basic-2')
+    expect(botId('expert', ['bot-basic-1'])).toBe('bot-expert-1')
+    expect(isBotId('bot-expert-1')).toBe(true)
+    expect(isBotId('benel')).toBe(false)
+    expect(levelOfBotId('bot-expert-2')).toBe('expert')
+    expect(levelOfBotId('bot-basic-1')).toBe('basic')
   })
 
   it("s'affichent « Bot », « Bot ★ », puis numérotés", async () => {
-    const { nomDe } = await import('../../stores/roster')
-    expect(nomDe('bot-simple-1')).toBe('Bot')
-    expect(nomDe('bot-simple-2')).toBe('Bot 2')
-    expect(nomDe('bot-etoile-1')).toBe('Bot ★')
-    expect(nomDe('viv')).toBe('Viv')
+    const { nameOf } = await import('../../stores/roster')
+    expect(nameOf('bot-basic-1')).toBe('Bot')
+    expect(nameOf('bot-basic-2')).toBe('Bot 2')
+    expect(nameOf('bot-expert-1')).toBe('Bot ★')
+    expect(nameOf('viv')).toBe('Viv')
   })
 })

@@ -4,82 +4,82 @@
  * Pur : on ne relit jamais le journal ici. Chaque partie terminée a déposé son
  * condensé, et c'est lui qu'on additionne.
  */
-import type { Archive, PlayerArchive, PriseDetail } from './archive'
-import { type PriseForce, panacheDe } from './force'
-import { PLAYER_IDS, type PlayerId, type Seating, estBotId, niveauDeBotId, teamOfPlayer } from './players'
-import { type Chrono, ajouterChrono, moyenne } from './stats'
+import type { Archive, PlayerArchive, TakeDetail } from './archive'
+import { type TakeStrength, panacheOf } from './strength'
+import { PLAYER_IDS, type PlayerId, type Seating, isBotId, levelOfBotId, teamOfPlayer } from './players'
+import { type Timing, addTiming, average } from './stats'
 import {
-  type Ecarts,
-  type Repartition,
+  type Gaps,
+  type BidDistribution,
   type Roles,
-  type Temps,
-  ajouterRepartition,
-  ecartsVides,
-  rolesVides,
-  tempsVides,
-} from './statsEncheres'
+  type Times,
+  addDistribution,
+  emptyGaps,
+  emptyRoles,
+  emptyTimes,
+} from './statsBidding'
 
-export type Paire = [PlayerId, PlayerId]
+export type Pair = [PlayerId, PlayerId]
 
 /** Toutes les paires possibles entre ces joueurs. */
-export const pairesEntre = (joueurs: readonly PlayerId[]): Paire[] =>
-  joueurs.flatMap((a, i) => joueurs.slice(i + 1).map((b) => [a, b] as Paire))
+export const pairsBetween = (players: readonly PlayerId[]): Pair[] =>
+  players.flatMap((a, i) => players.slice(i + 1).map((b) => [a, b] as Pair))
 
 /** Les six paires possibles entre les quatre du départ. */
-export const PAIRES: Paire[] = pairesEntre(PLAYER_IDS)
+export const PAIRS: Pair[] = pairsBetween(PLAYER_IDS)
 
-export const clePaire = (p: Paire): string => [...p].sort().join('+')
+export const pairKey = (p: Pair): string => [...p].sort().join('+')
 
 /**
  * Les joueurs qui ont au moins une partie archivée : les quatre du départ en tête,
  * puis les autres dans l'ordre de leur première partie.
  */
-export function joueursDe(archives: Archive[]): PlayerId[] {
-  const vus = new Set<PlayerId>()
+export function playersOf(archives: Archive[]): PlayerId[] {
+  const seenSet = new Set<PlayerId>()
   for (const a of [...archives].sort((x, y) => x.finishedAt - y.finishedAt))
-    for (const p of a.seating) vus.add(p)
-  return [...PLAYER_IDS.filter((p) => vus.has(p)), ...[...vus].filter((p) => !PLAYER_IDS.includes(p))]
+    for (const p of a.seating) seenSet.add(p)
+  return [...PLAYER_IDS.filter((p) => seenSet.has(p)), ...[...seenSet].filter((p) => !PLAYER_IDS.includes(p))]
 }
 
 /** Les paires qui ont joué ensemble au moins une fois. */
-export function pairesJouees(archives: Archive[]): Paire[] {
-  const cles = new Set(duoStats(archives).map((d) => clePaire(d.paire)))
-  return pairesEntre(joueursDe(archives)).filter((p) => cles.has(clePaire(p)))
+export function pairsPlayed(archives: Archive[]): Pair[] {
+  const keys = new Set(duoStats(archives).map((d) => pairKey(d.pair)))
+  return pairsBetween(playersOf(archives)).filter((p) => keys.has(pairKey(p)))
 }
 
 export interface DuoStats {
-  paire: Paire
+  pair: Pair
   /** Les paires affrontées : une seule à quatre joueurs, plusieurs au-delà */
-  contre: Paire[]
-  parties: number
-  gagnees: number
-  donnes: number
-  donnesGagnees: number
-  prises: number
-  reussies: number
-  marques: number
-  offerts: number
-  scoreMoyen: number
-  pireScore: number | null
+  against: Pair[]
+  games: number
+  won: number
+  deals: number
+  dealsWon: number
+  takes: number
+  made: number
+  scoredPoints: number
+  conceded: number
+  averageScore: number
+  worstScore: number | null
 }
 
-const duoVide = (paire: Paire): DuoStats => ({
-  paire,
-  contre: [],
-  parties: 0,
-  gagnees: 0,
-  donnes: 0,
-  donnesGagnees: 0,
-  prises: 0,
-  reussies: 0,
-  marques: 0,
-  offerts: 0,
-  scoreMoyen: 0,
-  pireScore: null,
+const emptyPair = (pair: Pair): DuoStats => ({
+  pair,
+  against: [],
+  games: 0,
+  won: 0,
+  deals: 0,
+  dealsWon: 0,
+  takes: 0,
+  made: 0,
+  scoredPoints: 0,
+  conceded: 0,
+  averageScore: 0,
+  worstScore: null,
 })
 
 /** Les deux paires d'une partie, déduites du placement. */
-export function pairesDe(a: Archive): [Paire, Paire] {
+export function pairsOf(a: Archive): [Pair, Pair] {
   return [
     [a.seating[0], a.seating[2]],
     [a.seating[1], a.seating[3]],
@@ -90,207 +90,207 @@ export function duoStats(archives: Archive[]): DuoStats[] {
   const out = new Map<string, DuoStats & { scores: number[] }>()
 
   for (const a of archives) {
-    const [paireA, paireB] = pairesDe(a)
-    const camps: [Paire, Paire, 0 | 1][] = [
-      [paireA, paireB, 0],
-      [paireB, paireA, 1],
+    const [pairA, pairB] = pairsOf(a)
+    const sides: [Pair, Pair, 0 | 1][] = [
+      [pairA, pairB, 0],
+      [pairB, pairA, 1],
     ]
 
-    for (const [paire, contre, team] of camps) {
-      const cle = clePaire(paire)
-      let d = out.get(cle)
+    for (const [pair, against, team] of sides) {
+      const key = pairKey(pair)
+      let d = out.get(key)
       if (!d) {
-        d = { ...duoVide(paire), scores: [] }
-        out.set(cle, d)
+        d = { ...emptyPair(pair), scores: [] }
+        out.set(key, d)
       }
-      if (!d.contre.some((x) => clePaire(x) === clePaire(contre))) d.contre.push(contre)
+      if (!d.against.some((x) => pairKey(x) === pairKey(against))) d.against.push(against)
 
-      d.parties += 1
-      if (a.winner === team) d.gagnees += 1
-      d.donnes += a.deals
+      d.games += 1
+      if (a.winner === team) d.won += 1
+      d.deals += a.deals
       d.scores.push(a.scores[team])
-      d.pireScore = d.pireScore === null ? a.scores[team] : Math.min(d.pireScore, a.scores[team])
+      d.worstScore = d.worstScore === null ? a.scores[team] : Math.min(d.worstScore, a.scores[team])
 
-      for (const j of paire) {
+      // Deux bots du même niveau, partenaires, ne font qu'un joueur une fois regroupés
+      // (`groupBots`), et leur condensé contient déjà les deux : on ne l'ajoute qu'une fois.
+      for (const j of new Set(pair)) {
         const p = a.players[j]
-        d.prises += p.prises
-        d.reussies += p.reussies
-        d.marques += p.marques
-        d.offerts += p.offerts
+        d.takes += p.takes
+        d.made += p.made
+        d.scoredPoints += p.scoredPoints
+        d.conceded += p.conceded
         // Une donne gagnée : son propre contrat tenu…
-        d.donnesGagnees += p.reussies
+        d.dealsWon += p.made
       }
       // … ou celui de l'adversaire chuté.
-      for (const j of contre) d.donnesGagnees += a.players[j].chutes
+      for (const j of new Set(against)) d.dealsWon += a.players[j].downs
     }
   }
 
   return [...out.values()]
     .map(({ scores, ...d }) => ({
       ...d,
-      scoreMoyen: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
+      averageScore: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
     }))
-    .sort((a, b) => b.gagnees / (b.parties || 1) - a.gagnees / (a.parties || 1))
+    .sort((a, b) => b.won / (b.games || 1) - a.won / (a.games || 1))
 }
 
-export interface JoueurStats {
-  joueur: PlayerId
-  parties: number
-  gagnees: number
-  scoreMoyen: number
-  pireScore: number | null
-  donnes: number
-  prises: number
-  reussies: number
-  chutes: number
-  marques: number
-  offerts: number
+export interface PlayerStats {
+  player: PlayerId
+  games: number
+  won: number
+  averageScore: number
+  worstScore: number | null
+  deals: number
+  takes: number
+  made: number
+  downs: number
+  scoredPoints: number
+  conceded: number
   coinches: number
   /** Les archives antérieures au 24/09/2026 ne le connaissent pas : compté comme 0. */
-  coinchesGagnees: number
-  belotesAnnoncees: number
-  belotesOubliees: number
-  etoiles: number
-  impasses: number
-  impassesReussies: number
-  impassesRatees: number
+  coinchesWon: number
+  belotesDeclared: number
+  belotesForgotten: number
+  shameStars: number
+  finesses: number
+  finessesWon: number
+  finessesFailed: number
   panache: number | null
   /** Moyenne des contrats chiffrés pris (capots et générales à part, ils fausseraient tout). */
-  enchereMoyenne: number | null
+  averageBid: number | null
   /** Temps de réflexion moyen, en ms : pour annoncer, pour jouer une carte. Null sans mesure. */
-  tempsEnchere: number | null
-  tempsCarte: number | null
+  bidTime: number | null
+  cardTime: number | null
 }
 
-export function joueurStats(archives: Archive[]): JoueurStats[] {
+export function playerStats(archives: Archive[]): PlayerStats[] {
   // Toutes les prises dont on connaît la main, joueur compris : le panache se
   // calcule ensuite pour chacun en excluant ses propres prises de la référence.
-  const toutes = prisesAvecForce(archives)
+  const every = takesWithStrength(archives)
 
-  return joueursDe(archives)
-    .map((joueur) => {
+  return playersOf(archives)
+    .map((player) => {
       const scores: number[] = []
       const base = {
-        joueur,
-        parties: 0,
-        gagnees: 0,
-        donnes: 0,
-        prises: 0,
-        reussies: 0,
-        chutes: 0,
-        marques: 0,
-        offerts: 0,
+        player,
+        games: 0,
+        won: 0,
+        deals: 0,
+        takes: 0,
+        made: 0,
+        downs: 0,
+        scoredPoints: 0,
+        conceded: 0,
         coinches: 0,
-        coinchesGagnees: 0,
-        belotesAnnoncees: 0,
-        belotesOubliees: 0,
-        etoiles: 0,
-        impasses: 0,
-        impassesReussies: 0,
-        impassesRatees: 0,
+        coinchesWon: 0,
+        belotesDeclared: 0,
+        belotesForgotten: 0,
+        shameStars: 0,
+        finesses: 0,
+        finessesWon: 0,
+        finessesFailed: 0,
       }
-      const encheres: number[] = []
-      let chronoEnchere: Chrono = { total: 0, n: 0, max: 0 }
-      let chronoCarte: Chrono = { total: 0, n: 0, max: 0 }
+      const bids: number[] = []
+      let bidTiming: Timing = { total: 0, n: 0, max: 0 }
+      let cardTiming: Timing = { total: 0, n: 0, max: 0 }
       for (const a of archives) {
-        const p = a.players[joueur]
+        const p = a.players[player]
         if (!p) continue
-        const team = teamOfPlayer(joueur, a.seating)
-        base.parties += 1
-        if (a.winner === team) base.gagnees += 1
-        base.donnes += a.deals
+        const team = teamOfPlayer(player, a.seating)
+        base.games += 1
+        if (a.winner === team) base.won += 1
+        base.deals += a.deals
         scores.push(a.scores[team])
-        base.prises += p.prises
-        base.reussies += p.reussies
-        base.chutes += p.chutes
-        base.marques += p.marques
-        base.offerts += p.offerts
+        base.takes += p.takes
+        base.made += p.made
+        base.downs += p.downs
+        base.scoredPoints += p.scoredPoints
+        base.conceded += p.conceded
         base.coinches += p.coinches
-        base.coinchesGagnees += p.coinchesGagnees ?? 0
-        if (p.reflexion) {
-          chronoEnchere = ajouterChrono(chronoEnchere, p.reflexion.encheres)
-          chronoCarte = ajouterChrono(chronoCarte, p.reflexion.cartes)
+        base.coinchesWon += p.coinchesWon ?? 0
+        if (p.thinkTime) {
+          bidTiming = addTiming(bidTiming, p.thinkTime.bids)
+          cardTiming = addTiming(cardTiming, p.thinkTime.cards)
         }
-        encheres.push(...p.detail.filter((d) => !d.capot && d.value <= 170).map((d) => d.value))
-        base.belotesAnnoncees += p.belotesAnnoncees
-        base.belotesOubliees += p.belotesOubliees
-        base.etoiles += p.etoiles
-        base.impasses += p.impasses
-        base.impassesReussies += p.impassesReussies
-        base.impassesRatees += p.impassesRatees
+        bids.push(...p.detail.filter((d) => !d.capot && d.value <= 170).map((d) => d.value))
+        base.belotesDeclared += p.belotesDeclared
+        base.belotesForgotten += p.belotesForgotten
+        base.shameStars += p.shameStars
+        base.finesses += p.finesses
+        base.finessesWon += p.finessesWon
+        base.finessesFailed += p.finessesFailed
       }
 
       return {
         ...base,
-        scoreMoyen: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
-        pireScore: scores.length ? Math.min(...scores) : null,
-        panache: panacheDe(joueur, toutes),
-        enchereMoyenne: encheres.length
-          ? Math.round(encheres.reduce((s, v) => s + v, 0) / encheres.length)
-          : null,
-        tempsEnchere: moyenne(chronoEnchere),
-        tempsCarte: moyenne(chronoCarte),
+        averageScore: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
+        worstScore: scores.length ? Math.min(...scores) : null,
+        panache: panacheOf(player, every),
+        averageBid: bids.length ? Math.round(bids.reduce((s, v) => s + v, 0) / bids.length) : null,
+        bidTime: average(bidTiming),
+        cardTime: average(cardTiming),
       }
     })
-    .sort((a, b) => b.gagnees / (b.parties || 1) - a.gagnees / (a.parties || 1))
+    .sort((a, b) => b.won / (b.games || 1) - a.won / (a.games || 1))
 }
 
 /** L'en-tête de la page : combien de parties, de donnes, de prises, et depuis quand. */
-export function resumeGlobal(archives: Archive[]): {
-  parties: number
-  donnes: number
-  prises: number
-  depuis: number | null
+export function globalSummary(archives: Archive[]): {
+  games: number
+  deals: number
+  takes: number
+  since: number | null
 } {
   return {
-    parties: archives.length,
-    donnes: archives.reduce((s, a) => s + a.deals, 0),
-    prises: archives.reduce((s, a) => s + Object.values(a.players).reduce((t, p) => t + p.prises, 0), 0),
-    depuis: archives.length ? Math.min(...archives.map((a) => a.finishedAt)) : null,
+    games: archives.length,
+    deals: archives.reduce((s, a) => s + a.deals, 0),
+    takes: archives.reduce((s, a) => s + Object.values(a.players).reduce((t, p) => t + p.takes, 0), 0),
+    since: archives.length ? Math.min(...archives.map((a) => a.finishedAt)) : null,
   }
 }
 
 /** Toutes les prises dont la force est connue, pour la référence du groupe. */
-export function prisesAvecForce(archives: Archive[]): PriseForce[] {
+export function takesWithStrength(archives: Archive[]): TakeStrength[] {
   return archives.flatMap((a) =>
     Object.entries(a.players).flatMap(([p, j]) =>
       j.detail
-        .filter((d): d is PriseDetail & { force: number } => d.force !== null)
-        .map((d) => ({ joueur: p, force: d.force, value: d.value })),
+        .filter((d): d is TakeDetail & { strength: number } => d.strength !== null)
+        .map((d) => ({ player: p, strength: d.strength, value: d.value })),
     ),
   )
 }
 
 /** Paliers d'enchère, capot compris, pour les barres. */
-export const PALIERS = [80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 'capot'] as const
-export type Palier = (typeof PALIERS)[number]
+export const BID_LEVELS = [80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 'capot'] as const
+export type Tier = (typeof BID_LEVELS)[number]
 
-const palierDe = (d: PriseDetail): Palier => (d.capot ? 'capot' : (d.value as Palier))
+const tierOf = (d: TakeDetail): Tier => (d.capot ? 'capot' : (d.value as Tier))
 
 /** Contrats pris et réussis par palier, pour un joueur ou pour tout le monde. */
-export function parPalier(
+export function byTier(
   archives: Archive[],
-  qui: PlayerId[] = joueursDe(archives),
-): { palier: Palier; reussis: number; chutes: number }[] {
-  const compte = new Map<Palier, { reussis: number; chutes: number }>()
-  for (const p of PALIERS) compte.set(p, { reussis: 0, chutes: 0 })
+  who: PlayerId[] = playersOf(archives),
+): { tier: Tier; madeGaps: number; downs: number }[] {
+  const tally = new Map<Tier, { madeGaps: number; downs: number }>()
+  for (const p of BID_LEVELS) tally.set(p, { madeGaps: 0, downs: 0 })
 
   for (const a of archives) {
-    for (const j of qui) {
+    for (const j of who) {
       for (const d of a.players[j]?.detail ?? []) {
-        const c = compte.get(palierDe(d))
+        const c = tally.get(tierOf(d))
         if (!c) continue
-        if (d.reussi) c.reussis += 1
-        else c.chutes += 1
+        if (d.isMade) c.madeGaps += 1
+        else c.downs += 1
       }
     }
   }
-  return PALIERS.map((palier) => ({ palier, ...compte.get(palier)! }))
+  return BID_LEVELS.map((tier) => ({ tier, ...tally.get(tier)! }))
 }
 
 /** Toutes les prises d'un joueur, pour le nuage force × annonce. */
-export function prisesDe(archives: Archive[], joueur: PlayerId): PriseDetail[] {
-  return archives.flatMap((a) => a.players[joueur]?.detail ?? []).filter((d) => d.force !== null)
+export function takesOf(archives: Archive[], player: PlayerId): TakeDetail[] {
+  return archives.flatMap((a) => a.players[player]?.detail ?? []).filter((d) => d.strength !== null)
 }
 
 // --- Les bots regroupés par niveau, et les nouvelles statistiques d'enchères et de temps.
@@ -300,65 +300,65 @@ export function prisesDe(archives: Archive[], joueur: PlayerId): PriseDetail[] {
  * n'en font qu'un, « Bot » ou « Bot ★ ». Sans cela, chaque « bot-simple-2 » faisait
  * sa propre ligne.
  */
-export const cleJoueur = (p: PlayerId): PlayerId =>
-  estBotId(p) ? (niveauDeBotId(p) === 'compteur' ? 'bot-etoile' : 'bot-simple') : p
+export const playerKey = (p: PlayerId): PlayerId =>
+  isBotId(p) ? (levelOfBotId(p) === 'expert' ? 'bot-expert' : 'bot-basic') : p
 
 /** Deux condensés du même joueur réunis : deux bots du même niveau dans une partie. */
-function fusionner(a: PlayerArchive, b: PlayerArchive): PlayerArchive {
-  const somme = (x?: number, y?: number) => (x ?? 0) + (y ?? 0)
-  const listes = <T>(x?: T[], y?: T[]) => [...(x ?? []), ...(y ?? [])]
+function merge(a: PlayerArchive, b: PlayerArchive): PlayerArchive {
+  const sum = (x?: number, y?: number) => (x ?? 0) + (y ?? 0)
+  const lists = <T>(x?: T[], y?: T[]) => [...(x ?? []), ...(y ?? [])]
   return {
-    prises: a.prises + b.prises,
-    reussies: a.reussies + b.reussies,
-    chutes: a.chutes + b.chutes,
-    marques: a.marques + b.marques,
-    offerts: a.offerts + b.offerts,
+    takes: a.takes + b.takes,
+    made: a.made + b.made,
+    downs: a.downs + b.downs,
+    scoredPoints: a.scoredPoints + b.scoredPoints,
+    conceded: a.conceded + b.conceded,
     coinches: a.coinches + b.coinches,
-    coinchesGagnees: somme(a.coinchesGagnees, b.coinchesGagnees),
-    belotesAnnoncees: a.belotesAnnoncees + b.belotesAnnoncees,
-    belotesOubliees: a.belotesOubliees + b.belotesOubliees,
-    etoiles: a.etoiles + b.etoiles,
-    impasses: a.impasses + b.impasses,
-    impassesReussies: a.impassesReussies + b.impassesReussies,
-    impassesRatees: a.impassesRatees + b.impassesRatees,
-    detail: listes(a.detail, b.detail),
-    ...(a.reflexion || b.reflexion
+    coinchesWon: sum(a.coinchesWon, b.coinchesWon),
+    belotesDeclared: a.belotesDeclared + b.belotesDeclared,
+    belotesForgotten: a.belotesForgotten + b.belotesForgotten,
+    shameStars: a.shameStars + b.shameStars,
+    finesses: a.finesses + b.finesses,
+    finessesWon: a.finessesWon + b.finessesWon,
+    finessesFailed: a.finessesFailed + b.finessesFailed,
+    detail: lists(a.detail, b.detail),
+    ...(a.thinkTime || b.thinkTime
       ? {
-          reflexion: {
-            encheres: ajouterChrono(
-              a.reflexion?.encheres ?? { total: 0, n: 0, max: 0 },
-              b.reflexion?.encheres ?? { total: 0, n: 0, max: 0 },
+          thinkTime: {
+            bids: addTiming(
+              a.thinkTime?.bids ?? { total: 0, n: 0, max: 0 },
+              b.thinkTime?.bids ?? { total: 0, n: 0, max: 0 },
             ),
-            cartes: ajouterChrono(
-              a.reflexion?.cartes ?? { total: 0, n: 0, max: 0 },
-              b.reflexion?.cartes ?? { total: 0, n: 0, max: 0 },
+            cards: addTiming(
+              a.thinkTime?.cards ?? { total: 0, n: 0, max: 0 },
+              b.thinkTime?.cards ?? { total: 0, n: 0, max: 0 },
             ),
           },
         }
       : {}),
-    ...(a.annonces || b.annonces ? { annonces: ajouterRepartition(a.annonces ?? {}, b.annonces ?? {}) } : {}),
+    ...(a.calls || b.calls ? { calls: addDistribution(a.calls ?? {}, b.calls ?? {}) } : {}),
     ...(a.roles || b.roles
       ? {
           roles: {
-            lanceur: somme(a.roles?.lanceur, b.roles?.lanceur),
-            suiveur: somme(a.roles?.suiveur, b.roles?.suiveur),
-            seul: somme(a.roles?.seul, b.roles?.seul),
+            opener: sum(a.roles?.opener, b.roles?.opener),
+            follower: sum(a.roles?.follower, b.roles?.follower),
+            alone: sum(a.roles?.alone, b.roles?.alone),
           },
         }
       : {}),
-    ...(a.ecarts || b.ecarts
+    ...(a.gaps || b.gaps
       ? {
-          ecarts: {
-            reussis: listes(a.ecarts?.reussis, b.ecarts?.reussis),
-            chutes: listes(a.ecarts?.chutes, b.ecarts?.chutes),
+          gaps: {
+            madeGaps: lists(a.gaps?.madeGaps, b.gaps?.madeGaps),
+            downs: lists(a.gaps?.downs, b.gaps?.downs),
           },
         }
       : {}),
-    ...(a.temps || b.temps
+    ...(a.times || b.times
       ? {
-          temps: {
-            encheres: listes(a.temps?.encheres, b.temps?.encheres),
-            cartes: listes(a.temps?.cartes, b.temps?.cartes),
+          times: {
+            bids: lists(a.times?.bids, b.times?.bids),
+            cards: lists(a.times?.cards, b.times?.cards),
           },
         }
       : {}),
@@ -366,69 +366,69 @@ function fusionner(a: PlayerArchive, b: PlayerArchive): PlayerArchive {
 }
 
 /** Les archives vues par les statistiques globales : bots regroupés par niveau. */
-export function regrouperBots(archives: Archive[]): Archive[] {
+export function groupBots(archives: Archive[]): Archive[] {
   return archives.map((a) => {
-    if (!a.seating.some(estBotId)) return a
+    if (!a.seating.some(isBotId)) return a
     const players: Record<PlayerId, PlayerArchive> = {}
     for (const [p, v] of Object.entries(a.players)) {
-      const k = cleJoueur(p)
-      players[k] = players[k] ? fusionner(players[k], v) : v
+      const k = playerKey(p)
+      players[k] = players[k] ? merge(players[k], v) : v
     }
     return {
       ...a,
-      seating: a.seating.map(cleJoueur) as unknown as Seating,
-      bots: [...new Set((a.bots ?? []).map(cleJoueur))],
+      seating: a.seating.map(playerKey) as unknown as Seating,
+      bots: [...new Set((a.bots ?? []).map(playerKey))],
       players,
     }
   })
 }
 
 /** Les annonces de chacun, toutes parties confondues. */
-export function annoncesGlobales(archives: Archive[]): Map<PlayerId, Repartition> {
-  const out = new Map<PlayerId, Repartition>()
+export function globalCalls(archives: Archive[]): Map<PlayerId, BidDistribution> {
+  const out = new Map<PlayerId, BidDistribution>()
   for (const a of archives) {
     for (const [p, v] of Object.entries(a.players)) {
-      if (v.annonces) out.set(p, ajouterRepartition(out.get(p) ?? {}, v.annonces))
+      if (v.calls) out.set(p, addDistribution(out.get(p) ?? {}, v.calls))
     }
   }
   return out
 }
 
-export function rolesGlobaux(archives: Archive[]): Map<PlayerId, Roles> {
+export function globalRoles(archives: Archive[]): Map<PlayerId, Roles> {
   const out = new Map<PlayerId, Roles>()
   for (const a of archives) {
     for (const [p, v] of Object.entries(a.players)) {
       if (!v.roles) continue
-      const r = out.get(p) ?? rolesVides()
+      const r = out.get(p) ?? emptyRoles()
       out.set(p, {
-        lanceur: r.lanceur + v.roles.lanceur,
-        suiveur: r.suiveur + v.roles.suiveur,
-        seul: r.seul + v.roles.seul,
+        opener: r.opener + v.roles.opener,
+        follower: r.follower + v.roles.follower,
+        alone: r.alone + v.roles.alone,
       })
     }
   }
   return out
 }
 
-export function ecartsGlobaux(archives: Archive[]): Map<PlayerId, Ecarts> {
-  const out = new Map<PlayerId, Ecarts>()
+export function globalGaps(archives: Archive[]): Map<PlayerId, Gaps> {
+  const out = new Map<PlayerId, Gaps>()
   for (const a of archives) {
     for (const [p, v] of Object.entries(a.players)) {
-      if (!v.ecarts) continue
-      const r = out.get(p) ?? ecartsVides()
-      out.set(p, { reussis: [...r.reussis, ...v.ecarts.reussis], chutes: [...r.chutes, ...v.ecarts.chutes] })
+      if (!v.gaps) continue
+      const r = out.get(p) ?? emptyGaps()
+      out.set(p, { madeGaps: [...r.madeGaps, ...v.gaps.madeGaps], downs: [...r.downs, ...v.gaps.downs] })
     }
   }
   return out
 }
 
-export function tempsGlobaux(archives: Archive[]): Map<PlayerId, Temps> {
-  const out = new Map<PlayerId, Temps>()
+export function globalTimes(archives: Archive[]): Map<PlayerId, Times> {
+  const out = new Map<PlayerId, Times>()
   for (const a of archives) {
     for (const [p, v] of Object.entries(a.players)) {
-      if (!v.temps) continue
-      const r = out.get(p) ?? tempsVides()
-      out.set(p, { encheres: [...r.encheres, ...v.temps.encheres], cartes: [...r.cartes, ...v.temps.cartes] })
+      if (!v.times) continue
+      const r = out.get(p) ?? emptyTimes()
+      out.set(p, { bids: [...r.bids, ...v.times.bids], cards: [...r.cards, ...v.times.cards] })
     }
   }
   return out
@@ -438,42 +438,42 @@ export function tempsGlobaux(archives: Archive[]): Map<PlayerId, Temps> {
  * Les soirées : les parties enchaînées avec « Rejouer » partagent la même. Les plus
  * récentes d'abord ; une partie sans soirée connue (avant le 25/09/2026) est la sienne.
  */
-export interface Soiree {
-  cle: string
-  debut: number
-  fin: number
-  parties: Archive[]
+export interface Evening {
+  key: string
+  start: number
+  end: number
+  games: Archive[]
   /** Victoires par paire, sur la soirée */
-  victoires: { paire: Paire; gagnees: number }[]
+  victories: { pair: Pair; won: number }[]
 }
-export function soirees(archives: Archive[]): Soiree[] {
-  const groupes = new Map<string, Archive[]>()
+export function evenings(archives: Archive[]): Evening[] {
+  const groups = new Map<string, Archive[]>()
   for (const a of archives) {
-    const cle = a.soiree ?? a.code
-    groupes.set(cle, [...(groupes.get(cle) ?? []), a])
+    const key = a.evening ?? a.code
+    groups.set(key, [...(groups.get(key) ?? []), a])
   }
-  return [...groupes.entries()]
-    .map(([cle, parties]) => {
-      const tri = [...parties].sort((x, y) => x.finishedAt - y.finishedAt)
-      const victoires = new Map<string, { paire: Paire; gagnees: number }>()
-      for (const a of tri) {
-        for (const [paire, team] of [
-          [pairesDe(a)[0], 0],
-          [pairesDe(a)[1], 1],
+  return [...groups.entries()]
+    .map(([key, games]) => {
+      const sort = [...games].sort((x, y) => x.finishedAt - y.finishedAt)
+      const victories = new Map<string, { pair: Pair; won: number }>()
+      for (const a of sort) {
+        for (const [pair, team] of [
+          [pairsOf(a)[0], 0],
+          [pairsOf(a)[1], 1],
         ] as const) {
-          const k = clePaire(paire)
-          const v = victoires.get(k) ?? { paire, gagnees: 0 }
-          if (a.winner === team) v.gagnees += 1
-          victoires.set(k, v)
+          const k = pairKey(pair)
+          const v = victories.get(k) ?? { pair, won: 0 }
+          if (a.winner === team) v.won += 1
+          victories.set(k, v)
         }
       }
       return {
-        cle,
-        debut: tri[0].finishedAt,
-        fin: tri.at(-1)!.finishedAt,
-        parties: tri,
-        victoires: [...victoires.values()].sort((x, y) => y.gagnees - x.gagnees),
+        key,
+        start: sort[0].finishedAt,
+        end: sort.at(-1)!.finishedAt,
+        games: sort,
+        victories: [...victories.values()].sort((x, y) => y.won - x.won),
       }
     })
-    .sort((x, y) => y.fin - x.fin)
+    .sort((x, y) => y.end - x.end)
 }

@@ -14,6 +14,8 @@ jobs:
   # Le contrôle qualité passe avant tout : on ne publie jamais une version qui le rate.
   qualite:
     runs-on: ubuntu-latest
+    # Un émulateur bloqué ne doit pas tourner six heures.
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -39,11 +41,22 @@ jobs:
       - name: Tests du moteur et des composants
         run: npm run test
 
+      # Sans les clés, le site se construit branché sur l'émulateur : de quoi vérifier
+      # avant le merge que le build passe, pas de quoi publier.
+      - name: Build
+        run: npm run build
+
       # L'émulateur Firestore est une application Java.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
+
+      # Les binaires de l'émulateur (~60 Mo), sinon retéléchargés à chaque run.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: emulateurs-firebase-${{ hashFiles('package-lock.json') }}
 
       - name: Tests sur émulateur (règles, parcours, concurrence)
         run: npm run test:rules
@@ -52,6 +65,7 @@ jobs:
     needs: qualite
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       pages: write
@@ -74,10 +88,13 @@ jobs:
       - name: Vérification des clés Firebase
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
         run: |
-          for v in VITE_FIREBASE_API_KEY VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID; do
+          for v in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_MESSAGING_SENDER_ID VITE_FIREBASE_APP_ID; do
             if [ -z "${!v}" ]; then echo "::error::Secret $v manquant (Settings → Secrets and variables → Actions)"; exit 1; fi
           done
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DECK, type Card } from '../cards'
-import { DEFAULT_SEATING, type PlayerId, PLAYER_IDS } from '../players'
+import { DEFAULT_SEATING, type PlayerId, PLAYER_IDS, type Seating } from '../players'
 import { dealHands } from '../deal'
 import {
   IllegalPlay,
@@ -20,7 +20,7 @@ import {
 } from '../play'
 import { scoreDeal, type Contract } from '../scoring'
 import { RULES } from '../rules'
-import { SHAME_THRESHOLD, currentDeal, dealerOf, declaredBelote, starsInGame } from '../replay'
+import { SHAME_THRESHOLD, currentDeal, dealerOf, declaredBelote, seatingOf, starsInGame } from '../replay'
 import type { GameEvent } from '../events'
 
 // Sièges dans le sens du jeu : romain(0) · benel(1) · viv(2) · roux(3)
@@ -85,15 +85,15 @@ describe('résolution du pli', () => {
   })
 
   it('repère une coupe et une surcoupe', () => {
-    const sansCoeur = {
+    const noHearts = {
       romain: ['7s', 'Ad', '7d', 'Ac'] as Card[],
       benel: ['10s', '8s', '10d', '8d'] as Card[],
     }
     let s = newPlay('s', 'viv', DEFAULT_SEATING)
     s = play(s, 'viv', 'Kh', hands.viv)
     s = play(s, 'roux', 'Jh', hands.roux)
-    s = play(s, 'romain', '7s', sansCoeur.romain) // coupe
-    s = play(s, 'benel', '10s', sansCoeur.benel) // surcoupe, obligatoire (JEU-4)
+    s = play(s, 'romain', '7s', noHearts.romain) // coupe
+    s = play(s, 'benel', '10s', noHearts.benel) // surcoupe, obligatoire (JEU-4)
     expect(trickFlags(s.completed[0], 's')).toEqual({ cut: true, overcut: true })
     expect(s.completed[0].winner).toBe('benel')
   })
@@ -193,7 +193,7 @@ describe('BEL-2 — annonce de la belote', () => {
     expect(canDeclareBelote(s, 'viv', 'Ks', ['Ks', '9h'], 's', false)).toBe(false)
   })
 
-  const apresLeRoi = () => {
+  const afterKing = () => {
     let s = newPlay('s', 'viv', DEFAULT_SEATING)
     s = play(s, 'viv', 'Ks', ['Ks', 'Qs'])
     s = play(s, 'roux', 'Qh', ['Qh'])
@@ -202,52 +202,52 @@ describe('BEL-2 — annonce de la belote', () => {
   }
 
   it("la rebelote s'annonce sur la seconde carte, si la belote l'a été sur la première", () => {
-    const s = apresLeRoi()
+    const s = afterKing()
     expect(canDeclareBelote(s, 'viv', 'Qs', ['Qs'], 's', true)).toBe(true)
     // Mais pas pour quelqu'un d'autre.
     expect(canDeclareBelote(s, 'roux', 'Qs', ['Qs'], 's', true)).toBe(false)
   })
 
   it('pas de rebelote si la belote a été oubliée sur la première carte : elle est perdue', () => {
-    expect(canDeclareBelote(apresLeRoi(), 'viv', 'Qs', ['Qs'], 's', false)).toBe(false)
+    expect(canDeclareBelote(afterKing(), 'viv', 'Qs', ['Qs'], 's', false)).toBe(false)
   })
 })
 
 describe('BEL-6 — il faut annoncer aux deux cartes', () => {
   const declaration = (player: PlayerId): GameEvent =>
-    ({ type: 'belote_annoncee', player, half: 'belote', seq: 0, at: 0 }) as GameEvent
+    ({ type: 'belote_declared', player, half: 'belote', seq: 0, at: 0 }) as GameEvent
   // Le rejeu se limite à la donne en cours : il lui faut sa distribution en tête.
-  const donne = { type: 'donne_commencee', dealNumber: 1, seq: 0, at: 0 } as GameEvent
+  const deal = { type: 'deal_started', dealNumber: 1, seq: 0, at: 0 } as GameEvent
 
   it('deux annonces valident la belote', () => {
-    expect(declaredBelote([donne, declaration('viv'), declaration('viv')])).toBe('viv')
+    expect(declaredBelote([deal, declaration('viv'), declaration('viv')])).toBe('viv')
   })
 
   it('une seule annonce ne suffit pas : la belote est perdue', () => {
-    expect(declaredBelote([donne, declaration('viv')])).toBeNull()
+    expect(declaredBelote([deal, declaration('viv')])).toBeNull()
   })
 
   it('deux joueurs ayant annoncé une fois chacun ne valident rien', () => {
-    expect(declaredBelote([donne, declaration('viv'), declaration('roux')])).toBeNull()
+    expect(declaredBelote([deal, declaration('viv'), declaration('roux')])).toBeNull()
   })
 
   it('aucune annonce, aucune belote', () => {
-    expect(declaredBelote([donne])).toBeNull()
+    expect(declaredBelote([deal])).toBeNull()
   })
 })
 
 describe('DEC-8 / DEC-9 — étoiles et honte complète', () => {
   const dealWithStar = (player: PlayerId | null): GameEvent =>
     ({
-      type: 'donne_terminee',
+      type: 'deal_done',
       dealNumber: 1,
-      status: 'reussi',
+      status: 'made',
       cardPoints: [162, 0],
       compared: [162, 0],
       scores: [100, 0],
       beloteDeclaredBy: null,
       beloteForgottenBy: null,
-      etoile: player,
+      shameStar: player,
       seq: 0,
       at: 0,
     }) as GameEvent
@@ -274,32 +274,32 @@ describe('découpage par donne', () => {
     ({ type, seq: 0, at: 0, ...extra }) as GameEvent
 
   it('ne garde que ce qui suit la dernière distribution', () => {
-    const journal = [
-      ev('partie_creee'),
-      ev('donne_commencee', { dealNumber: 1 }),
-      ev('enchere'),
-      ev('carte_jouee'),
-      ev('donne_terminee'),
-      ev('donne_commencee', { dealNumber: 2 }),
-      ev('enchere'),
+    const log = [
+      ev('game_created'),
+      ev('deal_started', { dealNumber: 1 }),
+      ev('bid'),
+      ev('card_played'),
+      ev('deal_done'),
+      ev('deal_started', { dealNumber: 2 }),
+      ev('bid'),
     ]
-    const donne = currentDeal(journal)
-    expect(donne).toHaveLength(2)
-    expect(donne[0]).toMatchObject({ type: 'donne_commencee', dealNumber: 2 })
+    const deal = currentDeal(log)
+    expect(deal).toHaveLength(2)
+    expect(deal[0]).toMatchObject({ type: 'deal_started', dealNumber: 2 })
   })
 
   it('une belote annoncée à la donne précédente ne compte plus', () => {
-    const journal = [
-      ev('donne_commencee', { dealNumber: 1 }),
-      ev('belote_annoncee', { player: 'viv' }),
-      ev('belote_annoncee', { player: 'viv' }),
-      ev('donne_commencee', { dealNumber: 2 }),
+    const log = [
+      ev('deal_started', { dealNumber: 1 }),
+      ev('belote_declared', { player: 'viv' }),
+      ev('belote_declared', { player: 'viv' }),
+      ev('deal_started', { dealNumber: 2 }),
     ]
-    expect(declaredBelote(journal)).toBeNull()
+    expect(declaredBelote(log)).toBeNull()
   })
 
   it("avant la première distribution, il n'y a rien à rejouer", () => {
-    expect(currentDeal([ev('partie_creee')])).toEqual([])
+    expect(currentDeal([ev('game_created')])).toEqual([])
   })
 })
 
@@ -308,19 +308,38 @@ describe('le donneur vient de la distribution', () => {
     ({ type, seq: 0, at: 0, ...extra }) as GameEvent
 
   it('ignore le donneur du document de partie, qui a déjà tourné', () => {
-    const journal = [ev('donne_commencee', { dealNumber: 1, dealer: 'benel' })]
+    const log = [ev('deal_started', { dealNumber: 1, dealer: 'benel' })]
     // Le document dit « viv » parce que la donne est finie et que le tour a avancé.
-    expect(dealerOf(journal, 'viv')).toBe('benel')
+    expect(dealerOf(log, 'viv')).toBe('benel')
   })
 
   it("retombe sur le donneur fourni quand aucune donne n'a commencé", () => {
-    expect(dealerOf([ev('partie_creee')], 'roux')).toBe('roux')
+    expect(dealerOf([ev('game_created')], 'roux')).toBe('roux')
+  })
+})
+
+describe('le placement suit le salon', () => {
+  const ev = (type: string, extra: Record<string, unknown> = {}): GameEvent =>
+    ({ type, seq: 0, at: 0, ...extra }) as GameEvent
+  const before: Seating = ['romain', 'benel', 'viv', 'roux']
+  const after: Seating = ['romain', 'viv', 'benel', 'roux']
+
+  it("après « Rejouer », les équipes changées au salon l'emportent sur celles de la création", () => {
+    const log = [
+      ev('game_created', { seating: before }),
+      ev('seating_set', { seating: after, dealer: 'viv' }),
+    ]
+    expect(seatingOf(log, before)).toEqual(after)
+  })
+
+  it('sans rien au journal, le placement du document de partie', () => {
+    expect(seatingOf([ev('game_created', { seating: null })], after)).toEqual(after)
   })
 })
 
 describe('la main ne circule plus', () => {
   it('se reconstitue depuis la donne distribuée et les cartes posées', () => {
-    const distribuee: Card[] = ['Ks', 'Qs', '9h', '8h', 'Ad', '7d', 'Ac', '7c']
+    const dealtHand: Card[] = ['Ks', 'Qs', '9h', '8h', 'Ad', '7d', 'Ac', '7c']
     let s = newPlay('s', 'viv', DEFAULT_SEATING)
     s = applyPlayed(s, 'viv', 'Ks')
     s = applyPlayed(s, 'roux', 'Qh')
@@ -328,9 +347,9 @@ describe('la main ne circule plus', () => {
     s = applyPlayed(s, 'benel', '10h')
     s = applyPlayed(s, 'viv', '9h')
 
-    expect(handAt(distribuee, s, 'viv')).toEqual(['Qs', '8h', 'Ad', '7d', 'Ac', '7c'])
+    expect(handAt(dealtHand, s, 'viv')).toEqual(['Qs', '8h', 'Ad', '7d', 'Ac', '7c'])
     // Et celle d'un autre joueur ne se déduit pas de ses propres cartes
-    expect(handAt(distribuee, s, 'roux')).toEqual(distribuee)
+    expect(handAt(dealtHand, s, 'roux')).toEqual(dealtHand)
   })
 
   it("le rejeu n'a besoin d'aucune main", () => {

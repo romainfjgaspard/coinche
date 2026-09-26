@@ -1,107 +1,111 @@
 /**
- * Un humain, trois bots : la table doit tourner toute seule.
+ * Un humain, trois bots (dont un ★) : la table doit tourner toute seule.
  *
  * C'est le besoin réel — essayer l'app sans réunir les quatre. Le test force le
  * donneur à être un bot, parce que c'est le cas qui a cassé : un bot doit savoir
- * distribuer, pas seulement suivre.
+ * distribuer, pas seulement suivre. Les bots tournent avec la session de l'onglet :
+ * le test vérifie donc aussi que les règles Firestore les laissent jouer.
  *
- * Nécessite l'émulateur et le serveur de dev.
+ * Nécessite l'émulateur et le serveur de dev (npm run emu, npm run dev:emu).
+ * Captures dans $env:OUT_DIR (par défaut : captures/). Sortie en erreur si la table
+ * n'a pas joué deux donnes entières.
  */
+import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
-const SP = process.env.SORTIE ?? '.'
-const HUMAIN = 'Benel'
+const SP = process.env.OUT_DIR ?? 'captures'
+mkdirSync(SP, { recursive: true })
+const HUMAN = 'Benel'
 /** Les bots réfléchissent vite ici : on teste l'enchaînement, pas l'ergonomie. */
-const URL = 'http://127.0.0.1:5173/coinche/?botDelay=120'
+const URL = 'http://localhost:5173/coinche/?botDelay=120'
+const EMULATOR = 'http://127.0.0.1:8080/v1/projects/demo-coinche/databases/(default)/documents'
+const DEALS = 2
 
 const nav = await chromium.launch()
 const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } })
 const p = await ctx.newPage()
-const erreurs = []
-p.on('pageerror', (e) => erreurs.push(String(e)))
+const errors = []
+p.on('pageerror', (e) => errors.push(String(e)))
 p.on('console', (m) => {
-  const t = m.text()
-  if (t.startsWith('[p]')) console.log(t)
-  else if (['error', 'warning'].includes(m.type())) erreurs.push(t)
+  if (m.type() === 'error' || (m.type() === 'warning' && !m.text().startsWith('[p]'))) errors.push(m.text())
 })
-await p.goto(URL, { waitUntil: 'networkidle' })
+await p.goto(URL, { waitUntil: 'domcontentloaded' })
+await p.waitForSelector('text=Qui es-tu', { timeout: 30000 })
 
-await p.getByRole('button', { name: HUMAIN }).click()
+// Le bouton du joueur vient avant celui qui le retire de la liste.
+await p.getByRole('button', { name: HUMAN }).first().click()
 await p.getByRole('button', { name: 'Créer une nouvelle partie' }).click()
-await p.waitForSelector('text=Autour de la table', { timeout: 20000 })
-const code = (await p.locator('.font-display').first().innerText()).trim()
+await p.waitForSelector('text=Code de la partie', { timeout: 20000 })
+const code = (
+  await p.locator('text=Code de la partie :').locator('xpath=following-sibling::span[1]').innerText()
+).trim()
 
-/** Qui porte l'étiquette « donneur » dans la liste des sièges. */
-async function donneur() {
-  for (const t of await p.locator('ul li').allInnerTexts()) {
-    if (t.includes('donneur'))
-      return t
-        .split('\n')
-        .find((l) => /\w{3,}/.test(l))
-        ?.trim()
-  }
-  return null
-}
-
-// Le donneur est le siège 1 du placement : on change de duo jusqu'à ce qu'il ne
-// soit pas l'humain, pour que ce soit bien un bot qui ait à distribuer.
-const duos = await p.locator('button', { hasText: 'contre' }).all()
-for (const duo of duos) {
-  if (!(await donneur())?.includes(HUMAIN)) break
-  await duo.click()
-  await p.waitForTimeout(700)
-}
-const quiDonne = await donneur()
-console.log('partie', code, '· donneur :', quiDonne)
-if (quiDonne?.includes(HUMAIN)) {
-  console.log('ATTENTION : aucun placement ne met un bot au donneur, le test perd son sens')
-}
-
-// Trois bots prennent les sièges libres.
-for (let i = 0; i < 3; i++) {
-  await p.getByRole('button', { name: '+ bot', exact: true }).first().click()
+// Trois bots prennent les places libres : deux de base, un ★.
+for (const name of ['+ bot', '+ bot', '+ bot ★']) {
+  await p.getByRole('button', { name: name, exact: true }).first().click()
   await p.waitForTimeout(1200)
 }
-await p.waitForTimeout(1500)
-const sieges = (await p.locator('ul li').allInnerTexts()).map((t) => t.replace(/\n/g, ' '))
-console.log('sièges :', sieges.length ? sieges : '(la table a déjà démarré)')
-await p.screenshot({ path: `${SP}/bot-01-salon.png` })
 
-// Personne ne clique « Distribuer » : c'est au bot donneur de lancer la donne.
-const debut = Date.now()
-const demarre = await p
-  .waitForSelector('text=DONNE 1', { timeout: 90000 })
+// La table est complète : le bouton de lancement nomme le donneur. On change de duo
+// jusqu'à ce que ce soit un bot, pour qu'un bot ait à distribuer.
+const launch = p.getByRole('button', { name: /Lancer la partie|^Distribuer$/ })
+await launch.waitFor({ timeout: 20000 })
+for (const duo of await p.locator('button', { hasText: 'contre' }).all()) {
+  if (!(await launch.innerText()).includes('Distribuer')) break
+  await duo.click()
+  await p.waitForTimeout(800)
+}
+const launchText = await launch.innerText()
+console.log('game', code, '·', launchText)
+if (launchText.includes('Distribuer')) console.log('ATTENTION : aucun placement ne met un bot au donneur')
+await p.screenshot({ path: `${SP}/bot-01-salon.png` })
+await launch.click()
+
+const start = Date.now()
+const started = await p
+  .waitForSelector('text=DONNE 1', { timeout: 60000 })
   .then(() => true)
   .catch(() => false)
 console.log(
-  'la table a démarré sans intervention humaine :',
-  demarre,
-  demarre ? `(en ${((Date.now() - debut) / 1000).toFixed(1)} s)` : '',
+  'la table a démarré :',
+  started,
+  started ? `(en ${((Date.now() - start) / 1000).toFixed(1)} s)` : '',
 )
 
-/** L'humain joue bêtement : première carte légale, et il passe toujours. */
-let cartes = 0
-for (let tour = 0; tour < 3000; tour++) {
-  if (await p.getByRole('button', { name: 'Quitter la partie' }).count()) break
-  const suivante = p.getByRole('button', { name: /Distribuer/ })
-  if (await suivante.count()) {
-    await suivante
-      .first()
-      .click()
-      .catch(() => {})
+/** Ce que dit le journal : c'est lui qui fait foi. */
+async function log() {
+  const r = await fetch(`${EMULATOR}/games/${code}/events?pageSize=1000`, {
+    headers: { Authorization: 'Bearer owner' },
+  })
+  return ((await r.json()).documents ?? []).map((d) => d.fields)
+}
+const dealsDone = async () => (await log()).filter((f) => f.type.stringValue === 'deal_done').length
+
+/** L'humain joue bêtement : première carte jouable, et il passe toujours. */
+let cards = 0
+const deadline = Date.now() + 6 * 60 * 1000
+while (Date.now() < deadline && (await dealsDone()) < DEALS) {
+  const nextGame = p.getByRole('button', { name: 'Distribuer la donne suivante' })
+  if (await nextGame.count()) {
+    await nextGame.click().catch(() => {})
     continue
   }
-  // La carte d'abord : le panneau d'enchères peut encore traîner à l'écran, et
-  // cliquer « Passe » hors de son tour bloquait l'humain pour toute la donne.
+  // La carte d'abord : le panneau d'enchères peut encore traîner à l'écran.
   if (await p.locator('text=à toi de jouer').count()) {
-    const carte = p.locator('button[aria-label^="Jouer le"]').first()
-    if (await carte.count()) {
-      await carte
-        .click({ force: true, timeout: 4000 })
-        .then(() => {
-          cartes++
-        })
+    const card = p.locator('button[aria-label^="Jouer le"]').first()
+    if (await card.count()) {
+      // Clic sur le bouton lui-même : les cartes de la main se chevauchent, et un clic au
+      // centre tombait sur la voisine, non jouable.
+      await card
+        .evaluate((b) => b.click())
+        .then(() => cards++)
         .catch(() => {})
+      await p.waitForTimeout(300)
+      const err = await p.evaluate(
+        () =>
+          document.querySelector('#app').__vue_app__.config.globalProperties.$pinia._s.get('session').error,
+      )
+      if (err) errors.push('écran : ' + err)
     }
     continue
   }
@@ -112,63 +116,22 @@ for (let tour = 0; tour < 3000; tour++) {
       .catch(() => {})
     continue
   }
-  await p.waitForTimeout(250)
+  await p.waitForTimeout(400)
 }
 
-const ecran = (await p.locator('body').innerText()).replace(/\n+/g, ' | ')
-
-/** Le journal fait foi : c'est lui qui dit si la table a réellement avancé. */
-const rep = await fetch(
-  `http://127.0.0.1:8080/v1/projects/demo-coinche/databases/(default)/documents/parties/${code}/evenements?pageSize=400`,
-  { headers: { Authorization: 'Bearer owner' } },
-)
-const docs = (await rep.json()).documents ?? []
-const types = docs.map((d) => d.fields.type.stringValue)
-const detail = docs.slice(-6).map((d) => {
-  const g = d.fields
-  return `${g.type.stringValue}${g.player ? '/' + g.player.stringValue : ''}${g.card ? '/' + g.card.stringValue : ''}`
-})
-const compte = {}
-for (const t of types) compte[t] = (compte[t] ?? 0) + 1
-console.log("cartes posées par l'humain :", cartes, '· donne :', ecran.match(/DONNE (\d+)/)?.[1] ?? '—')
-console.log('journal :', JSON.stringify(compte))
-console.log('derniers événements :', detail.join(' > '))
-const creation = docs.find((d) => d.fields.type.stringValue === 'partie_creee')
-console.log(
-  'placement :',
-  creation?.fields?.seating?.arrayValue?.values?.map((v) => v.stringValue).join(', '),
-)
-const g = await (
-  await fetch(
-    `http://127.0.0.1:8080/v1/projects/demo-coinche/databases/(default)/documents/parties/${code}`,
-    { headers: { Authorization: 'Bearer owner' } },
-  )
-).json()
-const f = g.fields ?? {}
-console.log(
-  'écran humain : monTour=' + (await p.locator('text=à toi de jouer').count()),
-  '· cartes cliquables=' + (await p.locator('button[aria-label^="Jouer le"]').count()),
-  '· panneau enchère=' + (await p.locator('text=Ton enchère').count()),
-)
-console.log(
-  'partie :',
-  'phase=' + f.phase?.stringValue,
-  'donne=' + f.dealNumber?.integerValue,
-  'donneur=' + f.dealer?.stringValue,
-  'moveSeq=' + f.moveSeq?.integerValue,
-  'eventSeq=' + f.eventSeq?.integerValue,
-)
-for (const j of ['benel', 'roux', 'viv', 'romain']) {
-  const r = await fetch(
-    `http://127.0.0.1:8080/v1/projects/demo-coinche/databases/(default)/documents/parties/${code}/mains/${j}`,
-    { headers: { Authorization: 'Bearer owner' } },
-  )
-  const d = await r.json()
-  const n = d.fields?.cards?.arrayValue?.values?.length
-  console.log(`  main ${j} :`, r.status, n === undefined ? JSON.stringify(d).slice(0, 90) : `${n} cartes`)
-}
+const events = await log()
+const tally = {}
+for (const f of events) tally[f.type.stringValue] = (tally[f.type.stringValue] ?? 0) + 1
+const finishedGames = tally.deal_done ?? 0
+console.log("cartes posées par l'humain :", cards)
+console.log('journal :', JSON.stringify(tally))
 await p.screenshot({ path: `${SP}/bot-02-table.png` })
-console.log('écran final :', ecran.slice(0, 260))
-console.log('erreurs :', erreurs.length)
-for (const e of [...new Set(erreurs)].slice(0, 5)) console.log('   ', e.slice(0, 160))
+console.log('erreurs de la page :', errors.length)
+for (const e of [...new Set(errors)].slice(0, 5)) console.log('   ', e.slice(0, 200))
 await nav.close()
+
+if (finishedGames < DEALS) {
+  console.log(`ÉCHEC : ${finishedGames} donne(s) finie(s) sur ${DEALS}`)
+  process.exit(1)
+}
+console.log(`OK : ${finishedGames} donnes jouées entières, en ${((Date.now() - start) / 1000).toFixed(0)} s`)

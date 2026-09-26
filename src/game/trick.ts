@@ -1,5 +1,5 @@
 /** Jeu de la carte : ce qu'on a le droit de jouer, et qui remporte le pli. */
-import { type Atout, type Card, isTrump, strength, suitOf, value } from './cards'
+import { type TrumpMode, type Card, isTrump, strength, suitOf, value } from './cards'
 
 /** Une carte posée sur la table, avec son auteur (index de siège 0-3). */
 export interface PlayedCard {
@@ -8,7 +8,7 @@ export interface PlayedCard {
 }
 
 /** Index du gagnant dans le pli (0 = premier à avoir joué), et non le siège. */
-function winningIndex(trick: PlayedCard[], trump: Atout): number {
+function winningIndex(trick: PlayedCard[], trump: TrumpMode): number {
   const lead = suitOf(trick[0].card)
   let best = 0
   for (let i = 1; i < trick.length; i++) {
@@ -23,11 +23,11 @@ function winningIndex(trick: PlayedCard[], trump: Atout): number {
   return best
 }
 
-export function trickWinner(trick: PlayedCard[], trump: Atout): number {
+export function trickWinner(trick: PlayedCard[], trump: TrumpMode): number {
   return trick[winningIndex(trick, trump)].seat
 }
 
-export function trickPoints(trick: PlayedCard[], trump: Atout): number {
+export function trickPoints(trick: PlayedCard[], trump: TrumpMode): number {
   return trick.reduce((sum, p) => sum + value(p.card, trump), 0)
 }
 
@@ -38,7 +38,7 @@ const sameTeam = (a: number, b: number) => (a & 1) === (b & 1)
  * Retourner la liste complète (plutôt qu'un booléen) permet de la journaliser
  * dans `jouablesAvant[]`, et donc d'analyser plus tard ce qu'un joueur aurait pu jouer.
  */
-export function playableCards(hand: Card[], trick: PlayedCard[], trump: Atout, seat: number): Card[] {
+export function playableCards(hand: Card[], trick: PlayedCard[], trump: TrumpMode, seat: number): Card[] {
   // JEU-1 — celui qui entame joue ce qu'il veut
   if (trick.length === 0) return [...hand]
 
@@ -52,11 +52,11 @@ export function playableCards(hand: Card[], trick: PlayedCard[], trump: Atout, s
 
   // JEU-2 — fournir la couleur demandée
   if (followers.length > 0) {
-    // Cas particulier : on demande atout, il faut monter si possible — et au
-    // tout-atout, chaque couleur est un atout : on monte toujours.
+    // JEU-6 — on demande atout : il faut monter si on le peut, même sur son partenaire ;
+    // au tout-atout, chaque couleur est un atout : on monte toujours.
     if (lead === trump || trump === 'ta') {
       const higher = followers.filter((c) => strength(c, trump) > strength(winningCard, trump))
-      return higher.length > 0 && !partnerWinning ? higher : followers
+      return higher.length > 0 ? higher : followers
     }
     return followers
   }

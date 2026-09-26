@@ -39,13 +39,13 @@ describe('cartes', () => {
   })
 
   it('alterne rouge et noir pour que deux couleurs voisines ne se confondent pas', () => {
-    const couleurs = (main: Card[]) => main.map((c) => c.slice(-1))
+    const suits = (hand: Card[]) => hand.map((c) => c.slice(-1))
     // Sans atout : pique, cœur, trèfle, carreau — jamais deux noires côte à côte.
-    expect(couleurs(sortHand(['7c', '8d', '9s', '10h'], null))).toEqual(['s', 'h', 'c', 'd'])
+    expect(suits(sortHand(['7c', '8d', '9s', '10h'], null))).toEqual(['s', 'h', 'c', 'd'])
     // Atout cœur en tête, puis on repart sur une noire.
-    expect(couleurs(sortHand(['7c', '8d', '9s', '10h'], 'h'))).toEqual(['h', 's', 'd', 'c'])
+    expect(suits(sortHand(['7c', '8d', '9s', '10h'], 'h'))).toEqual(['h', 's', 'd', 'c'])
     // Sans rouge disponible, on garde les noires groupées par couleur.
-    expect(couleurs(sortHand(['Ac', '7s', 'Kc'], null))).toEqual(['s', 'c', 'c'])
+    expect(suits(sortHand(['Ac', '7s', 'Kc'], null))).toEqual(['s', 'c', 'c'])
   })
 
   it('DIS-2 — on ramasse les plis et on coupe, sans rebattre', () => {
@@ -98,6 +98,14 @@ describe('cartes jouables', () => {
     expect(playableCards(hand, trick, 's', 2)).toEqual(hand)
   })
 
+  it('JEU-6 — atout entamé : on monte, même sur son partenaire', () => {
+    // Le siège 0 (partenaire du siège 2) est maître au 9 d'atout : le siège 2 doit quand même monter.
+    const trick = [play(0, '9s'), play(1, '7s')]
+    expect(playableCards(['Js', '8s', 'Kd'], trick, 's', 2)).toEqual(['Js'])
+    // Sans atout plus fort, n'importe quel atout.
+    expect(playableCards(['8s', 'Ks', 'Kd'], [play(0, 'Js'), play(1, '7s')], 's', 2)).toEqual(['8s', 'Ks'])
+  })
+
   it("celui qui entame joue ce qu'il veut", () => {
     expect(playableCards(['Ad', '7s'], [], 's', 0)).toEqual(['Ad', '7s'])
   })
@@ -148,13 +156,13 @@ describe('décompte', () => {
 
   it('DEC-1 — contrat réussi : le preneur marque son enchère, la défense rien', () => {
     const res = scoreDeal(allTricksTo(0), contract(), RULES)
-    expect(res.status).toBe('reussi')
+    expect(res.status).toBe('made')
     expect(res.scores).toEqual([100, 0])
   })
 
   it("DEC-2 — contrat chuté : la défense marque l'enchère, le preneur rien", () => {
     const res = scoreDeal(allTricksTo(1), contract(), RULES)
-    expect(res.status).toBe('chute')
+    expect(res.status).toBe('down')
     expect(res.scores).toEqual([0, 100])
   })
 
@@ -167,6 +175,16 @@ describe('décompte', () => {
     const res = scoreDeal(allTricksTo(0), contract({ capot: true, value: RULES.capotValue }), RULES)
     expect(res.status).toBe('capot')
     expect(res.scores).toEqual([250, 0])
+  })
+
+  it('ENC-9 — la générale se fait seul : un pli du partenaire la fait chuter', () => {
+    const generale = contract({ generale: true, value: RULES.generaleValue })
+    expect(scoreDeal(allTricksTo(0), generale, RULES).status).toBe('generale')
+    // Sept plis au preneur (siège 0), le dernier à son partenaire (siège 2).
+    const tricks = [...allTricksTo(0).slice(0, 7), ...allTricksTo(2).slice(0, 1)]
+    const res = scoreDeal(tricks, generale, RULES)
+    expect(res.status).toBe('down')
+    expect(res.scores).toEqual([0, 250])
   })
 
   it("BEL-5 — la belote n'est jamais marquée, seulement comparée", () => {
@@ -259,22 +277,22 @@ describe('DEC-8 — capot non annoncé', () => {
 })
 
 describe('tout-atout', () => {
-  const pli = (...cards: Card[]): PlayedCard[] => cards.map((card, seat) => ({ seat, card }))
+  const trick = (...cards: Card[]): PlayedCard[] => cards.map((card, seat) => ({ seat, card }))
 
   it("chaque couleur suit l'ordre de l'atout : le valet bat l'as", () => {
-    expect(trickWinner(pli('As', 'Js', '9s', '10s'), 'ta')).toBe(1)
+    expect(trickWinner(trick('As', 'Js', '9s', '10s'), 'ta')).toBe(1)
     // En sans-atout, c'est l'as.
-    expect(trickWinner(pli('As', 'Js', '9s', '10s'), null)).toBe(0)
+    expect(trickWinner(trick('As', 'Js', '9s', '10s'), null)).toBe(0)
   })
 
   it("aucune couleur n'en coupe une autre : la couleur demandée l'emporte", () => {
-    expect(trickWinner(pli('7s', 'Jh', '8s', 'Jd'), 'ta')).toBe(2)
+    expect(trickWinner(trick('7s', 'Jh', '8s', 'Jd'), 'ta')).toBe(2)
   })
 
   it('on doit monter dans la couleur demandée quand on le peut', () => {
-    const main: Card[] = ['9s', '7s', 'Ah']
+    const hand: Card[] = ['9s', '7s', 'Ah']
     // L'adversaire (siège 0) mène avec l'as : le 9 le bat, le 7 non.
-    expect(playableCards(main, pli('As'), 'ta', 1)).toEqual(['9s'])
+    expect(playableCards(hand, trick('As'), 'ta', 1)).toEqual(['9s'])
   })
 
   it('les points : 38 par couleur, 152 en tout', () => {
@@ -290,18 +308,18 @@ describe('tout-atout', () => {
 describe('les exemples de la page des règles', () => {
   // Le preneur fait X points de cartes sur 162 ; la défense fait le reste. Sa belote
   // compte pour lui dans les deux conditions.
-  const reussit = (x: number, contrat: number, belote: boolean) =>
-    isContractMade(x + (belote ? 20 : 0), 162 - x, contrat)
-  const seuil = (contrat: number, belote: boolean) => {
-    for (let x = 0; x <= 162; x++) if (reussit(x, contrat, belote)) return x
+  const succeeds = (x: number, contract: number, belote: boolean) =>
+    isContractMade(x + (belote ? 20 : 0), 162 - x, contract)
+  const threshold = (contract: number, belote: boolean) => {
+    for (let x = 0; x <= 162; x++) if (succeeds(x, contract, belote)) return x
     return null
   }
 
   it('sans belote : 82 à 80, 90 à 90, 100 à 100', () => {
-    expect([80, 90, 100].map((c) => seuil(c, false))).toEqual([82, 90, 100])
+    expect([80, 90, 100].map((c) => threshold(c, false))).toEqual([82, 90, 100])
   })
 
   it('avec la belote : 72 à 80, 72 à 90, 80 à 100', () => {
-    expect([80, 90, 100].map((c) => seuil(c, true))).toEqual([72, 72, 80])
+    expect([80, 90, 100].map((c) => threshold(c, true))).toEqual([72, 72, 80])
   })
 })
