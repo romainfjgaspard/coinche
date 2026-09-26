@@ -244,6 +244,29 @@ describe('la partie — ce qu’un joueur peut changer', () => {
     await assertSucceeds(updateDoc(game(as(UID.viv)), { nextGame: 'WXYZ' }))
     await assertFails(updateDoc(game(as(UID.roux)), { nextGame: 'QRST' }))
   })
+
+  it('après « Rejouer », les équipes changent avant que tout le monde soit revenu', async () => {
+    // Le placement est connu dès la création ; seul Romain est déjà assis.
+    await poser({
+      ...PARTIE,
+      seats: { romain: { uid: UID.romain } },
+      seatedUids: [UID.romain],
+      phase: 'lobby',
+      dealNumber: 0,
+    })
+    const autre = ['romain', 'viv', 'benel', 'roux']
+    await assertSucceeds(updateDoc(partie(as(UID.romain)), { eventSeq: 6, seating: autre, dealer: autre[1] }))
+    // Mais pas avec un joueur qui n'était pas de la partie.
+    await poser({
+      ...PARTIE,
+      seats: { romain: { uid: UID.romain } },
+      seatedUids: [UID.romain],
+      phase: 'lobby',
+      dealNumber: 0,
+    })
+    const intrus = ['romain', 'viv', 'jean', 'roux']
+    await assertFails(updateDoc(partie(as(UID.romain)), { eventSeq: 6, seating: intrus, dealer: intrus[1] }))
+  })
 })
 
 describe('création de partie', () => {

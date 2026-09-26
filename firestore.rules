@@ -35,6 +35,16 @@ service cloud.firestore {
              && d.seating.toSet() == d.seats.keys().toSet()
              && d.dealer == d.seating[1];
     }
+    // Changer les équipes au salon : les quatre mêmes joueurs, dans un autre ordre. Après
+    // « Rejouer », le placement est connu avant que tout le monde soit revenu s'asseoir.
+    function reorderedSeating(d, o) {
+      return (o.seating == null && validSeating(d))
+             || (o.seating != null
+                 && d.seating is list
+                 && d.seating.size() == 4
+                 && d.seating.toSet() == o.seating.toSet()
+                 && d.dealer == d.seating[1]);
+    }
 
     // --- Les sièges
     //
@@ -112,7 +122,7 @@ service cloud.firestore {
              && (d.phase != 'finished' || d.scores[0] > target || d.scores[1] > target)
              // Les équipes ne changent qu'au salon, avant la première donne.
              && (!changed().hasAny(['seating'])
-                 || (o.dealNumber == 0 && o.phase == 'lobby' && validSeating(d)));
+                 || (o.dealNumber == 0 && o.phase == 'lobby' && reorderedSeating(d, o)));
     }
 
     // --- « Rejouer » : la partie finie garde le code de la suivante, une seule fois.
