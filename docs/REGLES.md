@@ -2,7 +2,7 @@
 
 Nos règles maison, tranchées le 23 septembre 2026. Chaque règle porte un identifiant (`ENC-5`, `JEU-2`…) que le code cite en commentaire.
 
-État : ✅ appliqué par le code · ⚠️ le code ne suit pas encore la règle (voir la note).
+État : ✅ appliqué par le code.
 
 Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/game/` : `cards.ts` (ordre et valeurs), `bidding.ts` (enchères, coinche), `trick.ts` et `play.ts` (jeu de la carte, belote), `scoring.ts` (décompte). L'objectif et le blitz sont des options du salon (`src/firebase/partie.ts`).
 
@@ -16,10 +16,8 @@ Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/gam
 | MAT-2 | Le jeu tourne dans le sens des aiguilles d'une montre | ✅ |
 | MAT-3 | Le donneur tourne d'un joueur vers la gauche à chaque donne | ✅ |
 | DIS-1 | Distribution en 3-2-3 | ✅ |
-| DIS-2 | **On ne rebat pas** : on ramasse les plis dans l'ordre où ils ont été gagnés, et on coupe | ⚠️ |
+| DIS-2 | **On ne rebat pas** : on ramasse les plis dans l'ordre où ils ont été gagnés, et on coupe. Après une donne blanche ou une donne blitz, personne ne connaît les mains : on rebat | ✅ |
 | DIS-3 | Si les 4 passent : **le même donneur redonne**. Une donne blanche ne compte pas (son numéro est quand même consommé) | ✅ |
-
-> ⚠️ **DIS-2** — le réglage existe (`shuffleEveryDeal: false`) et le ramassage est codé (`gatherAndCut`), mais la distribution ne reçoit jamais les plis de la donne précédente : **le jeu est rebattu à chaque donne**. Seule la coupe est tirée et enregistrée.
 
 ## 2. Ordre et valeur des cartes
 
@@ -44,10 +42,8 @@ Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/gam
 | ENC-6 | Les enchères s'arrêtent après 3 passes consécutives suivant une enchère | ✅ |
 | ENC-7 | 4 passes d'emblée → on redonne (cf. DIS-3) | ✅ |
 | ENC-8 | **Capot** : annonce des 8 plis. Vaut **250** | ✅ |
-| ENC-9 | **Générale** : tous les plis **sans son partenaire**. Vaut **250**. Le joueur qui annonce la générale **prend la main** et entame | ⚠️ |
+| ENC-9 | **Générale** : tous les plis **sans son partenaire** — un pli ramassé par le partenaire la fait chuter. Vaut **250**. Le joueur qui annonce la générale **prend la main** et entame | ✅ |
 | ENC-10 | **Sans-Atout et Tout-Atout n'existent qu'en capot et en générale.** Pas de contrat chiffré (80–170) à SA ou TA | ✅ |
-
-> ⚠️ **ENC-9** — l'entame par le preneur est appliquée, mais la réussite est jugée sur les plis **du camp** : si le partenaire ramasse un pli, la générale compte quand même comme réussie.
 
 ## 4. Coinche et surcoinche
 
@@ -68,7 +64,7 @@ Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/gam
 | JEU-3 | À défaut : obligation de couper si l'adversaire est maître | ✅ |
 | JEU-4 | Obligation de monter à l'atout si un adversaire a déjà coupé | ✅ |
 | JEU-5 | Si le partenaire est maître : **« pisser » autorisé** — on se défausse librement, aucune obligation de couper | ✅ |
-| JEU-6 | **Atout entamé** : on doit monter si on le peut, sauf si le partenaire est maître (on peut alors fournir sans monter). Au tout-atout, cela vaut pour toute couleur entamée | ✅ |
+| JEU-6 | **Atout entamé** : tout le monde monte s'il le peut, **même sur son partenaire**. Au tout-atout, cela vaut pour toute couleur entamée | ✅ |
 | JEU-8 | **Sous-coupe obligatoire** : si un adversaire a coupé et qu'on ne peut pas monter, on doit quand même jouer atout | ✅ |
 | JEU-7 | Le pli revient au plus fort atout, sinon à la plus forte carte de la couleur demandée | ✅ |
 | JEU-9 | La dernière carte d'une donne est jouée d'office (belote comprise) | ✅ |

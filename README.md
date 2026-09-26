@@ -22,6 +22,10 @@ Stack : Vue 3 + TypeScript + Vite + Pinia + Tailwind v4, Firebase (Firestore, au
 ## Documents
 
 - **`docs/REGLES.md`** — nos règles ; chaque point porte un identifiant (`ENC-5`…)
+- **`docs/BOTS.md`** — les deux niveaux de bots, comment ils enchérissent et jouent, le tournoi qui les mesure
+- **`docs/ANALYSE.md`** — revoir une donne, « Aurait-on pu gagner ? », l'analyse carte par carte et le solveur
+- **`docs/STATISTIQUES.md`** — chaque statistique, et comment elle se calcule (panache, bilan, lanceur…)
+- **`docs/SECURITE.md`** — ce que les règles Firestore garantissent, et leurs limites sans serveur
 - **`docs/MODELE-DONNEES.md`** — journal d'événements, archives, conservation intégrale pour les stats
 - **`docs/QUALITE.md`** — outils de qualité (équivalents Python : ruff → ESLint + Prettier, uv → npm), audit
 - **`docs/FIREBASE.md`** — le projet Firebase, les clés, le déploiement, et comment le refaire
@@ -67,7 +71,7 @@ l'émulateur dès que le mode est `test`.
 Parcours dans de vrais navigateurs (Playwright), avec l'émulateur et `npm run dev:emu` déjà lancés :
 `npm run test:e2e` (partie complète à quatre), `npm run test:bot` (un humain, trois bots),
 `npm run test:apercu` (captures des stats), `node tests/audit.mjs` (revue d'affichage). Captures dans
-`$env:SORTIE`. **Ces scripts sont à remettre à jour** : l'interface a changé depuis (voir `docs/QUALITE.md`). Chromium s'installe avec
+`captures/` (ignoré par git), ou dans `$env:SORTIE`. Chromium s'installe avec
 `npx playwright install chromium`.
 
 Pour remplir les statistiques de l'émulateur : `npm run seed:stats` (émulateur lancé ;

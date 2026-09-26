@@ -6,7 +6,7 @@
 
 N'importe quelle partie peut donc être rejouée carte par carte, et une statistique inventée plus tard se calcule sur tout l'historique.
 
-Trois réglages ne sont **pas** dans le journal : l'objectif, le blitz et le placement choisis au salon avant la première donne. Ils vivent dans le document de partie, puis dans l'archive. Pour rejouer une partie, il faut donc le journal **et** le document de partie ou l'archive.
+Deux réglages ne sont **pas** dans le journal : l'objectif et le blitz choisis au salon avant la première donne. Ils vivent dans le document de partie, puis dans l'archive. Le placement, lui, y est : à la création (« Rejouer »), et à chaque changement d'équipes au salon (`placement`).
 
 ## Identité : des joueurs, pas des comptes
 
@@ -50,14 +50,15 @@ archives/{code}               le condensé de fin de partie, écrit une fois, ja
 | `suivante` | « Rejouer » : le code de la partie suivante, où chacun est rebasculé |
 | `soiree` | le code de la première partie d'une chaîne de « Rejouer » (absent sur la première) |
 | `pause` | `{ par, depuis }` pendant une pause, absent ou nul sinon |
+| `dernierSiege` | le siège touché par le dernier changement de siège : les règles Firestore en ont besoin pour le contrôler |
 
-Un **siège** (`Siege`) : `{ uid, bot?, niveau?, remplace?, aideBot? }`.
+Un **siège** (`Siege`) : `{ uid, bot?, niveau?, remplace?, ancien?, aideBot? }`.
 
 - `bot`, `niveau` : le siège est tenu par un bot, de ce niveau.
-- `remplace` : un bot a pris la place d'un joueur qui ne répondait plus. Le siège garde le `playerId` du joueur : les coups du bot sont attribués à son nom, et le joueur peut reprendre sa place.
+- `remplace`, `ancien` : un bot a pris la place d'un joueur qui ne répondait plus. Le siège garde le `playerId` du joueur (les coups du bot sont attribués à son nom) et, dans `ancien`, son compte : lui seul peut reprendre sa place.
 - `aideBot` : le joueur a repris sa place ; un bot a joué pour lui, la partie comptera « avec bot ».
 
-Les bots tournent dans l'onglet de celui qui les a ajoutés. Si cet onglet se ferme, un autre onglet reprend leurs sièges (`reprendreSiegeBot`) au bout de 15 s de silence, 45 s pour le donneur entre deux donnes.
+Les bots tournent dans l'onglet de celui qui les a ajoutés, **avec sa session** : leurs sièges portent son compte. Si cet onglet se ferme, l'onglet d'un autre joueur assis reprend leurs sièges (`reprendreSiegeBot`) au bout de 15 s de silence, 45 s pour le donneur entre deux donnes. Voir `docs/BOTS.md` et `docs/SECURITE.md`.
 
 ## Le journal (`src/game/events.ts`)
 
@@ -67,6 +68,7 @@ Chaque événement porte `seq` (ordre), `at` (horodatage) et, pour une décision
 |---|---|
 | `partie_creee` | `seats` (playerId → uid, le créateur seul), `seating` (nul, sauf après « Rejouer »), `rules` (copie des règles), `engineVersion` |
 | `joueur_connecte` | `player` |
+| `placement` | `player`, `seating`, `dealer` : les équipes changées au salon, avant la première donne |
 | `donne_commencee` | `dealNumber`, `dealer`, `cut` |
 | `enchere` | `player`, `round`, `entry` : `{ kind: 'passe' \| 'contrat' \| 'capot' \| 'generale', player, value?, suit?, declaration? }` |
 | `coinche`, `surcoinche` | `player` |

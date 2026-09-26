@@ -60,48 +60,22 @@ Sur chaque PR et chaque push sur `main`, le job **qualite** : `npm ci`, lint, fo
 | Important | Belote vérifiée après l'écriture de la carte | Vérifiée avant |
 | Important | Le bot lisait le contrat de la 1ʳᵉ donne à toutes les donnes | Contrat de la donne en cours |
 
-## Audit du 25/09/2026 : reste à faire
+## Audit du 25/09/2026
 
-Le ménage de la racine, le code mort (`readHand`, `isBotSeat`, `botSeats`…), la CI et ces docs ont été traités. Le reste, par priorité :
+Traité : le ménage de la racine, le code mort, la CI, les docs ; les règles Firestore (sièges, mains, journal, partie, archive — voir `docs/SECURITE.md`) ; DIS-2, ENC-9 et JEU-6 ; la main hors écran sur tablette ; « Rejouer » puis changer les équipes ; les duos de bots comptés deux fois ; le drapeau « aidé par un bot » ; la collision de codes de partie ; les scripts Playwright.
 
-### Sécurité (règles Firestore)
-
-Pas de serveur : les règles sont la seule barrière. Aujourd'hui, un joueur qui bricole depuis la console du navigateur peut :
+### Reste à faire
 
 | Gravité | Problème | Piste |
 |---------|----------|-------|
-| Bloquant | Réécrire le siège d'un autre (`claimsSeat` ne contrôle pas ce qui change dans `seats`) et lire sa main | N'autoriser que l'ajout de sa propre clé, et des transitions explicites pour les bots — la reprise d'un bot par un autre onglet passe aujourd'hui par ce trou |
-| Bloquant | Réécrire tout le document de partie (`phase: 'terminee'` desceller la donne en cours, scores, placement) | Liste blanche des champs modifiables, transitions de phase contrôlées |
-| Important | Réécrire sa propre main (ou le donneur, celles des autres) à tout moment | N'autoriser que « retirer une carte », et l'écriture du donneur pendant la distribution |
-| Important | Écrire au journal au nom d'un autre joueur | Exiger que `player` soit le siège de l'auteur, et `seq == eventSeq` |
-| Important | Créer l'archive avant la fin, avec de faux scores : la vraie ne pourrait plus s'écrire | Création seulement si la partie est terminée |
-
-Les bots ne trichent pas (le code et les tests le garantissent), mais rien dans les règles ne les en empêcherait : les bots d'un onglet partagent une session. Une étanchéité complète demanderait une distribution côté serveur.
-
-### Bugs
-
-| Gravité | Problème | Piste |
-|---------|----------|-------|
-| Bloquant | Sur tablette, téléphone en paysage ou fenêtre PC étroite (moins de 1024 px), les dernières cartes de la main sortent de l'écran et ne se jouent plus | Borner la largeur à 448 px dans le calcul de la main (`GameTable`, `BiddingPanel`) |
-| Important | DIS-2 jamais appliquée : on rebat toujours au lieu de ramasser et couper | Transmettre les plis de la donne précédente à `deal` |
-| Important | ENC-9 : une générale est réussie même si le partenaire ramasse un pli | Vérifier que le preneur seul fait les huit plis |
-| Important | « Rejouer » puis changer les équipes au salon : le rejeu garde l'ancien placement | Prendre le placement du document de partie |
-| Important | Statistiques des duos doublées quand deux bots d'un même niveau sont partenaires | Dédoublonner la paire avant d'additionner |
 | Important | Fin de donne en plusieurs écritures : un onglet fermé pile entre deux fige la table ; archive jamais écrite si le dernier client disparaît | Écrire les conséquences dans la même transaction, ou laisser n'importe quel client clore et archiver |
-| Important | Code de partie tiré sans vérifier qu'il est libre : une ancienne partie peut être écrasée (rare) | Transaction « lire, puis créer si absent » |
-| Important | Rejoindre sa propre place efface le drapeau « aidé par un bot » | Fusionner le siège au lieu de le réécrire |
+| Important | Aucun test pour le store (`session.ts`), `botRunner.ts`, ni les composables | Tests avec minuteries simulées |
+| Mineur | Un joueur assis peut encore fausser la partie en cours depuis la console (limite sans serveur, voir `docs/SECURITE.md`) | Une Cloud Function qui valide chaque coup |
 | Mineur | La belote non annoncée du preneur compte dans l'analyse et pour le bot ★ | Ne compter que la belote annoncée |
 | Mineur | Écoutes Firestore sans rappel d'erreur : « Connexion à la partie… » peut rester sans issue | Rappel d'erreur, bouton « Quitter » |
 | Mineur | Deux clics simultanés sur « Rejouer » créent deux parties | Réserver la suivante dans la transaction |
-
-### Outillage et structure
-
-| Gravité | Problème | Piste |
-|---------|----------|-------|
-| Important | Les quatre scripts Playwright (`tests/*.mjs`) sont cassés : textes et sélecteurs périmés | Les remettre à jour sur l'interface actuelle |
-| Important | Aucun test pour le store (`session.ts`), `botRunner.ts`, ni les composables | Tests avec minuteries simulées |
 | Mineur | Le typage de `tests/` et `scripts/` n'est vérifié nulle part | Les inclure dans un tsconfig |
 | Mineur | Duplication téléphone / PC : ~100 lignes entre `StatsScreen` et `StatsPartiePc`, ~125 entre `StatsGlobalView` et `StatsGlobalPc` | Composables `useStatsPartie`, `useStatsGlobales` |
 | Mineur | Boucle de Monte-Carlo presque identique entre `analyseJoueur.ts` et `botExpert.ts` | Une fonction commune |
-| Mineur | Identifiants en français dans `partie.ts` et `botRunner.ts`, contre la convention | Renommage progressif |
+| Mineur | Identifiants en français dans le code, contre la convention | Tout passer en anglais (PR dédiée) |
 | Mineur | Lectures Firestore typées par `as` sans validation | `withConverter` typé |
