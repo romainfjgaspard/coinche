@@ -4,7 +4,7 @@ Nos règles maison, tranchées le 23 septembre 2026. Chaque règle porte un iden
 
 État : ✅ appliqué par le code.
 
-Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/game/` : `cards.ts` (ordre et valeurs), `bidding.ts` (enchères, coinche), `trick.ts` et `play.ts` (jeu de la carte, belote), `scoring.ts` (décompte). L'objectif et le blitz sont des options du salon (`src/firebase/partie.ts`).
+Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/game/` : `cards.ts` (ordre et valeurs), `bidding.ts` (enchères, coinche), `trick.ts` et `play.ts` (jeu de la carte, belote), `scoring.ts` (décompte). L'objectif et le blitz sont des options du salon (`src/firebase/game.ts`).
 
 ---
 

@@ -24,13 +24,13 @@ export interface DealSummary {
   /** Points marqués par chaque équipe sur cette donne */
   scores: [number, number]
   cardPoints: [number, number]
-  coincheurs: PlayerId[]
+  coinchers: PlayerId[]
   beloteDeclaredBy: PlayerId | null
   beloteForgottenBy: PlayerId | null
-  etoile: PlayerId | null
+  shameStar: PlayerId | null
 }
 
-const vide = (dealNumber: number, dealer: PlayerId | null): DealSummary => ({
+const empty = (dealNumber: number, dealer: PlayerId | null): DealSummary => ({
   dealNumber,
   dealer,
   taker: null,
@@ -41,49 +41,49 @@ const vide = (dealNumber: number, dealer: PlayerId | null): DealSummary => ({
   status: null,
   scores: [0, 0],
   cardPoints: [0, 0],
-  coincheurs: [],
+  coinchers: [],
   beloteDeclaredBy: null,
   beloteForgottenBy: null,
-  etoile: null,
+  shameStar: null,
 })
 
 /** Découpe le journal en donnes, y compris celle en cours. */
 export function deals(events: GameEvent[]): DealSummary[] {
   const out: DealSummary[] = []
-  let courante: DealSummary | null = null
+  let currentOne: DealSummary | null = null
 
   for (const e of events) {
     switch (e.type) {
-      case 'donne_commencee':
-        if (courante) out.push(courante)
-        courante = vide(e.dealNumber, e.dealer)
+      case 'deal_started':
+        if (currentOne) out.push(currentOne)
+        currentOne = empty(e.dealNumber, e.dealer)
         break
-      case 'contrat_fixe':
-        if (courante) {
-          courante.taker = e.taker
-          courante.value = e.value
-          courante.trump = e.trump
-          courante.multiplier = e.multiplier
-          courante.capot = e.capot
+      case 'contract_set':
+        if (currentOne) {
+          currentOne.taker = e.taker
+          currentOne.value = e.value
+          currentOne.trump = e.trump
+          currentOne.multiplier = e.multiplier
+          currentOne.capot = e.capot
         }
         break
       case 'coinche':
       case 'surcoinche':
-        courante?.coincheurs.push(e.player)
+        currentOne?.coinchers.push(e.player)
         break
-      case 'donne_terminee':
-        if (courante) {
-          courante.status = e.status
-          courante.scores = e.scores
-          courante.cardPoints = e.cardPoints
-          courante.beloteDeclaredBy = e.beloteDeclaredBy
-          courante.beloteForgottenBy = e.beloteForgottenBy
-          courante.etoile = e.etoile
+      case 'deal_done':
+        if (currentOne) {
+          currentOne.status = e.status
+          currentOne.scores = e.scores
+          currentOne.cardPoints = e.cardPoints
+          currentOne.beloteDeclaredBy = e.beloteDeclaredBy
+          currentOne.beloteForgottenBy = e.beloteForgottenBy
+          currentOne.shameStar = e.shameStar
         }
         break
     }
   }
-  if (courante) out.push(courante)
+  if (currentOne) out.push(currentOne)
   return out
 }
 
@@ -119,30 +119,30 @@ export function momentum(list: DealSummary[]): { deal: number; team: Team; point
  */
 export function cascade(
   bars: { deal: number; team: Team; points: number }[],
-  nous: Team,
-): { deal: number; nous: boolean; points: number; avant: number; apres: number }[] {
-  let ecart = 0
+  us: Team,
+): { deal: number; us: boolean; points: number; before: number; after: number }[] {
+  let gap = 0
   return bars.map((b) => {
-    const avant = ecart
-    ecart += b.team === nous ? b.points : -b.points
-    return { deal: b.deal, nous: b.team === nous, points: b.points, avant, apres: ecart }
+    const before = gap
+    gap += b.team === us ? b.points : -b.points
+    return { deal: b.deal, us: b.team === us, points: b.points, before, after: gap }
   })
 }
 
 /** Des durées de réflexion additionnées : la moyenne se déduit, et s'additionne entre parties. */
-export interface Chrono {
+export interface Timing {
   total: number
   n: number
   /** La plus longue hésitation */
   max: number
 }
 
-export interface Reflexion {
-  encheres: Chrono
-  cartes: Chrono
+export interface ThinkTime {
+  bids: Timing
+  cards: Timing
 }
 
-const chronoVide = (): Chrono => ({ total: 0, n: 0, max: 0 })
+const emptyTiming = (): Timing => ({ total: 0, n: 0, max: 0 })
 
 /**
  * Temps de réflexion par joueur, pour annoncer et pour jouer une carte. Seuls
@@ -150,16 +150,16 @@ const chronoVide = (): Chrono => ({ total: 0, n: 0, max: 0 })
  * entre deux événements mêlerait l'attente de l'affichage du pli, ou le réseau.
  * La coinche, prise hors tour, n'en a pas.
  */
-export function reflexions(events: GameEvent[]): Map<PlayerId, Reflexion> {
-  const out = new Map<PlayerId, Reflexion>()
+export function thinkTimes(events: GameEvent[]): Map<PlayerId, ThinkTime> {
+  const out = new Map<PlayerId, ThinkTime>()
   for (const e of events) {
-    if ((e.type !== 'enchere' && e.type !== 'carte_jouee') || e.thinkMs === undefined) continue
+    if ((e.type !== 'bid' && e.type !== 'card_played') || e.thinkMs === undefined) continue
     let r = out.get(e.player)
     if (!r) {
-      r = { encheres: chronoVide(), cartes: chronoVide() }
+      r = { bids: emptyTiming(), cards: emptyTiming() }
       out.set(e.player, r)
     }
-    const c = e.type === 'enchere' ? r.encheres : r.cartes
+    const c = e.type === 'bid' ? r.bids : r.cards
     c.total += e.thinkMs
     c.n += 1
     c.max = Math.max(c.max, e.thinkMs)
@@ -168,55 +168,55 @@ export function reflexions(events: GameEvent[]): Map<PlayerId, Reflexion> {
 }
 
 /** Additionne deux décomptes : d'une partie à l'autre, pour les statistiques globales. */
-export const ajouterChrono = (a: Chrono, b: Chrono): Chrono => ({
+export const addTiming = (a: Timing, b: Timing): Timing => ({
   total: a.total + b.total,
   n: a.n + b.n,
   max: Math.max(a.max, b.max),
 })
 
-export const moyenne = (c: Chrono): number | null => (c.n ? c.total / c.n : null)
+export const average = (c: Timing): number | null => (c.n ? c.total / c.n : null)
 
 export interface Tally {
-  prises: number
-  reussies: number
-  chutes: number
+  takes: number
+  made: number
+  downs: number
   /** Points rapportés à son camp en prenant et en réussissant */
-  marques: number
+  scoredPoints: number
   /** Points offerts à l'adversaire en chutant */
-  offerts: number
-  encheres: number[]
+  conceded: number
+  bids: number[]
   coinches: number
-  belotesAnnoncees: number
-  belotesOubliees: number
-  etoiles: number
+  belotesDeclared: number
+  belotesForgotten: number
+  shameStars: number
 }
 
-const tallyVide = (): Tally => ({
-  prises: 0,
-  reussies: 0,
-  chutes: 0,
-  marques: 0,
-  offerts: 0,
-  encheres: [],
+const emptyTally = (): Tally => ({
+  takes: 0,
+  made: 0,
+  downs: 0,
+  scoredPoints: 0,
+  conceded: 0,
+  bids: [],
   coinches: 0,
-  belotesAnnoncees: 0,
-  belotesOubliees: 0,
-  etoiles: 0,
+  belotesDeclared: 0,
+  belotesForgotten: 0,
+  shameStars: 0,
 })
 
 /** Bilan net : ce qu'on rapporte moins ce qu'on offre. */
-export const bilan = (t: Tally): number => t.marques - t.offerts
+export const balance = (t: Tally): number => t.scoredPoints - t.conceded
 
-export const enchereMoyenne = (t: Tally): number | null =>
-  t.encheres.length === 0 ? null : Math.round(t.encheres.reduce((s, v) => s + v, 0) / t.encheres.length)
+export const averageBid = (t: Tally): number | null =>
+  t.bids.length === 0 ? null : Math.round(t.bids.reduce((s, v) => s + v, 0) / t.bids.length)
 
 /** Compte par joueur, sur les donnes terminées. */
 export function tallies(list: DealSummary[], seating: Seating): Map<PlayerId, Tally> {
   const out = new Map<PlayerId, Tally>()
-  const pour = (p: PlayerId): Tally => {
+  const tallyFor = (p: PlayerId): Tally => {
     let t = out.get(p)
     if (!t) {
-      t = tallyVide()
+      t = emptyTally()
       out.set(p, t)
     }
     return t
@@ -226,22 +226,22 @@ export function tallies(list: DealSummary[], seating: Seating): Map<PlayerId, Ta
     if (d.status === null) continue
 
     if (d.taker) {
-      const t = pour(d.taker)
-      t.prises += 1
-      t.encheres.push(d.value)
-      const camp = teamOfPlayer(d.taker, seating)
-      if (d.status === 'chute') {
-        t.chutes += 1
-        t.offerts += d.scores[camp === 0 ? 1 : 0]
+      const t = tallyFor(d.taker)
+      t.takes += 1
+      t.bids.push(d.value)
+      const team = teamOfPlayer(d.taker, seating)
+      if (d.status === 'down') {
+        t.downs += 1
+        t.conceded += d.scores[team === 0 ? 1 : 0]
       } else {
-        t.reussies += 1
-        t.marques += d.scores[camp]
+        t.made += 1
+        t.scoredPoints += d.scores[team]
       }
     }
-    for (const c of d.coincheurs) pour(c).coinches += 1
-    if (d.beloteDeclaredBy) pour(d.beloteDeclaredBy).belotesAnnoncees += 1
-    if (d.beloteForgottenBy) pour(d.beloteForgottenBy).belotesOubliees += 1
-    if (d.etoile) pour(d.etoile).etoiles += 1
+    for (const c of d.coinchers) tallyFor(c).coinches += 1
+    if (d.beloteDeclaredBy) tallyFor(d.beloteDeclaredBy).belotesDeclared += 1
+    if (d.beloteForgottenBy) tallyFor(d.beloteForgottenBy).belotesForgotten += 1
+    if (d.shameStar) tallyFor(d.shameStar).shameStars += 1
   }
   return out
 }
@@ -249,54 +249,52 @@ export function tallies(list: DealSummary[], seating: Seating): Map<PlayerId, Ta
 /** Une équipe sur la partie : le tableau « Par équipe » des statistiques. */
 export interface TeamTally {
   /** Donnes où l'équipe a marqué des points */
-  donnesGagnees: number
-  prises: number
-  reussies: number
-  enchereMoyenne: number | null
+  dealsWon: number
+  takes: number
+  made: number
+  averageBid: number | null
   /** Coinches et surcoinches lancées par l'équipe */
   coinches: number
   /** …et gagnées : contrat chuté pour qui coinche, tenu pour qui surcoinche */
-  coinchesGagnees: number
-  etoiles: number
+  coinchesWon: number
+  shameStars: number
 }
 
 export function teamTallies(list: DealSummary[], seating: Seating): [TeamTally, TeamTally] {
-  const vide = (): TeamTally & { encheres: number[] } => ({
-    donnesGagnees: 0,
-    prises: 0,
-    reussies: 0,
-    enchereMoyenne: null,
+  const empty = (): TeamTally & { bids: number[] } => ({
+    dealsWon: 0,
+    takes: 0,
+    made: 0,
+    averageBid: null,
     coinches: 0,
-    coinchesGagnees: 0,
-    etoiles: 0,
-    encheres: [],
+    coinchesWon: 0,
+    shameStars: 0,
+    bids: [],
   })
-  const equipes = [vide(), vide()]
+  const teams = [empty(), empty()]
   for (const d of list) {
     if (d.status === null) continue
-    for (const t of [0, 1] as const) if (d.scores[t] > 0) equipes[t].donnesGagnees += 1
+    for (const t of [0, 1] as const) if (d.scores[t] > 0) teams[t].dealsWon += 1
     if (d.taker) {
-      const e = equipes[teamOfPlayer(d.taker, seating)]
-      e.prises += 1
-      if (d.status !== 'chute') e.reussies += 1
-      if (!d.capot && d.value <= 170) e.encheres.push(d.value)
+      const e = teams[teamOfPlayer(d.taker, seating)]
+      e.takes += 1
+      if (d.status !== 'down') e.made += 1
+      if (!d.capot && d.value <= 170) e.bids.push(d.value)
     }
-    for (const c of d.coincheurs) {
-      const camp = teamOfPlayer(c, seating)
-      equipes[camp].coinches += 1
-      const campDuPreneur = d.taker !== null && camp === teamOfPlayer(d.taker, seating)
-      const chute = d.status === 'chute'
-      if (campDuPreneur ? !chute : chute) equipes[camp].coinchesGagnees += 1
+    for (const c of d.coinchers) {
+      const team = teamOfPlayer(c, seating)
+      teams[team].coinches += 1
+      const takerTeamIdx = d.taker !== null && team === teamOfPlayer(d.taker, seating)
+      const isDown = d.status === 'down'
+      if (takerTeamIdx ? !isDown : isDown) teams[team].coinchesWon += 1
     }
-    if (d.etoile) equipes[teamOfPlayer(d.etoile, seating)].etoiles += 1
+    if (d.shameStar) teams[teamOfPlayer(d.shameStar, seating)].shameStars += 1
   }
-  const fin = ({ encheres, ...e }: TeamTally & { encheres: number[] }): TeamTally => ({
+  const end = ({ bids, ...e }: TeamTally & { bids: number[] }): TeamTally => ({
     ...e,
-    enchereMoyenne: encheres.length
-      ? Math.round(encheres.reduce((s, v) => s + v, 0) / encheres.length)
-      : null,
+    averageBid: bids.length ? Math.round(bids.reduce((s, v) => s + v, 0) / bids.length) : null,
   })
-  return [fin(equipes[0]), fin(equipes[1])]
+  return [end(teams[0]), end(teams[1])]
 }
 
 /** Plis remportés par équipe sur la donne en cours — pour la bande d'information. */

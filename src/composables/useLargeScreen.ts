@@ -7,15 +7,15 @@
  */
 import { onUnmounted, ref } from 'vue'
 
-export const GRAND_ECRAN = '(min-width: 1024px)'
+export const LARGE_SCREEN = '(min-width: 1024px)'
 
 export function useLargeScreen() {
-  const media = window.matchMedia(GRAND_ECRAN)
-  const grand = ref(media.matches)
-  const suivre = (e: MediaQueryListEvent) => {
-    grand.value = e.matches
+  const media = window.matchMedia(LARGE_SCREEN)
+  const large = ref(media.matches)
+  const follow = (e: MediaQueryListEvent) => {
+    large.value = e.matches
   }
-  media.addEventListener('change', suivre)
-  onUnmounted(() => media.removeEventListener('change', suivre))
-  return grand
+  media.addEventListener('change', follow)
+  onUnmounted(() => media.removeEventListener('change', follow))
+  return large
 }

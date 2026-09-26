@@ -36,10 +36,10 @@ ruff fait les deux métiers ; ici ce sont deux outils :
 | `src/**/__tests__/` | le moteur de règles, les bots, le solveur, les statistiques, quelques composants (happy-dom) et la géométrie de la table ; sans réseau | `npm test` |
 | `tests/*.test.ts` | contre l'émulateur Firestore : règles de sécurité, parcours complet d'une partie, courses entre joueurs, pause et reprise | `npm run test:rules` (lance l'émulateur, les tests, puis l'arrête) |
 | `tests/*.mjs` | parcours dans de vrais navigateurs (Playwright), avec l'émulateur et `npm run dev:emu` lancés | `npm run test:e2e`, `test:bot`, `test:apercu` ; `node tests/audit.mjs` |
-| `scripts/tournoi.bench.ts` | bots contre bots, chaque donne jouée deux fois, équipes inversées | `npm run tournoi` |
-| `scripts/historique.seed.ts` | remplit l'émulateur de parties jouées par des bots | `npm run seed:stats` |
+| `scripts/tournament.bench.ts` | bots contre bots, chaque donne jouée deux fois, équipes inversées | `npm run tournoi` |
+| `scripts/history.seed.ts` | remplit l'émulateur de parties jouées par des bots | `npm run seed:stats` |
 
-Deux tests gardent les bots honnêtes et utiles : `seuil.test.ts` (pas trop de donnes blanches) et `botExpert.test.ts` (le bot ★ joue la même carte quelles que soient les vraies mains des autres).
+Deux tests gardent les bots honnêtes et utiles : `threshold.test.ts` (pas trop de donnes blanches) et `botExpert.test.ts` (le bot ★ joue la même carte quelles que soient les vraies mains des autres).
 
 `npm run check` fait ce que fait la CI, sauf les tests sur émulateur et le build.
 
@@ -62,7 +62,7 @@ Sur chaque PR et chaque push sur `main`, le job **qualite** : `npm ci`, lint, fo
 
 ## Audit du 25/09/2026
 
-Traité : le ménage de la racine, le code mort, la CI, les docs ; les règles Firestore (sièges, mains, journal, partie, archive — voir `docs/SECURITE.md`) ; DIS-2, ENC-9 et JEU-6 ; la main hors écran sur tablette ; « Rejouer » puis changer les équipes ; les duos de bots comptés deux fois ; le drapeau « aidé par un bot » ; la collision de codes de partie ; les scripts Playwright.
+Traité : le ménage de la racine, le code mort, la CI, les docs ; les règles Firestore (sièges, mains, journal, partie, archive — voir `docs/SECURITE.md`) ; DIS-2, ENC-9 et JEU-6 ; la main hors écran sur tablette ; « Rejouer » puis changer les équipes ; les duos de bots comptés deux fois ; le drapeau « aidé par un bot » ; la collision de codes de partie ; les scripts Playwright ; tout le code en anglais (identifiants, fichiers, champs et valeurs en base), sauf les commentaires et les textes affichés.
 
 ### Reste à faire
 
@@ -75,7 +75,6 @@ Traité : le ménage de la racine, le code mort, la CI, les docs ; les règles F
 | Mineur | Écoutes Firestore sans rappel d'erreur : « Connexion à la partie… » peut rester sans issue | Rappel d'erreur, bouton « Quitter » |
 | Mineur | Deux clics simultanés sur « Rejouer » créent deux parties | Réserver la suivante dans la transaction |
 | Mineur | Le typage de `tests/` et `scripts/` n'est vérifié nulle part | Les inclure dans un tsconfig |
-| Mineur | Duplication téléphone / PC : ~100 lignes entre `StatsScreen` et `StatsPartiePc`, ~125 entre `StatsGlobalView` et `StatsGlobalPc` | Composables `useStatsPartie`, `useStatsGlobales` |
-| Mineur | Boucle de Monte-Carlo presque identique entre `analyseJoueur.ts` et `botExpert.ts` | Une fonction commune |
-| Mineur | Identifiants en français dans le code, contre la convention | Tout passer en anglais (PR dédiée) |
+| Mineur | Duplication téléphone / PC : ~100 lignes entre `StatsScreen` et `StatsGamePc`, ~125 entre `StatsGlobalView` et `StatsGlobalPc` | Composables `useGameStats`, `useGlobalStats` |
+| Mineur | Boucle de Monte-Carlo presque identique entre `cardAnalysis.ts` et `botExpert.ts` | Une fonction commune |
 | Mineur | Lectures Firestore typées par `as` sans validation | `withConverter` typé |

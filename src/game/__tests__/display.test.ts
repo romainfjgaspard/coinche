@@ -35,20 +35,20 @@ describe('pointes', () => {
   })
 
   it('les pointes de la moitié basse sont retournées', () => {
-    const dix = pipLayout('10')
-    expect(dix.filter((p) => p.flipped)).toHaveLength(5)
-    expect(dix.every((p) => p.y > 52 === p.flipped)).toBe(true)
+    const ten = pipLayout('10')
+    expect(ten.filter((p) => p.flipped)).toHaveLength(5)
+    expect(ten.every((p) => p.y > 52 === p.flipped)).toBe(true)
   })
 
   it("l'as porte une seule grande pointe, au centre", () => {
-    expect(pipLayout('A')[0]).toEqual({ x: 50, y: 50, flipped: false, large: true })
+    expect(pipLayout('A')[0]).toEqual({ x: 50, y: 50, flipped: false, wide: true })
   })
 })
 
 describe('illustrations', () => {
   it('les douze figures ont leur fichier, les autres non', () => {
-    const avecImage = DECK.filter((c) => courtImage(c) !== null)
-    expect(avecImage).toHaveLength(12)
+    const withImage = DECK.filter((c) => courtImage(c) !== null)
+    expect(withImage).toHaveLength(12)
     expect(courtImage('Kh')).toContain('King_of_hearts_fr.svg')
     expect(courtImage('7s')).toBeNull()
   })

@@ -1,5 +1,5 @@
 /**
- * Parcours complet contre l'émulateur, à travers le vrai code de `src/firebase/partie.ts` :
+ * Parcours complet contre l'émulateur, à travers le vrai code de `src/firebase/game.ts` :
  * création → prise des quatre sièges → distribution → journal.
  * Lancement : npm run test:rules
  */
@@ -23,7 +23,7 @@ import {
   signIn,
   takeSeat,
   type GameDoc,
-} from '../src/firebase/partie'
+} from '../src/firebase/game'
 import { biddingFromEvents, playFromEvents } from '../src/game/replay'
 import { outcome } from '../src/game/bidding'
 import { currentPlayer, playableFor } from '../src/game/play'
@@ -57,7 +57,7 @@ describe('parcours complet', () => {
     // Un ensemble de comptes : ici un seul client tient les quatre sièges, comme les bots
     // d'un même onglet. Ce qui compte, c'est que chaque compte assis y figure.
     expect(new Set(game.seatedUids)).toEqual(new Set(Object.values(game.seats).map((s) => s!.uid)))
-    expect(game.phase).toBe('encheres')
+    expect(game.phase).toBe('bidding')
     expect(game.dealNumber).toBe(1)
   })
 
@@ -77,12 +77,12 @@ describe('parcours complet', () => {
 
     expect(events.map((e) => e.seq)).toEqual([1, 2, 3, 4, 5, 6])
     expect(events.map((e) => e.type)).toEqual([
-      'partie_creee',
-      'joueur_connecte',
-      'joueur_connecte',
-      'joueur_connecte',
-      'joueur_connecte',
-      'donne_commencee',
+      'game_created',
+      'player_joined',
+      'player_joined',
+      'player_joined',
+      'player_joined',
+      'deal_started',
     ])
   })
 
@@ -101,18 +101,18 @@ describe('parcours complet', () => {
 describe('enchères à travers le journal', () => {
   it('rejoue les enchères depuis les seuls événements et fixe le contrat', async () => {
     const game = (await getDoc(gameRef(code))).data() as GameDoc
-    expect(game.phase).toBe('encheres')
+    expect(game.phase).toBe('bidding')
 
     // Donneur Benel → Viv parle en premier.
-    await placeBid(code, { kind: 'passe', player: 'viv' })
-    await placeBid(code, { kind: 'contrat', player: 'roux', value: 100, suit: 'h' })
+    await placeBid(code, { kind: 'pass', player: 'viv' })
+    await placeBid(code, { kind: 'contract', player: 'roux', value: 100, suit: 'h' })
     await placeBid(code, { kind: 'coinche', player: 'romain' })
-    await placeBid(code, { kind: 'passe', player: 'roux' })
+    await placeBid(code, { kind: 'pass', player: 'roux' })
 
     const events = await readEvents(code)
     const state = biddingFromEvents(events, 'benel')
     expect(outcome(state)).toMatchObject({
-      status: 'contrat',
+      status: 'contract',
       taker: 'roux',
       value: 100,
       trump: 'h',
@@ -120,15 +120,15 @@ describe('enchères à travers le journal', () => {
     })
 
     // Le contrat est journalisé, et la partie passe au jeu de la carte.
-    const contract = events.find((e) => e.type === 'contrat_fixe')
+    const contract = events.find((e) => e.type === 'contract_set')
     expect(contract).toMatchObject({ taker: 'roux', value: 100, multiplier: 2 })
-    expect(((await getDoc(gameRef(code))).data() as GameDoc).phase).toBe('jeu')
+    expect(((await getDoc(gameRef(code))).data() as GameDoc).phase).toBe('playing')
   })
 
   it('refuse une enchère illégale sans rien écrire', async () => {
     const before = (await readEvents(code)).length
     await expect(
-      placeBid(code, { kind: 'contrat', player: 'benel', value: 110, suit: 's' }),
+      placeBid(code, { kind: 'contract', player: 'benel', value: 110, suit: 's' }),
     ).rejects.toThrow()
     expect(await readEvents(code)).toHaveLength(before)
   })
@@ -147,11 +147,11 @@ describe('une donne complète, jouée à travers Firestore', () => {
     }
 
     const events = await readEvents(code)
-    const tricks = events.filter((e) => e.type === 'pli_termine')
+    const tricks = events.filter((e) => e.type === 'trick_done')
     expect(tricks).toHaveLength(8)
     expect(tricks.reduce((sum, t) => sum + (t as { points: number }).points, 0)).toBe(152)
 
-    const done = events.find((e) => e.type === 'donne_terminee')!
+    const done = events.find((e) => e.type === 'deal_done')!
     expect(done).toBeDefined()
     const deal = done as unknown as { cardPoints: [number, number]; scores: [number, number] }
     expect(deal.cardPoints[0] + deal.cardPoints[1]).toBe(162)
@@ -161,7 +161,7 @@ describe('une donne complète, jouée à travers Firestore', () => {
 
     const game = (await getDoc(gameRef(code))).data() as GameDoc
     expect(game.scores[0] + game.scores[1]).toBe(200)
-    expect(game.phase).toBe('decompte')
+    expect(game.phase).toBe('scoring')
     expect(game.dealer).toBe('viv') // MAT-3 : le donneur tourne vers la gauche
   }, 60_000)
 
@@ -169,9 +169,9 @@ describe('une donne complète, jouée à travers Firestore', () => {
     // Le journal est lisible par les quatre : rien de ce qu'il contient ne doit
     // permettre de reconstituer la main d'un adversaire.
     const events = await readEvents(code)
-    const cartes = events.filter((e) => e.type === 'carte_jouee')
-    expect(cartes).toHaveLength(32)
-    for (const e of cartes) {
+    const cards = events.filter((e) => e.type === 'card_played')
+    expect(cards).toHaveLength(32)
+    for (const e of cards) {
       const champs = Object.keys(e)
       expect(champs).not.toContain('handBefore')
       expect(champs).not.toContain('playableBefore')
@@ -189,44 +189,44 @@ describe('une donne complète, jouée à travers Firestore', () => {
   })
 
   it('DIS-2 — la donne suivante ne rebat pas : on ramasse les plis, on coupe', async () => {
-    const plis = (await readEvents(code)).flatMap((e) => (e.type === 'pli_termine' ? [e.cards] : []))
+    const tricks = (await readEvents(code)).flatMap((e) => (e.type === 'trick_done' ? [e.cards] : []))
     await deal(code)
-    const depart = [...(await readEvents(code))].reverse().find((e) => e.type === 'donne_commencee')!
-    if (depart.type !== 'donne_commencee') throw new Error('pas de donne')
-    const attendu = dealHands(gatherAndCut(plis, depart.cut), depart.dealer, DEFAULT_SEATING)
+    const start = [...(await readEvents(code))].reverse().find((e) => e.type === 'deal_started')!
+    if (start.type !== 'deal_started') throw new Error('pas de donne')
+    const expected = dealHands(gatherAndCut(tricks, start.cut), start.dealer, DEFAULT_SEATING)
     for (const p of PLAYER_IDS) {
-      expect((await getDoc(handRef(code, p))).data()!.cards).toEqual(attendu[p])
+      expect((await getDoc(handRef(code, p))).data()!.cards).toEqual(expected[p])
     }
   })
 })
 
 describe('écriture concurrente', () => {
   it('refuse un coup fondé sur un état dépassé, sans corrompre le journal', async () => {
-    const avant = await readEvents(code)
+    const before = await readEvents(code)
 
     await expect(
-      appendEvent(code, { type: 'message_chat', player: 'viv', text: 'trop tard' }, moveCount(avant) - 1),
+      appendEvent(code, { type: 'chat_message', player: 'viv', text: 'trop tard' }, moveCount(before) - 1),
     ).rejects.toThrow(ConcurrentWrite)
 
     // Rien n'a été écrit : le journal est intact.
-    expect(await readEvents(code)).toHaveLength(avant.length)
+    expect(await readEvents(code)).toHaveLength(before.length)
   })
 
   it("accepte le coup fondé sur l'état courant", async () => {
-    const avant = await readEvents(code)
-    await appendEvent(code, { type: 'message_chat', player: 'viv', text: 'bien joué' }, moveCount(avant))
-    expect(await readEvents(code)).toHaveLength(avant.length + 1)
+    const before = await readEvents(code)
+    await appendEvent(code, { type: 'chat_message', player: 'viv', text: 'bien joué' }, moveCount(before))
+    expect(await readEvents(code)).toHaveLength(before.length + 1)
   })
 
   it('une conséquence écrite entre-temps ne fait pas refuser le coup suivant', async () => {
-    // Le cas réel : la quatrième carte d'un pli écrit aussi `pli_termine`, et le
+    // Le cas réel : la quatrième carte d'un pli écrit aussi `trick_done`, et le
     // joueur suivant se voyait refuser son tour alors que rien n'avait bougé pour lui.
-    const avant = await readEvents(code)
-    const coups = moveCount(avant)
+    const before = await readEvents(code)
+    const moves = moveCount(before)
 
     // une conséquence quelconque s'intercale
     await appendEvent(code, {
-      type: 'pli_termine',
+      type: 'trick_done',
       trickNumber: 99,
       winner: 'viv',
       points: 0,
@@ -236,23 +236,23 @@ describe('écriture concurrente', () => {
 
     // le joueur, lui, décide sur le même état de jeu : ça doit passer
     await expect(
-      appendEvent(code, { type: 'message_chat', player: 'roux', text: 'à moi' }, coups),
+      appendEvent(code, { type: 'chat_message', player: 'roux', text: 'à moi' }, moves),
     ).resolves.toBeGreaterThan(0)
   })
 
   it('une conséquence sans revendication passe malgré la bousculade', async () => {
     // Quatre clients écrivent en même temps des événements qui ne décident de rien :
     // aucun ne doit échouer, et le journal doit contenir les quatre.
-    const avant = await readEvents(code)
+    const before = await readEvents(code)
     const seqs = await Promise.all(
-      PLAYER_IDS.map((p) => appendEvent(code, { type: 'message_chat', player: p, text: `moi aussi (${p})` })),
+      PLAYER_IDS.map((p) => appendEvent(code, { type: 'chat_message', player: p, text: `moi aussi (${p})` })),
     )
 
     expect(new Set(seqs).size).toBe(4)
-    const apres = await readEvents(code)
-    expect(apres).toHaveLength(avant.length + 4)
+    const after = await readEvents(code)
+    expect(after).toHaveLength(before.length + 4)
     // Aucun numéro de séquence n'a été écrasé
-    expect(new Set(apres.map((e) => e.seq)).size).toBe(apres.length)
+    expect(new Set(after.map((e) => e.seq)).size).toBe(after.length)
   })
 })
 
@@ -265,7 +265,7 @@ describe('archive de fin de partie', () => {
     await updateDoc(gameRef(code), { eventSeq: g.eventSeq + 1, scores: [g.scores[0] + 510, g.scores[1]] })
     await updateDoc(gameRef(code), {
       eventSeq: g.eventSeq + 2,
-      phase: 'terminee',
+      phase: 'finished',
       scores: [g.scores[0] + 1010, g.scores[1]],
     })
     const archive = await archiveGame(code, DEFAULT_SEATING)
@@ -275,13 +275,13 @@ describe('archive de fin de partie', () => {
     expect(archive.deals).toBe(1)
 
     // Le preneur de la donne jouée plus haut a bien sa prise, avec sa force de main
-    const prises = PLAYER_IDS.flatMap((p) => archive.players[p].detail)
-    expect(prises).toHaveLength(1)
-    expect(prises[0].value).toBe(100)
+    const takes = PLAYER_IDS.flatMap((p) => archive.players[p].detail)
+    expect(takes).toHaveLength(1)
+    expect(takes[0].value).toBe(100)
     // La main a été descellée et mesurée. Sa valeur dépend du hasard de la donne — le test
     // annonce 100 quelle que soit la main — et peut valoir 0 : c'est `null` qui trahirait
     // une donne restée scellée.
-    expect(prises[0].force).toEqual(expect.any(Number))
+    expect(takes[0].strength).toEqual(expect.any(Number))
   }, 30_000)
 
   it('le condensé est relu par la page globale', async () => {
@@ -290,6 +290,6 @@ describe('archive de fin de partie', () => {
   })
 
   it('une archive déposée ne peut plus être retouchée', async () => {
-    await expect(setDoc(archiveRef(code), { code, bidon: true })).rejects.toThrow()
+    await expect(setDoc(archiveRef(code), { code, dummy: true })).rejects.toThrow()
   })
 })

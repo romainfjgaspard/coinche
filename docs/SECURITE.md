@@ -6,7 +6,7 @@ Chaque joueur se connecte avec un **compte anonyme** Firebase, créé à la prem
 
 ## Ce que les règles garantissent
 
-- **Personne ne lit la main d'un autre.** Une main (`parties/{code}/mains/{joueur}`) n'est lisible que par le compte assis à ce siège. Les quatre mains de chaque donne (`donne/{n}`) restent scellées jusqu'à la fin de la partie.
+- **Personne ne lit la main d'un autre.** Une main (`games/{code}/hands/{player}`) n'est lisible que par le compte assis à ce siège. Les quatre mains de chaque donne (`deals/{n}`) restent scellées jusqu'à la fin de la partie.
 - **Personne ne s'ajoute de cartes.** Un joueur ne peut que retirer une carte de sa main, celle qu'il pose. Seul le donneur écrit les mains, et seulement dans l'écriture qui ouvre une nouvelle donne.
 - **Personne n'usurpe un siège.** Un inconnu ne peut que prendre un siège libre. En cours de partie, seul un joueur assis peut reprendre un bot muet ou remplacer par un bot un joueur absent, et seul le joueur remplacé (le même compte, donc le même appareil) peut reprendre sa place.
 - **Personne n'écrit au nom d'un autre.** Un événement du journal qui nomme un joueur doit venir du compte assis à ce siège, et prendre le numéro que la partie vient d'allouer.

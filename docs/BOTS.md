@@ -4,10 +4,10 @@ Une place libre se confie à un bot, au salon. Deux niveaux :
 
 | Bouton | Niveau | Identifiant | Ce qu'il fait |
 |---|---|---|---|
-| « + bot » | bot de base (`simple`) | `bot-simple-1`, `bot-simple-2`… | les réflexes d'un bon joueur, par règles |
-| « + bot ★ » | expert (`compteur`) | `bot-etoile-1`… | enchérit comme le bot de base, mais réfléchit chaque carte avec le solveur |
+| « + bot » | bot de base (`basic`) | `bot-basic-1`, `bot-basic-2`… | les réflexes d'un bon joueur, par règles |
+| « + bot ★ » | expert (`expert`) | `bot-expert-1`… | enchérit comme le bot de base, mais réfléchit chaque carte avec le solveur |
 
-Les identifiants et les niveaux enregistrés (`simple`, `compteur`) datent de la première version des bots ; ils sont gardés tels quels pour que les parties déjà jouées restent lisibles. À l'écran, les bots s'appellent « Bot », « Bot ★ », « Bot 2 »… et les statistiques regroupent tous les bots d'un même niveau en un seul joueur.
+Le niveau fait partie de l'identifiant du bot, et il est enregistré sur son siège (`level`). À l'écran, les bots s'appellent « Bot », « Bot ★ », « Bot 2 »… et les statistiques regroupent tous les bots d'un même niveau en un seul joueur.
 
 ## Aucun bot ne voit le jeu des autres
 
@@ -19,11 +19,11 @@ Ce ne sont pas les règles Firestore qui le garantissent : les bots tournent dan
 
 ### Enchères
 
-- **Évaluer sa main** pour chaque atout possible (`valeurMain`) : valet 20, neuf 15 (10 sans le valet, 5 s'il est sec), as d'atout 10, dix 5, petits atouts 3, 10 par atout au-delà du troisième, belote 20 ; hors atout, 10 par as et 10 de plus pour un as-dix ; 10 par coupe franche et 5 par singleton quand on a au moins trois atouts.
+- **Évaluer sa main** pour chaque atout possible (`handValue`) : valet 20, neuf 15 (10 sans le valet, 5 s'il est sec), as d'atout 10, dix 5, petits atouts 3, 10 par atout au-delà du troisième, belote 20 ; hors atout, 10 par as et 10 de plus pour un as-dix ; 10 par coupe franche et 5 par singleton quand on a au moins trois atouts.
 - **Ouvrir** dans sa meilleure couleur à partir de 45 (80 à 45, un palier de plus par tranche de 10). Le dernier à parler, après trois passes, se lance dès 35 plutôt que de laisser redistribuer.
-- **Soutenir son partenaire** (`soutien`), selon la convention courante : +20 avec le valet de sa couleur, +10 avec le neuf, +10 par as, +20 avec la belote. Le soutien ne se donne qu'une fois, à partir de la première annonce du partenaire, et l'ouvreur ne remonte pas sur son propre soutien.
+- **Soutenir son partenaire** (`support`), selon la convention courante : +20 avec le valet de sa couleur, +10 avec le neuf, +10 par as, +20 avec la belote. Le soutien ne se donne qu'une fois, à partir de la première annonce du partenaire, et l'ouvreur ne remonte pas sur son propre soutien.
 - **Changer de couleur** quand le partenaire tient l'enchère, seulement avec bien mieux (au moins deux paliers au-dessus).
-- **Coincher** (`doitCoincher`) le contrat adverse quand sa main pèse assez contre lui (`valeurDefense` : gros atouts, longueur d'atout, as et dix extérieurs) : 60 contre un 80, 5 de moins par palier au-dessus.
+- **Coincher** (`shouldCoinche`) le contrat adverse quand sa main pèse assez contre lui (`defenseValue` : gros atouts, longueur d'atout, as et dix extérieurs) : 60 contre un 80, 5 de moins par palier au-dessus.
 - Il ne surcoinche jamais, et n'annonce ni capot ni générale.
 
 ### Jeu de la carte
@@ -32,7 +32,7 @@ Ce ne sont pas les règles Firestore qui le garantissent : les bots tournent dan
 - **Entame, sinon** : les cartes maîtresses d'abord, puis une petite carte, de préférence dans une couleur où l'on n'expose pas un dix sans son as.
 - **Le partenaire tient le pli** : il charge (la carte la plus chère) si plus personne ne peut reprendre, sinon il se défausse petit.
 - **L'adversaire tient le pli** : il prend avec la plus petite carte qui garde le pli ; s'il ne peut pas le garantir, il ne tente que si ça ne coûte presque rien ; sinon il se défausse au moins cher.
-- Il **compte les cartes** : ce qui est tombé, et qui a montré qu'il n'avait plus une couleur (`cartesImpossibles`). Il ne craint une coupe que si l'adversaire suivant a montré qu'il ne peut plus fournir : au premier tour d'une couleur, il prend quand même.
+- Il **compte les cartes** : ce qui est tombé, et qui a montré qu'il n'avait plus une couleur (`impossibleCards`). Il ne craint une coupe que si l'adversaire suivant a montré qu'il ne peut plus fournir : au premier tour d'une couleur, il prend quand même.
 - Il annonce toujours sa belote.
 
 ## Le bot ★ (`src/game/botExpert.ts`)
@@ -40,7 +40,7 @@ Ce ne sont pas les règles Firestore qui le garantissent : les bots tournent dan
 À chaque carte, il fait ce que fait l'analyse de fin de partie :
 
 1. il imagine des répartitions des cartes cachées **compatibles avec ce qu'il sait** (sa main, les cartes tombées, les couleurs où chacun a montré qu'il n'avait plus rien) ;
-2. il résout chacune à cartes ouvertes avec le solveur (`src/game/solveur.ts`), pour chaque carte qu'il peut jouer ;
+2. il résout chacune à cartes ouvertes avec le solveur (`src/game/solver.ts`), pour chaque carte qu'il peut jouer ;
 3. il joue la carte qui donne en moyenne le plus de chances à son camp — réussir le contrat, ou le faire chuter — puis le plus de points.
 
 C'est la méthode des meilleurs programmes de bridge (« Monte-Carlo à cartes ouvertes »). Elle a un travers connu : dans chaque tirage, le bot « sait » où sont les cartes, donc tirer atout ne lui paraît jamais urgent. D'où un garde-fou : quand l'écart avec le réflexe du bot de base tient dans le bruit des tirages (5 points de chances, 4 points de cartes), il garde le réflexe.
@@ -49,7 +49,7 @@ Il réfléchit **dans un fil à part** (Web Worker, `botExpert.worker.ts`) pour 
 
 ## Mesurer plutôt que supposer : le tournoi
 
-`npm run tournoi` fait jouer deux façons de jouer l'une contre l'autre, sans Firebase (`scripts/tournoi.bench.ts`). Chaque donne est jouée **deux fois**, les équipes échangeant leurs places : la chance de la distribution s'annule, et l'écart ne vient que des enchères et du jeu. Choisir les joueurs avec `$env:A` et `$env:B` (`base`, `expert`, `hasard`) et le nombre de donnes avec `$env:DONNES`.
+`npm run tournoi` fait jouer deux façons de jouer l'une contre l'autre, sans Firebase (`scripts/tournament.bench.ts`). Chaque donne est jouée **deux fois**, les équipes échangeant leurs places : la chance de la distribution s'annule, et l'écart ne vient que des enchères et du jeu. Choisir les joueurs avec `$env:A` et `$env:B` (`basic`, `expert`, `random`) et le nombre de donnes avec `$env:DEALS`.
 
 Mesures du 25/09/2026 :
 

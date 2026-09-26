@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { tableLayout } from '../useTableLayout'
 
 /** Les écrans sur lesquels la table a été vérifiée à l'œil. */
-const ECRANS: [number, number][] = [
+const SCREENS: [number, number][] = [
   [1366, 768],
   [1280, 800],
   [1920, 1080],
@@ -27,32 +27,32 @@ describe('géométrie de la table sur grand écran', () => {
     expect(l.header).toBe(54)
   })
 
-  it.each(ECRANS)('en %i×%i, chaque élément tient à sa place', (w, h) => {
+  it.each(SCREENS)('en %i×%i, chaque élément tient à sa place', (w, h) => {
     const l = tableLayout(w, h)
     // Un tapis réel, dans l'écran.
-    expect(l.tapis.w).toBeGreaterThan(0)
-    expect(l.tapis.h).toBeGreaterThan(0)
-    expect(l.tapis.x + l.tapis.w).toBeLessThanOrEqual(w)
+    expect(l.felt.w).toBeGreaterThan(0)
+    expect(l.felt.h).toBeGreaterThan(0)
+    expect(l.felt.x + l.felt.w).toBeLessThanOrEqual(w)
     // Le bandeau, puis le partenaire, puis le tapis, de haut en bas.
     expect(l.partnerY).toBeGreaterThanOrEqual(l.header)
-    expect(l.tapis.y).toBeGreaterThan(l.partnerY)
+    expect(l.felt.y).toBeGreaterThan(l.partnerY)
     // Ma pastille entre le tapis et ma main, et ma main en bas de l'écran.
-    const basTapis = l.tapis.y + l.tapis.h
-    expect(l.meY).toBeGreaterThan(basTapis)
+    const feltBottom = l.felt.y + l.felt.h
+    expect(l.meY).toBeGreaterThan(feltBottom)
     expect(l.meY).toBeLessThan(h - l.handVisible)
     // Les adversaires à gauche du tapis, pas dessus.
-    expect(l.sideX).toBeLessThan(l.tapis.x)
+    expect(l.sideX).toBeLessThan(l.felt.x)
     // La main coupée en bas : on en voit une partie, pas toute.
     expect(l.handVisible).toBeLessThan(l.cardH)
   })
 
   it('le pli en croix tient dans le tapis sans chevaucher les coins', () => {
-    for (const [w, h] of ECRANS) {
+    for (const [w, h] of SCREENS) {
       const l = tableLayout(w, h)
       const trickH = Math.round(l.trickW * 1.44)
       // Hauteur de la croix : deux cartes et leur écart (voir trickPos).
-      const hauteurPli = Math.round(trickH * 0.54) * 2 + trickH
-      expect(hauteurPli).toBeLessThan(l.tapis.h - 2 * l.rim)
+      const trickHeight = Math.round(trickH * 0.54) * 2 + trickH
+      expect(trickHeight).toBeLessThan(l.felt.h - 2 * l.rim)
     }
   })
 })

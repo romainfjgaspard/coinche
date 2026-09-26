@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import {
-  type NiveauBot,
+  type BotLevelName,
   type PlayerId,
   type Seating,
   botId,
-  estBotId,
+  isBotId,
   pairingKey,
   pairingsOf,
   partnerOf,
@@ -15,24 +15,24 @@ import {
   teamOfPlayer,
 } from '../game/players'
 import DealerChip from './DealerChip.vue'
-import { OBJECTIFS } from '../firebase/partie'
+import { TARGETS } from '../firebase/game'
 import { useSession } from '../stores/session'
-import { nomDe, useRoster } from '../stores/roster'
+import { nameOf, useRoster } from '../stores/roster'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableLayout } from '../composables/useTableLayout'
 import { useFitZoom } from '../composables/useFitZoom'
 
 const session = useSession()
 const roster = useRoster()
-onMounted(() => void roster.charger())
-const grand = useLargeScreen()
+onMounted(() => void roster.load())
+const large = useLargeScreen()
 const L = useTableLayout()
 /** À l'échelle de l'écran, sans jamais dépasser sa hauteur. */
-const contenu = ref<HTMLElement | null>(null)
+const content = ref<HTMLElement | null>(null)
 // Toute la hauteur de l'écran, et au plus 60 % de sa largeur : à échelle fixe, le salon
 // flottait au milieu d'un grand vide.
 const zoom = useFitZoom(
-  contenu,
+  content,
   computed(() => Math.min(L.value.t * 2.4, (L.value.width * 0.6) / 600)),
   computed(() => L.value.height - 16),
 )
@@ -47,79 +47,79 @@ const iAmDealer = computed(() => session.playerId !== null && session.playerId =
  * en face. Tant que la table n'est pas complète, les présents s'installent dans
  * l'ordre d'arrivée ; le placement définitif arrive avec le quatrième.
  */
-type Place = 'bas' | 'gauche' | 'haut' | 'droite'
-const PLACES: Place[] = ['haut', 'gauche', 'droite', 'bas']
+type Spot = 'bottom' | 'left' | 'top' | 'right'
+const SPOTS: Spot[] = ['top', 'left', 'right', 'bottom']
 /** Haut et bas accrochés au bord de la table (26 % – 74 %), les côtés à mi-hauteur. */
-const placeStyle = (place: Place): Record<string, string> =>
-  place === 'haut'
+const spotStyle = (spot: Spot): Record<string, string> =>
+  spot === 'top'
     ? { left: '50%', bottom: '76%', transform: 'translateX(-50%)' }
-    : place === 'bas'
+    : spot === 'bottom'
       ? { left: '50%', top: '76%', transform: 'translateX(-50%)' }
-      : { left: place === 'gauche' ? '12%' : '88%', top: '50%', transform: 'translate(-50%, -50%)' }
-const places = computed<Record<Place, PlayerId | null>>(() => {
-  const moi = session.playerId
-  if (seating.value && moi && seating.value.includes(moi)) {
-    const s = seatOf(moi, seating.value)
+      : { left: spot === 'left' ? '12%' : '88%', top: '50%', transform: 'translate(-50%, -50%)' }
+const spots = computed<Record<Spot, PlayerId | null>>(() => {
+  const me = session.playerId
+  if (seating.value && me && seating.value.includes(me)) {
+    const s = seatOf(me, seating.value)
     return {
-      bas: moi,
-      gauche: playerAtSeat(s + 1, seating.value),
-      haut: playerAtSeat(s + 2, seating.value),
-      droite: playerAtSeat(s + 3, seating.value),
+      bottom: me,
+      left: playerAtSeat(s + 1, seating.value),
+      top: playerAtSeat(s + 2, seating.value),
+      right: playerAtSeat(s + 3, seating.value),
     }
   }
-  const autres = session.present.filter((p) => p !== moi)
-  return { bas: moi, gauche: autres[0] ?? null, haut: autres[1] ?? null, droite: autres[2] ?? null }
+  const others = session.present.filter((p) => p !== me)
+  return { bottom: me, left: others[0] ?? null, top: others[1] ?? null, right: others[2] ?? null }
 })
 /**
  * Un bot sans nom sur une place libre. On ne propose plus la liste des absents : les
  * autres apparaissent quand ils rejoignent, un bot n'est plus « le bot de Viv ».
  */
-function ajouterBot(niveau: NiveauBot): void {
-  void session.addBot(botId(niveau, Object.keys(session.game?.seats ?? {})), niveau)
+function addBotHere(level: BotLevelName): void {
+  void session.addBot(botId(level, Object.keys(session.game?.seats ?? {})), level)
 }
 
 /** Le lien de la partie : l'ouvrir remplit le code sur l'accueil. */
-const lien = computed(() => `${location.origin}${import.meta.env.BASE_URL}?code=${session.code ?? ''}`)
+const link = computed(() => `${location.origin}${import.meta.env.BASE_URL}?code=${session.code ?? ''}`)
 /** Copié : oui, non (on affiche alors le lien à copier à la main), ou rien à dire. */
-const lienCopie = ref<boolean | null>(null)
+const linkCopied = ref<boolean | null>(null)
 /** La bulle d'aide du blitz, ouverte au toucher sur téléphone. */
-const aideBlitz = ref(false)
+const blitzHelp = ref(false)
 /** Sur téléphone, le menu de partage du système ; sinon, le lien copié. */
-async function partager(): Promise<void> {
-  const texte = `Rejoins ma partie de coinche (code ${session.code})`
-  if (typeof navigator.share === 'function' && !grand.value) {
+async function share(): Promise<void> {
+  const text = `Rejoins ma partie de coinche (code ${session.code})`
+  if (typeof navigator.share === 'function' && !large.value) {
     try {
-      await navigator.share({ title: 'Coinche', text: texte, url: lien.value })
+      await navigator.share({ title: 'Coinche', text: text, url: link.value })
     } catch {
       /* partage annulé */
     }
     return
   }
-  lienCopie.value = await copier(lien.value)
-  setTimeout(() => (lienCopie.value = null), 4000)
+  linkCopied.value = await copy(link.value)
+  setTimeout(() => (linkCopied.value = null), 4000)
 }
 
 /** Le presse-papiers moderne, sinon l'ancienne méthode (page non sécurisée, cadre). */
-async function copier(texte: string): Promise<boolean> {
+async function copy(text: string): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(texte)
+    await navigator.clipboard.writeText(text)
     return true
   } catch {
-    const champ = document.createElement('textarea')
-    champ.value = texte
-    champ.style.cssText = 'position:fixed;opacity:0'
-    document.body.appendChild(champ)
-    champ.select()
+    const field = document.createElement('textarea')
+    field.value = text
+    field.style.cssText = 'position:fixed;opacity:0'
+    document.body.appendChild(field)
+    field.select()
     const ok = document.execCommand('copy')
-    champ.remove()
+    field.remove()
     return ok
   }
 }
 /** Mon équipe en or, l'autre en bleu — comme à la table, quel que soit le numéro d'équipe. */
 const avatarClass = (p: PlayerId): string => {
-  const moi = session.playerId
-  if (!seating.value || !moi || !seating.value.includes(moi)) return 'bg-gold'
-  return teamOfPlayer(p, seating.value) === teamOfPlayer(moi, seating.value) ? 'bg-gold' : 'bg-them'
+  const me = session.playerId
+  if (!seating.value || !me || !seating.value.includes(me)) return 'bg-gold'
+  return teamOfPlayer(p, seating.value) === teamOfPlayer(me, seating.value) ? 'bg-gold' : 'bg-them'
 }
 
 /** Les trois duos possibles entre les quatre de la table, pour choisir plutôt que subir le tirage. */
@@ -132,23 +132,23 @@ const duos = computed(() =>
               session.playerId,
               ...seating.value
                 .filter((p) => p !== session.playerId)
-                .sort((a, b) => roster.joueurs.indexOf(a) - roster.joueurs.indexOf(b)),
+                .sort((a, b) => roster.players.indexOf(a) - roster.players.indexOf(b)),
             ]
           : seating.value,
       ).map((s) => ({
         seating: s,
-        label: `${nomDe(s[0])} & ${nomDe(s[2])}`,
-        contre: `${nomDe(s[1])} & ${nomDe(s[3])}`,
-        actif: seating.value !== null && pairingKey(s) === pairingKey(seating.value),
+        label: `${nameOf(s[0])} & ${nameOf(s[2])}`,
+        against: `${nameOf(s[1])} & ${nameOf(s[3])}`,
+        on: seating.value !== null && pairingKey(s) === pairingKey(seating.value),
       }))
     : [],
 )
 /** Un siège tenu par un bot : les parties concernées sortent des stats par défaut. */
-const estUnBot = (p: PlayerId): boolean => Boolean(session.game?.seats[p]?.bot)
+const isBot = (p: PlayerId): boolean => Boolean(session.game?.seats[p]?.bot)
 /** Un joueur remplacé par un bot garde son nom : on précise alors que c'est un bot. */
-const niveauBot = (p: PlayerId) => session.game?.seats[p]?.niveau ?? null
+const botLevelOf = (p: PlayerId) => session.game?.seats[p]?.level ?? null
 
-const monPartenaire = computed(() =>
+const myPartner = computed(() =>
   session.playerId && seating.value ? partnerOf(session.playerId, seating.value) : null,
 )
 </script>
@@ -164,7 +164,7 @@ const monPartenaire = computed(() =>
     <div
       ref="contenu"
       class="mx-auto flex w-full max-w-md flex-col px-6 pt-14 pb-8 [@media(max-height:820px)]:pt-8 max-lg:min-h-full lg:my-auto lg:max-w-[600px] lg:py-3"
-      :style="grand ? { zoom } : undefined"
+      :style="large ? { zoom } : undefined"
     >
       <!-- Sur une ligne, sans en faire un titre : il suffit de pouvoir le lire aux autres -->
       <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1.5">
@@ -175,15 +175,15 @@ const monPartenaire = computed(() =>
         <button
           type="button"
           class="order-last basis-full cursor-pointer text-left text-[15px] text-sage underline underline-offset-4 transition hover:text-mist lg:order-none lg:basis-auto lg:self-center lg:rounded-full lg:border lg:border-white/20 lg:px-2.5 lg:py-0.5 lg:text-xs lg:font-semibold lg:text-mist lg:no-underline lg:hover:border-gold/60 lg:hover:text-gold"
-          :title="lien"
-          @click="partager"
+          :title="link"
+          @click="share"
         >
-          {{ lienCopie ? 'Lien copié ✓' : 'Partager le lien' }}
+          {{ linkCopied ? 'Lien copié ✓' : 'Partager le lien' }}
         </button>
         <span
-          v-if="lienCopie === false"
+          v-if="linkCopied === false"
           class="order-last basis-full text-xs break-all text-sage select-all"
-          >{{ lien }}</span
+          >{{ link }}</span
         >
         <button
           type="button"
@@ -199,17 +199,17 @@ const monPartenaire = computed(() =>
         <div class="flex items-center gap-2 lg:grow">
           <span class="w-12 text-base text-mist lg:w-auto lg:text-sm">En</span>
           <button
-            v-for="o in OBJECTIFS"
+            v-for="o in TARGETS"
             :key="o"
             type="button"
             :disabled="session.busy"
             class="h-12 grow cursor-pointer rounded-lg border text-[17px] font-semibold transition disabled:opacity-50 lg:h-9 lg:text-sm"
             :class="
-              (session.game?.objectif ?? 1000) === o
+              (session.game?.target ?? 1000) === o
                 ? 'border-gold bg-gold/15 text-gold'
                 : 'border-white/15 text-mist hover:border-white/35'
             "
-            @click="session.chooseOptions({ objectif: o })"
+            @click="session.chooseOptions({ target: o })"
           >
             {{ o }}
           </button>
@@ -217,7 +217,7 @@ const monPartenaire = computed(() =>
         <!-- Blitz : ce que c'est, dans une bulle — au survol sur PC, au toucher du « ? » sur téléphone -->
         <label
           class="group relative mt-3 flex cursor-pointer items-center gap-3 rounded-xl border border-white/15 px-3.5 py-2.5 transition hover:border-white/35 lg:mt-0 lg:rounded-lg lg:py-0"
-          @mouseleave="aideBlitz = false"
+          @mouseleave="blitzHelp = false"
         >
           <input
             type="checkbox"
@@ -231,15 +231,15 @@ const monPartenaire = computed(() =>
             type="button"
             class="flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/25 text-[11px] font-bold text-sage transition hover:border-white/50 hover:text-mist"
             aria-label="Qu'est-ce que le blitz ?"
-            :aria-expanded="aideBlitz"
-            @click.prevent.stop="aideBlitz = !aideBlitz"
+            :aria-expanded="blitzHelp"
+            @click.prevent.stop="blitzHelp = !blitzHelp"
           >
             ?
           </button>
           <span
             role="tooltip"
             class="absolute top-full right-0 z-20 mt-2 w-64 rounded-xl border border-white/15 bg-felt-dark px-3.5 py-2.5 text-left text-xs leading-relaxed font-normal text-mist shadow-xl lg:group-hover:block"
-            :class="aideBlitz ? 'block' : 'hidden'"
+            :class="blitzHelp ? 'block' : 'hidden'"
           >
             <b class="text-ivory">Blitz</b> : une donne qui n'est pas coinchée ne se joue pas. Le contrat est
             réputé réussi : le preneur marque sa valeur, et on passe à la donne suivante. Seules les donnes
@@ -264,32 +264,32 @@ const monPartenaire = computed(() =>
           "
         ></div>
         <div
-          v-for="place in PLACES"
-          :key="place"
+          v-for="spot in SPOTS"
+          :key="spot"
           class="absolute flex w-32 items-center gap-1 text-center"
-          :class="place === 'haut' ? 'flex-col-reverse' : 'flex-col'"
-          :style="placeStyle(place)"
+          :class="spot === 'top' ? 'flex-col-reverse' : 'flex-col'"
+          :style="spotStyle(spot)"
         >
-          <template v-if="places[place]">
+          <template v-if="spots[spot]">
             <span class="relative">
               <span
                 class="flex size-11 items-center justify-center rounded-full text-base font-bold text-felt shadow-md"
-                :class="avatarClass(places[place]!)"
-                >{{ nomDe(places[place]!).charAt(0) }}</span
+                :class="avatarClass(spots[spot]!)"
+                >{{ nameOf(spots[spot]!).charAt(0) }}</span
               >
               <!-- Le donneur porte le jeton, comme à une vraie table -->
-              <span v-if="places[place] === dealer" class="absolute -right-2 -bottom-1">
+              <span v-if="spots[spot] === dealer" class="absolute -right-2 -bottom-1">
                 <DealerChip :size="26" />
               </span>
             </span>
             <span class="text-sm leading-tight font-semibold whitespace-nowrap">
-              {{ nomDe(places[place]!)
-              }}<span v-if="places[place] === session.playerId" class="text-xs text-sage"> · toi</span
+              {{ nameOf(spots[spot]!)
+              }}<span v-if="spots[spot] === session.playerId" class="text-xs text-sage"> · toi</span
               ><span
-                v-if="estUnBot(places[place]!) && !estBotId(places[place]!)"
+                v-if="isBot(spots[spot]!) && !isBotId(spots[spot]!)"
                 class="text-xs font-normal text-sage"
               >
-                · {{ niveauBot(places[place]!) === 'compteur' ? 'bot ★' : 'bot' }}</span
+                · {{ botLevelOf(spots[spot]!) === 'expert' ? 'bot ★' : 'bot' }}</span
               >
             </span>
           </template>
@@ -308,7 +308,7 @@ const monPartenaire = computed(() =>
             type="button"
             :disabled="session.busy"
             class="h-11 w-full cursor-pointer rounded-xl border border-dashed border-white/25 text-sm font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
-            @click="ajouterBot('simple')"
+            @click="addBotHere('basic')"
           >
             + bot
           </button>
@@ -319,7 +319,7 @@ const monPartenaire = computed(() =>
             type="button"
             :disabled="session.busy"
             class="h-11 w-full cursor-pointer rounded-xl border border-dashed border-white/25 text-sm font-semibold text-mist transition enabled:hover:border-gold/60 enabled:hover:text-gold disabled:opacity-40"
-            @click="ajouterBot('compteur')"
+            @click="addBotHere('expert')"
           >
             + bot ★
           </button>
@@ -332,8 +332,8 @@ const monPartenaire = computed(() =>
 
       <!-- La table complète : les équipes, sous la table, à choisir ou à retirer au sort -->
       <template v-if="seating">
-        <p v-if="monPartenaire" class="mt-5 mb-2 text-xs text-mist">
-          Tu joues avec <span class="font-semibold text-gold">{{ nomDe(monPartenaire) }}</span
+        <p v-if="myPartner" class="mt-5 mb-2 text-xs text-mist">
+          Tu joues avec <span class="font-semibold text-gold">{{ nameOf(myPartner) }}</span
           >.
         </p>
         <div class="flex flex-col gap-1.5 lg:grid lg:grid-cols-3">
@@ -343,14 +343,14 @@ const monPartenaire = computed(() =>
             type="button"
             class="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-1.5 text-left transition lg:flex-col lg:items-start lg:gap-0"
             :class="
-              duo.actif ? 'border-gold bg-gold/15' : 'border-white/15 hover:border-white/35 hover:bg-white/5'
+              duo.on ? 'border-gold bg-gold/15' : 'border-white/15 hover:border-white/35 hover:bg-white/5'
             "
             @click="session.chooseSeating(duo.seating)"
           >
-            <span class="grow text-xs font-semibold" :class="duo.actif ? 'text-gold' : 'text-mist'">
+            <span class="grow text-xs font-semibold" :class="duo.on ? 'text-gold' : 'text-mist'">
               {{ duo.label }}
             </span>
-            <span class="text-[11px] text-sage">contre {{ duo.contre }}</span>
+            <span class="text-[11px] text-sage">contre {{ duo.against }}</span>
           </button>
         </div>
         <button
@@ -373,10 +373,10 @@ const monPartenaire = computed(() =>
           class="mt-6 h-14 cursor-pointer rounded-xl bg-gold text-base font-bold text-felt transition enabled:hover:brightness-110 disabled:opacity-40"
           @click="iAmDealer ? session.startDeal() : session.continueToNextDeal()"
         >
-          {{ iAmDealer ? 'Distribuer' : `Lancer la partie — ${dealer ? nomDe(dealer) : ''} distribue` }}
+          {{ iAmDealer ? 'Distribuer' : `Lancer la partie — ${dealer ? nameOf(dealer) : ''} distribue` }}
         </button>
         <p v-else class="mt-6 text-center text-sm text-mist">
-          Tout le monde est là. {{ dealer ? nomDe(dealer) : '' }} distribue.
+          Tout le monde est là. {{ dealer ? nameOf(dealer) : '' }} distribue.
         </p>
       </template>
       <p v-else class="mt-6 text-center text-sm text-sage">

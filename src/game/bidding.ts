@@ -12,14 +12,14 @@ import { RULES, type Rules } from './rules'
 export type Declaration = Suit | 'sa' | 'ta'
 
 export type BiddingEntry =
-  | { kind: 'passe'; player: PlayerId }
-  | { kind: 'contrat'; player: PlayerId; value: number; suit: Suit }
+  | { kind: 'pass'; player: PlayerId }
+  | { kind: 'contract'; player: PlayerId; value: number; suit: Suit }
   | { kind: 'capot'; player: PlayerId; declaration: Declaration }
   | { kind: 'generale'; player: PlayerId; declaration: Declaration }
   | { kind: 'coinche'; player: PlayerId }
   | { kind: 'surcoinche'; player: PlayerId }
 
-export type ContractEntry = Extract<BiddingEntry, { kind: 'contrat' | 'capot' | 'generale' }>
+export type ContractEntry = Extract<BiddingEntry, { kind: 'contract' | 'capot' | 'generale' }>
 
 export interface BiddingState {
   dealer: PlayerId
@@ -39,13 +39,13 @@ export const newBidding = (dealer: PlayerId, seating: Seating): BiddingState => 
  * La générale domine le capot, même si les deux valent 250 au score.
  */
 export function rankOf(entry: ContractEntry): number {
-  if (entry.kind === 'contrat') return entry.value
+  if (entry.kind === 'contract') return entry.value
   return entry.kind === 'capot' ? 250 : 300
 }
 
 export const highestBid = (state: BiddingState): ContractEntry | null => {
   const bids = state.entries.filter(
-    (e): e is ContractEntry => e.kind === 'contrat' || e.kind === 'capot' || e.kind === 'generale',
+    (e): e is ContractEntry => e.kind === 'contract' || e.kind === 'capot' || e.kind === 'generale',
   )
   return bids.length > 0 ? bids[bids.length - 1] : null
 }
@@ -63,18 +63,18 @@ function trailingPasses(state: BiddingState): number {
   let n = 0
   for (let i = state.entries.length - 1; i >= 0; i--) {
     const e = state.entries[i]
-    if (e.kind === 'passe') n++
+    if (e.kind === 'pass') n++
     else break
   }
   return n
 }
 
 export type Outcome =
-  | { status: 'en_cours' }
+  | { status: 'open' }
   /** ENC-7 — quatre passes d'emblée : personne ne prend, on redonne (DIS-3). */
-  | { status: 'donne_blanche' }
+  | { status: 'passed_out' }
   | {
-      status: 'contrat'
+      status: 'contract'
       taker: PlayerId
       value: number
       trump: Suit | null
@@ -87,24 +87,24 @@ export type Outcome =
 export function outcome(state: BiddingState, rules: Rules = RULES): Outcome {
   const best = highestBid(state)
 
-  if (!best) return trailingPasses(state) >= 4 ? { status: 'donne_blanche' } : { status: 'en_cours' }
+  if (!best) return trailingPasses(state) >= 4 ? { status: 'passed_out' } : { status: 'open' }
 
   // La coinche ferme les enchères ; le camp du preneur peut encore surcoincher.
   const closed = surcoinched(state)
     ? true
     : coinched(state)
-      ? state.entries.at(-1)!.kind === 'passe'
+      ? state.entries.at(-1)!.kind === 'pass'
       : trailingPasses(state) >= 3
 
-  if (!closed) return { status: 'en_cours' }
+  if (!closed) return { status: 'open' }
 
   return {
-    status: 'contrat',
+    status: 'contract',
     taker: best.player,
     value:
-      best.kind === 'contrat' ? best.value : best.kind === 'capot' ? rules.capotValue : rules.generaleValue,
-    trump: best.kind === 'contrat' ? best.suit : declarationToTrump(best.declaration),
-    declaration: best.kind === 'contrat' ? best.suit : best.declaration,
+      best.kind === 'contract' ? best.value : best.kind === 'capot' ? rules.capotValue : rules.generaleValue,
+    trump: best.kind === 'contract' ? best.suit : declarationToTrump(best.declaration),
+    declaration: best.kind === 'contract' ? best.suit : best.declaration,
     multiplier: multiplier(state),
     capot: best.kind === 'capot',
     generale: best.kind === 'generale',
@@ -119,7 +119,7 @@ const declarationToTrump = (d: Declaration): Suit | null => (d === 'sa' || d ===
  * La coinche étant prise à la volée (CO-3), elle ne consomme pas de tour.
  */
 export function currentBidder(state: BiddingState): PlayerId | null {
-  if (outcome(state).status !== 'en_cours') return null
+  if (outcome(state).status !== 'open') return null
 
   const spoken = state.entries.filter((e) => e.kind !== 'coinche' && e.kind !== 'surcoinche')
   if (coinched(state)) {
@@ -134,7 +134,7 @@ export function currentBidder(state: BiddingState): PlayerId | null {
 export function legalValues(state: BiddingState, rules: Rules = RULES): number[] {
   if (coinched(state)) return [] // CO-5 : la coinche ferme les enchères
   const best = highestBid(state)
-  if (best && best.kind !== 'contrat') return [] // au-delà du capot, plus de contrat chiffré
+  if (best && best.kind !== 'contract') return [] // au-delà du capot, plus de contrat chiffré
   const floor = best ? best.value + rules.bidStep : rules.minBid
   const values: number[] = []
   for (let v = floor; v <= rules.maxBid; v += rules.bidStep) values.push(v)
@@ -144,7 +144,7 @@ export function legalValues(state: BiddingState, rules: Rules = RULES): number[]
 export const canBidCapot = (state: BiddingState): boolean => {
   if (coinched(state)) return false
   const best = highestBid(state)
-  return !best || best.kind === 'contrat'
+  return !best || best.kind === 'contract'
 }
 
 export const canBidGenerale = (state: BiddingState): boolean => {
@@ -171,7 +171,7 @@ export class IllegalBid extends Error {}
 
 /** Applique une prise de parole après l'avoir validée. L'état est remplacé, jamais muté. */
 export function apply(state: BiddingState, entry: BiddingEntry, rules: Rules = RULES): BiddingState {
-  if (outcome(state, rules).status !== 'en_cours') throw new IllegalBid('Les enchères sont closes')
+  if (outcome(state, rules).status !== 'open') throw new IllegalBid('Les enchères sont closes')
 
   if (entry.kind === 'coinche') {
     if (!canCoinche(state, entry.player)) throw new IllegalBid('Coinche impossible')
@@ -185,9 +185,9 @@ export function apply(state: BiddingState, entry: BiddingEntry, rules: Rules = R
   if (entry.player !== currentBidder(state)) throw new IllegalBid(`Ce n'est pas à ${entry.player} de parler`)
 
   // CO-5 — après une coinche, le preneur ne peut plus que passer (ou surcoincher, plus haut).
-  if (coinched(state) && entry.kind !== 'passe') throw new IllegalBid('La coinche ferme les enchères')
+  if (coinched(state) && entry.kind !== 'pass') throw new IllegalBid('La coinche ferme les enchères')
 
-  if (entry.kind === 'contrat') {
+  if (entry.kind === 'contract') {
     if (!legalValues(state, rules).includes(entry.value)) {
       throw new IllegalBid(`${entry.value} n'est pas une enchère valable`)
     }
@@ -203,6 +203,6 @@ export function apply(state: BiddingState, entry: BiddingEntry, rules: Rules = R
 /** Qui entame le premier pli : JEU-1, sauf générale où le preneur prend la main (ENC-9). */
 export function firstLeader(state: BiddingState): PlayerId | null {
   const result = outcome(state)
-  if (result.status !== 'contrat') return null
+  if (result.status !== 'contract') return null
   return result.generale ? result.taker : nextPlayer(state.dealer, state.seating)
 }

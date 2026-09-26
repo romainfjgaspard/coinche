@@ -24,7 +24,7 @@ interface Base {
 export type GameEvent = Base &
   (
     | {
-        type: 'partie_creee'
+        type: 'game_created'
         seats: Record<PlayerId, string>
         /** Placement de cette partie : sans lui, on ne saurait plus qui jouait avec qui. */
         seating: Seating | null
@@ -33,12 +33,12 @@ export type GameEvent = Base &
         rules: Rules
         engineVersion: number
       }
-    | { type: 'donne_commencee'; dealNumber: number; dealer: PlayerId; cut: number }
-    | { type: 'enchere'; player: PlayerId; round: number; entry: BiddingEntry }
+    | { type: 'deal_started'; dealNumber: number; dealer: PlayerId; cut: number }
+    | { type: 'bid'; player: PlayerId; round: number; entry: BiddingEntry }
     | { type: 'coinche'; player: PlayerId }
     | { type: 'surcoinche'; player: PlayerId }
     | {
-        type: 'contrat_fixe'
+        type: 'contract_set'
         taker: PlayerId
         value: number
         trump: Suit | null
@@ -52,17 +52,17 @@ export type GameEvent = Base &
         generale: boolean
       }
     | {
-        type: 'carte_jouee'
+        type: 'card_played'
         player: PlayerId
         card: Card
         trickNumber: number
         position: number
-        /** Temps de réflexion : la main, elle, reste scellée dans `donne/{n}`. */
+        /** Temps de réflexion : la main, elle, reste scellée dans `deals/{n}`. */
         thinkMs?: number
       }
-    | { type: 'belote_annoncee'; player: PlayerId; half: 'belote' | 'rebelote' }
+    | { type: 'belote_declared'; player: PlayerId; half: 'belote' | 'rebelote' }
     | {
-        type: 'pli_termine'
+        type: 'trick_done'
         trickNumber: number
         winner: PlayerId
         cards: Card[]
@@ -71,9 +71,9 @@ export type GameEvent = Base &
         overcut: boolean
       }
     | {
-        type: 'donne_terminee'
+        type: 'deal_done'
         dealNumber: number
-        status: 'reussi' | 'chute' | 'capot' | 'generale'
+        status: 'made' | 'down' | 'capot' | 'generale'
         cardPoints: [number, number]
         compared: [number, number]
         scores: [number, number]
@@ -81,24 +81,24 @@ export type GameEvent = Base &
         beloteDeclaredBy: PlayerId | null
         beloteForgottenBy: PlayerId | null
         /** DEC-8 — capot réalisé sans l'avoir annoncé : une étoile pour le preneur */
-        etoile: PlayerId | null
+        shameStar: PlayerId | null
         /** Blitz : donne non coinchée, marquée sans être jouée — pas de cartes à compter */
         blitz?: boolean
       }
-    | { type: 'donne_annulee'; dealNumber: number; reason: 'quatre_passes' }
+    | { type: 'deal_cancelled'; dealNumber: number; reason: 'four_passes' }
     /** DEC-9 — trois étoiles dans la même partie : la honte complète. */
-    | { type: 'honte_complete'; player: PlayerId; stars: number }
-    | { type: 'partie_terminee'; scores: [number, number]; winner: 0 | 1; deals: number }
+    | { type: 'full_shame'; player: PlayerId; stars: number }
+    | { type: 'game_over'; scores: [number, number]; winner: 0 | 1; deals: number }
     /** Pause : personne ne joue, et l'attente ne compte dans le temps de réflexion de personne. */
     | { type: 'pause'; player: PlayerId }
-    | { type: 'reprise'; player: PlayerId }
+    | { type: 'resume'; player: PlayerId }
     /** Un joueur arrête la partie pour tous : elle n'est pas archivée. */
-    | { type: 'partie_annulee'; player: PlayerId }
-    | { type: 'joueur_connecte'; player: PlayerId }
+    | { type: 'game_cancelled'; player: PlayerId }
+    | { type: 'player_joined'; player: PlayerId }
     /** Les équipes changées au salon, avant la première donne. */
-    | { type: 'placement'; player: PlayerId; seating: Seating; dealer: PlayerId }
-    | { type: 'joueur_deconnecte'; player: PlayerId }
-    | { type: 'message_chat'; player: PlayerId; text: string }
+    | { type: 'seating_set'; player: PlayerId; seating: Seating; dealer: PlayerId }
+    | { type: 'player_left'; player: PlayerId }
+    | { type: 'chat_message'; player: PlayerId; text: string }
   )
 
 /**

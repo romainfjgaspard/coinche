@@ -19,12 +19,12 @@ import BiddingHistory from './BiddingHistory.vue'
 import LastTrickCross from './LastTrickCross.vue'
 import { SUIT_GLYPH, isRed } from '../game/display'
 
-import { nomDe } from '../stores/roster'
+import { nameOf } from '../stores/roster'
 import type { Card } from '../game/cards'
-import { type Place, useTableState } from '../composables/useTableState'
+import { type Spot, useTableState } from '../composables/useTableState'
 import { useTableLayout } from '../composables/useTableLayout'
 
-const emit = defineEmits<{ stats: []; regles: [] }>()
+const emit = defineEmits<{ stats: []; rules: [] }>()
 
 const {
   session,
@@ -41,7 +41,7 @@ const {
   starsOf,
   isActive,
   lastBid,
-  beloteDe,
+  beloteOf,
 } = useTableState()
 const L = useTableLayout()
 
@@ -51,8 +51,8 @@ const px = (n: number) => `${n}px`
 const trickPos = computed(() => {
   const w = L.value.trickW
   const h = Math.round(w * 1.44)
-  const cx = L.value.tapis.x + L.value.tapis.w / 2
-  const cy = L.value.tapis.y + L.value.tapis.h / 2
+  const cx = L.value.felt.x + L.value.felt.w / 2
+  const cy = L.value.felt.y + L.value.felt.h / 2
   const dy = Math.round(h * 0.54)
   const dx = Math.round(w * 1.06)
   const at = (x: number, y: number) => ({ left: px(Math.round(x - w / 2)), top: px(Math.round(y - h / 2)) })
@@ -61,9 +61,9 @@ const trickPos = computed(() => {
     me: at(cx, cy + dy),
     left: at(cx - dx, cy),
     right: at(cx + dx, cy),
-  } satisfies Record<Place, { left: string; top: string }>
+  } satisfies Record<Spot, { left: string; top: string }>
 })
-const places: Place[] = ['top', 'left', 'right', 'me']
+const spots: Spot[] = ['top', 'left', 'right', 'me']
 
 /** Ma main en éventail, centrée, coupée par le bas de l'écran. */
 const hand = computed(() => {
@@ -74,7 +74,7 @@ const hand = computed(() => {
 })
 const hovered = ref<Card | null>(null)
 /** En cours de jeu, l'historique des enchères se rouvre d'un clic sur le contrat. */
-const encheresVisibles = ref(false)
+const bidsVisible = ref(false)
 /** La carte survolée se soulève en entier, et passe devant ses voisines. */
 const lift = computed(() => L.value.cardH - L.value.handVisible + Math.round(10 * L.value.u))
 
@@ -104,13 +104,13 @@ const teams = computed(() => [
           <span class="text-base font-semibold text-them">Eux</span>
         </div>
         <div class="flex w-40 justify-end gap-2">
-          <QuitGame grand />
+          <QuitGame large />
           <button
-            v-if="session.peutPauser && !session.pause"
+            v-if="session.canPause && !session.pause"
             type="button"
             class="flex cursor-pointer items-center gap-2 rounded-lg border border-white/20 px-3.5 py-1.5 text-sm font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
             :disabled="session.busy"
-            @click="session.basculerPause()"
+            @click="session.togglePause()"
           >
             <svg viewBox="0 0 10 12" class="h-3 w-2.5" fill="currentColor" aria-hidden="true">
               <rect x="1" y="1" width="2.6" height="10" rx="0.8" />
@@ -120,7 +120,7 @@ const teams = computed(() => [
           <button
             type="button"
             class="cursor-pointer rounded-lg border border-white/20 px-3.5 py-1.5 text-sm font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
-            @click="emit('regles')"
+            @click="emit('rules')"
           >
             Règles
           </button>
@@ -139,10 +139,10 @@ const teams = computed(() => [
     <div
       class="absolute shadow-[inset_0_0_0_3px_rgba(217,164,65,.22),inset_0_26px_64px_rgba(0,0,0,.3),0_22px_54px_rgba(0,0,0,.55)]"
       :style="{
-        left: px(L.tapis.x),
-        top: px(L.tapis.y),
-        width: px(L.tapis.w),
-        height: px(L.tapis.h),
+        left: px(L.felt.x),
+        top: px(L.felt.y),
+        width: px(L.felt.w),
+        height: px(L.felt.h),
         borderRadius: px(Math.round(44 * L.u)),
         border: `${L.rim}px solid #33241a`,
         backgroundColor: '#15583f',
@@ -162,8 +162,8 @@ const teams = computed(() => [
       v-if="contract"
       class="absolute"
       :style="{
-        left: px(L.tapis.x + L.rim + Math.round(28 * L.u)),
-        top: px(L.tapis.y + L.rim + Math.round(24 * L.u)),
+        left: px(L.felt.x + L.rim + Math.round(28 * L.u)),
+        top: px(L.felt.y + L.rim + Math.round(24 * L.u)),
       }"
     >
       <div :style="{ zoom: L.t }">
@@ -180,17 +180,17 @@ const teams = computed(() => [
           >
         </div>
         <p class="mt-1.5 text-base text-mist">
-          par <span class="font-semibold text-ivory">{{ nomDe(contract.taker) }}</span>
+          par <span class="font-semibold text-ivory">{{ nameOf(contract.taker) }}</span>
         </p>
         <!-- Qui a dit quoi, et pas seulement qui a pris : l'historique complet de la donne -->
         <button
-          v-if="session.game?.phase === 'jeu'"
+          v-if="session.game?.phase === 'playing'"
           type="button"
           class="mt-2 cursor-pointer text-sm text-sage underline underline-offset-4 transition hover:text-mist"
-          :aria-expanded="encheresVisibles"
-          @click="encheresVisibles = !encheresVisibles"
+          :aria-expanded="bidsVisible"
+          @click="bidsVisible = !bidsVisible"
         >
-          {{ encheresVisibles ? 'Masquer les enchères' : 'Voir les enchères' }}
+          {{ bidsVisible ? 'Masquer les enchères' : 'Voir les enchères' }}
         </button>
         <p
           v-if="contract.multiplier > 1"
@@ -199,7 +199,7 @@ const teams = computed(() => [
           {{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}
         </p>
         <!-- L'historique s'ouvre juste en dessous, là où l'on a cliqué -->
-        <div v-if="session.game?.phase === 'jeu' && encheresVisibles" class="relative z-30 mt-3 w-[300px]">
+        <div v-if="session.game?.phase === 'playing' && bidsVisible" class="relative z-30 mt-3 w-[300px]">
           <BiddingHistory />
         </div>
       </div>
@@ -210,8 +210,8 @@ const teams = computed(() => [
       v-if="session.play"
       class="absolute"
       :style="{
-        right: px(L.width - (L.tapis.x + L.tapis.w) + L.rim + Math.round(28 * L.u)),
-        bottom: px(L.height - (L.tapis.y + L.tapis.h) + L.rim + Math.round(22 * L.u)),
+        right: px(L.width - (L.felt.x + L.felt.w) + L.rim + Math.round(28 * L.u)),
+        bottom: px(L.height - (L.felt.y + L.felt.h) + L.rim + Math.round(22 * L.u)),
       }"
     >
       <div class="flex items-start gap-7" :style="{ zoom: L.t }">
@@ -223,7 +223,7 @@ const teams = computed(() => [
           <p v-else class="flex h-[190px] items-center text-base text-sage">aucun pli joué</p>
           <p class="mt-1.5 h-6 text-base text-mist">
             <template v-if="session.lastTrick">
-              pris par <span class="font-semibold text-gold">{{ nomDe(session.lastTrick.winner) }}</span>
+              pris par <span class="font-semibold text-gold">{{ nameOf(session.lastTrick.winner) }}</span>
             </template>
           </p>
         </div>
@@ -258,10 +258,10 @@ const teams = computed(() => [
           :dealer="session.game?.dealer === around.top"
           :active="isActive(around.top)"
           :stars="starsOf(around.top)"
-          :belote="beloteDe(around.top)"
-          :annonce="lastBid.get(around.top)"
-          grand
-          :reflechit="session.toBid === around.top"
+          :belote="beloteOf(around.top)"
+          :bid="lastBid.get(around.top)"
+          large
+          :thinking="session.toBid === around.top"
         />
       </div>
     </div>
@@ -273,7 +273,7 @@ const teams = computed(() => [
       class="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
       :style="{
         left: px(side === 'left' ? L.sideX : L.width - L.sideX),
-        top: px(L.tapis.y + L.tapis.h / 2),
+        top: px(L.felt.y + L.felt.h / 2),
         gap: px(Math.round(14 * L.u)),
       }"
     >
@@ -292,22 +292,22 @@ const teams = computed(() => [
           :dealer="session.game?.dealer === around[side]"
           :active="isActive(around[side])"
           :stars="starsOf(around[side])"
-          :belote="beloteDe(around[side])"
-          :annonce="lastBid.get(around[side])"
-          grand
-          :reflechit="session.toBid === around[side]"
+          :belote="beloteOf(around[side])"
+          :bid="lastBid.get(around[side])"
+          large
+          :thinking="session.toBid === around[side]"
         />
       </div>
     </div>
 
     <!-- Le pli -->
-    <template v-for="place in places" :key="place">
+    <template v-for="spot in spots" :key="spot">
       <div
-        v-if="trickAt[place]"
+        v-if="trickAt[spot]"
         class="absolute"
-        :style="{ ...trickPos[place], zIndex: 10 + (trickOrder[place] ?? 0) }"
+        :style="{ ...trickPos[spot], zIndex: 10 + (trickOrder[spot] ?? 0) }"
       >
-        <PlayingCard :card="trickAt[place]!" :width="L.trickW" :winner="trickAt[place] === trickWinnerCard" />
+        <PlayingCard :card="trickAt[spot]!" :width="L.trickW" :winner="trickAt[spot] === trickWinnerCard" />
       </div>
     </template>
     <!-- Ma place dans le pli, quand c'est à moi -->
@@ -328,7 +328,7 @@ const teams = computed(() => [
           :dealer="session.game?.dealer === me"
           :active="isActive(me)"
           :stars="starsOf(me)"
-          :belote="beloteDe(me)"
+          :belote="beloteOf(me)"
           me
         />
         <span v-if="session.myPlayTurn" class="text-sm font-semibold text-gold">à toi de jouer</span>
@@ -341,11 +341,11 @@ const teams = computed(() => [
       s'affichera, et d'où il se rouvre pendant le jeu.
     -->
     <div
-      v-if="session.game?.phase === 'encheres'"
+      v-if="session.game?.phase === 'bidding'"
       class="absolute z-30"
       :style="{
-        left: px(L.tapis.x + L.rim + Math.round(28 * L.u)),
-        top: px(L.tapis.y + L.rim + Math.round(24 * L.u)),
+        left: px(L.felt.x + L.rim + Math.round(28 * L.u)),
+        top: px(L.felt.y + L.rim + Math.round(24 * L.u)),
       }"
     >
       <div class="w-[300px]" :style="{ zoom: L.t }">

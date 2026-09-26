@@ -71,12 +71,12 @@ l'émulateur dès que le mode est `test`.
 Parcours dans de vrais navigateurs (Playwright), avec l'émulateur et `npm run dev:emu` déjà lancés :
 `npm run test:e2e` (partie complète à quatre), `npm run test:bot` (un humain, trois bots),
 `npm run test:apercu` (captures des stats), `node tests/audit.mjs` (revue d'affichage). Captures dans
-`captures/` (ignoré par git), ou dans `$env:SORTIE`. Chromium s'installe avec
+`captures/` (ignoré par git), ou dans `$env:OUT_DIR`. Chromium s'installe avec
 `npx playwright install chromium`.
 
 Pour remplir les statistiques de l'émulateur : `npm run seed:stats` (émulateur lancé ;
-`$env:PARTIES=12` pour le nombre de parties, 8 par défaut). Il ne vise la vraie base que par
-`npm run seed:stats:prod`, avec `$env:SEED_CONFIRME='coinche-e708b'`.
+`$env:GAMES=12` pour le nombre de parties, 8 par défaut). Il ne vise la vraie base que par
+`npm run seed:stats:prod`, avec `$env:SEED_CONFIRM='coinche-e708b'`.
 
 ## Mise en ligne
 

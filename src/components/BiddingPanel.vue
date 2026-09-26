@@ -5,7 +5,7 @@ import PlayingCard from './PlayingCard.vue'
 import type { Suit } from '../game/cards'
 import { SUIT_GLYPH, isRed } from '../game/display'
 import { type PlayerId, nextPlayer, playerAtSeat, seatOf } from '../game/players'
-import { nomDe } from '../stores/roster'
+import { nameOf } from '../stores/roster'
 import { type BiddingEntry, type Declaration, canBidCapot, canBidGenerale } from '../game/bidding'
 import { currentDeal } from '../game/replay'
 import { useSession } from '../stores/session'
@@ -14,7 +14,7 @@ import { useTableLayout } from '../composables/useTableLayout'
 import { useFitZoom } from '../composables/useFitZoom'
 
 const session = useSession()
-const grand = useLargeScreen()
+const large = useLargeScreen()
 const L = useTableLayout()
 
 /**
@@ -26,18 +26,18 @@ const panel = ref<HTMLElement | null>(null)
 const zoom = useFitZoom(
   panel,
   computed(() => L.value.t * 1.15),
-  computed(() => L.value.tapis.h - 2 * L.value.rim - Math.round(44 * L.value.u)),
+  computed(() => L.value.felt.h - 2 * L.value.rim - Math.round(44 * L.value.u)),
 )
 
 /** Ma main dans le panneau, sur téléphone : la largeur du panneau, moins ses marges. */
-const mainEncheres = computed(() => {
+const biddingHand = computed(() => {
   // La colonne `max-w-md` (448 px), pas la fenêtre : sinon, sur tablette, la main débordait.
-  const place = Math.min(L.value.width, 448) - 40
+  const spot = Math.min(L.value.width, 448) - 40
   const n = Math.max(1, session.sortedHand.length)
-  const carte = Math.min(120, Math.round(place * 0.34))
-  const pas = Math.min(carte - 8, (place - carte) / Math.max(1, n - 1))
-  const x0 = Math.round((place - carte - (n - 1) * pas) / 2)
-  return { carte, pas, x0, hauteur: Math.round(carte * 1.44 * 0.62) }
+  const card = Math.min(120, Math.round(spot * 0.34))
+  const step = Math.min(card - 8, (spot - card) / Math.max(1, n - 1))
+  const x0 = Math.round((spot - card - (n - 1) * step) / 2)
+  return { card, step, x0, height: Math.round(card * 1.44 * 0.62) }
 })
 
 /** Ce que je m'apprête à annoncer : un palier chiffré, ou un capot, ou une générale. */
@@ -53,12 +53,12 @@ const best = computed(() => {
   const entries = session.bidding?.entries ?? []
   return [...entries]
     .reverse()
-    .find((e) => e.kind === 'contrat' || e.kind === 'capot' || e.kind === 'generale')
+    .find((e) => e.kind === 'contract' || e.kind === 'capot' || e.kind === 'generale')
 })
 
 const history = computed(() =>
   currentDeal(session.events).filter(
-    (e) => e.type === 'enchere' || e.type === 'coinche' || e.type === 'surcoinche',
+    (e) => e.type === 'bid' || e.type === 'coinche' || e.type === 'surcoinche',
   ),
 )
 
@@ -78,7 +78,7 @@ const speakers = computed<PlayerId[]>(() => {
 const rounds = computed(() => {
   const rows: Partial<Record<PlayerId, BiddingEntry>>[] = []
   for (const e of history.value) {
-    if (e.type !== 'enchere') continue
+    if (e.type !== 'bid') continue
     const row = (rows[e.round - 1] ??= {})
     row[e.player] = e.entry
   }
@@ -138,7 +138,7 @@ function announce(): void {
   const player = session.playerId
   const l = level.value!
   const d = declaration.value!
-  if (typeof l === 'number') session.bid({ kind: 'contrat', player, value: l, suit: d as Suit })
+  if (typeof l === 'number') session.bid({ kind: 'contract', player, value: l, suit: d as Suit })
   else session.bid({ kind: l, player, declaration: d })
   level.value = null
   declaration.value = null
@@ -156,9 +156,9 @@ watch(
 
 function label(entry: BiddingEntry): string {
   switch (entry.kind) {
-    case 'passe':
+    case 'pass':
       return 'Passe'
-    case 'contrat':
+    case 'contract':
       return String(entry.value)
     case 'capot':
       return 'Capot'
@@ -169,7 +169,7 @@ function label(entry: BiddingEntry): string {
   }
 }
 const suitOfEntry = (entry: BiddingEntry): Declaration | null =>
-  entry.kind === 'contrat'
+  entry.kind === 'contract'
     ? entry.suit
     : entry.kind === 'capot' || entry.kind === 'generale'
       ? entry.declaration
@@ -179,10 +179,10 @@ const suitOfEntry = (entry: BiddingEntry): Declaration | null =>
 const bestText = computed(() => {
   const b = best.value
   if (!b) return ''
-  const qui = nomDe(b.player)
-  if (b.kind === 'contrat') return `${qui} a annoncé ${b.value} ${SUIT_GLYPH[b.suit]}`
-  const quoi = b.kind === 'capot' ? 'un capot' : 'une générale'
-  return `${qui} a annoncé ${quoi} ${declarationLabel(b.declaration)}`
+  const who = nameOf(b.player)
+  if (b.kind === 'contract') return `${who} a annoncé ${b.value} ${SUIT_GLYPH[b.suit]}`
+  const what = b.kind === 'capot' ? 'un capot' : 'une générale'
+  return `${who} a annoncé ${what} ${declarationLabel(b.declaration)}`
 })
 </script>
 
@@ -196,15 +196,15 @@ const bestText = computed(() => {
     à côté du joueur concerné, et l'historique a sa colonne à gauche du tapis.
   -->
   <div
-    v-if="!grand || session.myBidTurn"
-    :class="grand ? 'absolute z-40 -translate-x-1/2' : 'absolute inset-x-0 bottom-0 z-40'"
-    :style="grand ? { left: '50%', top: `${L.tapis.y + L.rim + Math.round(22 * L.u)}px` } : undefined"
+    v-if="!large || session.myBidTurn"
+    :class="large ? 'absolute z-40 -translate-x-1/2' : 'absolute inset-x-0 bottom-0 z-40'"
+    :style="large ? { left: '50%', top: `${L.felt.y + L.rim + Math.round(22 * L.u)}px` } : undefined"
   >
     <div
       ref="panel"
       class="bg-felt-dark px-5 pb-7 pt-5 shadow-[0_-8px_32px_rgba(0,0,0,.45)]"
-      :class="grand ? 'w-[480px] rounded-2xl border border-white/10 pb-5' : 'rounded-t-3xl'"
-      :style="grand ? { zoom } : undefined"
+      :class="large ? 'w-[480px] rounded-2xl border border-white/10 pb-5' : 'rounded-t-3xl'"
+      :style="large ? { zoom } : undefined"
     >
       <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20 lg:hidden"></div>
 
@@ -212,14 +212,14 @@ const bestText = computed(() => {
       Sur téléphone le panneau couvre la main : on la remet sous les yeux, en grand et
       coupée par le bas comme la main sur la table — on n'a besoin que des index.
     -->
-      <div class="relative mb-4 overflow-hidden lg:hidden" :style="{ height: `${mainEncheres.hauteur}px` }">
+      <div class="relative mb-4 overflow-hidden lg:hidden" :style="{ height: `${biddingHand.height}px` }">
         <div
           v-for="(card, i) in session.sortedHand"
           :key="card"
           class="absolute top-0"
-          :style="{ left: `${mainEncheres.x0 + i * mainEncheres.pas}px` }"
+          :style="{ left: `${biddingHand.x0 + i * biddingHand.step}px` }"
         >
-          <PlayingCard :card="card" :width="mainEncheres.carte" />
+          <PlayingCard :card="card" :width="biddingHand.card" />
         </div>
       </div>
 
@@ -227,14 +227,14 @@ const bestText = computed(() => {
       Qui a dit quoi : une colonne par joueur, dans l'ordre de parole. Sur PC, l'historique
       a sa propre colonne à droite du tapis (BiddingHistory) : la fenêtre n'en garde rien.
     -->
-      <div v-if="history.length && !grand" class="mb-4">
+      <div v-if="history.length && !large" class="mb-4">
         <div class="grid grid-cols-4 gap-x-2 border-b border-white/10 pb-1.5">
           <span
             v-for="p in speakers"
             :key="p"
             class="truncate text-[15px] font-semibold"
             :class="p === session.playerId ? 'text-gold' : 'text-mist'"
-            >{{ nomDe(p) }}</span
+            >{{ nameOf(p) }}</span
           >
         </div>
         <div
@@ -244,7 +244,7 @@ const bestText = computed(() => {
         >
           <span v-for="p in speakers" :key="p" class="flex h-7 items-center gap-1.5 text-[17px]">
             <template v-if="row[p]">
-              <span :class="row[p]!.kind === 'passe' ? 'text-sage' : 'font-semibold text-ivory'">{{
+              <span :class="row[p]!.kind === 'pass' ? 'text-sage' : 'font-semibold text-ivory'">{{
                 label(row[p]!)
               }}</span>
               <span
@@ -265,7 +265,7 @@ const bestText = computed(() => {
           :key="i"
           class="mt-2 rounded-lg bg-red-card/20 px-3 py-1.5 text-[14px] font-semibold text-[#f0a293]"
         >
-          {{ nomDe(e.player) }} {{ e.type === 'coinche' ? 'coinche ! ×2' : 'surcoinche ! ×4' }}
+          {{ nameOf(e.player) }} {{ e.type === 'coinche' ? 'coinche ! ×2' : 'surcoinche ! ×4' }}
         </p>
       </div>
 
@@ -278,7 +278,7 @@ const bestText = computed(() => {
         <button
           type="button"
           class="h-12 w-full cursor-pointer rounded-[10px] border border-white/20 text-[15px] font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
-          @click="session.playerId && session.bid({ kind: 'passe', player: session.playerId })"
+          @click="session.playerId && session.bid({ kind: 'pass', player: session.playerId })"
         >
           Passe
         </button>
@@ -367,7 +367,7 @@ const bestText = computed(() => {
           <button
             type="button"
             class="h-12 grow cursor-pointer rounded-[10px] border border-white/20 text-[15px] font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
-            @click="session.playerId && session.bid({ kind: 'passe', player: session.playerId })"
+            @click="session.playerId && session.bid({ kind: 'pass', player: session.playerId })"
           >
             Passe
           </button>
@@ -383,7 +383,7 @@ const bestText = computed(() => {
       </template>
 
       <p v-else class="py-3 text-center text-sm text-mist">
-        <span v-if="session.toBid">{{ nomDe(session.toBid) }} réfléchit…</span>
+        <span v-if="session.toBid">{{ nameOf(session.toBid) }} réfléchit…</span>
         <span v-else>Enchères closes</span>
       </p>
 
@@ -392,7 +392,7 @@ const bestText = computed(() => {
       sorti du panneau (à côté de ma pastille) ; sur téléphone, le panneau est la zone
       d'action et il y reste.
     -->
-      <div v-if="!grand && (session.mayCoinche || session.maySurcoinche)" class="mt-3">
+      <div v-if="!large && (session.mayCoinche || session.maySurcoinche)" class="mt-3">
         <button
           v-if="session.mayCoinche"
           type="button"
