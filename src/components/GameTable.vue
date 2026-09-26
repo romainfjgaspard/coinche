@@ -52,13 +52,19 @@ const largeurPli = computed(() => (grand.value ? 44 : 46))
  * resserre pour que les huit tiennent.
  */
 const L = useTableLayout()
-const carteMain = computed(() => Math.min(120, Math.round(L.value.width * 0.3)))
+/**
+ * La largeur de la colonne, pas celle de la fenêtre : entre 448 et 1024 px (tablette,
+ * téléphone en paysage), la table reste dans sa colonne `max-w-md`, et les dernières
+ * cartes, placées sur toute la fenêtre, sortaient de l'écran.
+ */
+const largeur = computed(() => Math.min(L.value.width, 448))
+const carteMain = computed(() => Math.min(120, Math.round(largeur.value * 0.3)))
 const visibleMain = computed(() => Math.round(carteMain.value * 1.44 * 0.58))
 const main = computed(() => {
   const n = session.sortedHand.length
-  const pas = Math.min(carteMain.value - 10, (L.value.width - 16 - carteMain.value) / Math.max(1, n - 1))
+  const pas = Math.min(carteMain.value - 10, (largeur.value - 16 - carteMain.value) / Math.max(1, n - 1))
   const total = carteMain.value + Math.max(0, n - 1) * pas
-  const x0 = Math.round(L.value.width / 2 - total / 2)
+  const x0 = Math.round(largeur.value / 2 - total / 2)
   return { pas, cartes: session.sortedHand.map((card, i) => ({ card, left: Math.round(x0 + i * pas) })) }
 })
 /**

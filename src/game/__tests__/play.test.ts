@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DECK, type Card } from '../cards'
-import { DEFAULT_SEATING, type PlayerId, PLAYER_IDS } from '../players'
+import { DEFAULT_SEATING, type PlayerId, PLAYER_IDS, type Seating } from '../players'
 import { dealHands } from '../deal'
 import {
   IllegalPlay,
@@ -20,7 +20,7 @@ import {
 } from '../play'
 import { scoreDeal, type Contract } from '../scoring'
 import { RULES } from '../rules'
-import { SHAME_THRESHOLD, currentDeal, dealerOf, declaredBelote, starsInGame } from '../replay'
+import { SHAME_THRESHOLD, currentDeal, dealerOf, declaredBelote, seatingOf, starsInGame } from '../replay'
 import type { GameEvent } from '../events'
 
 // Sièges dans le sens du jeu : romain(0) · benel(1) · viv(2) · roux(3)
@@ -315,6 +315,25 @@ describe('le donneur vient de la distribution', () => {
 
   it("retombe sur le donneur fourni quand aucune donne n'a commencé", () => {
     expect(dealerOf([ev('partie_creee')], 'roux')).toBe('roux')
+  })
+})
+
+describe('le placement suit le salon', () => {
+  const ev = (type: string, extra: Record<string, unknown> = {}): GameEvent =>
+    ({ type, seq: 0, at: 0, ...extra }) as GameEvent
+  const avant: Seating = ['romain', 'benel', 'viv', 'roux']
+  const apres: Seating = ['romain', 'viv', 'benel', 'roux']
+
+  it("après « Rejouer », les équipes changées au salon l'emportent sur celles de la création", () => {
+    const journal = [
+      ev('partie_creee', { seating: avant }),
+      ev('placement', { seating: apres, dealer: 'viv' }),
+    ]
+    expect(seatingOf(journal, avant)).toEqual(apres)
+  })
+
+  it('sans rien au journal, le placement du document de partie', () => {
+    expect(seatingOf([ev('partie_creee', { seating: null })], apres)).toEqual(apres)
   })
 })
 

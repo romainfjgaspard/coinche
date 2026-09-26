@@ -29,11 +29,18 @@ export function dealerOf(events: GameEvent[], fallback: PlayerId): PlayerId {
   return e && e.type === 'donne_commencee' ? e.dealer : fallback
 }
 
-/** Le placement vient de la création de partie : il ne change plus ensuite. */
+/**
+ * Le placement : celui de la création (« Rejouer »), ou le dernier choisi au salon. Il ne
+ * change plus une fois la première donne distribuée.
+ */
 export function seatingOf(events: GameEvent[], fallback: Seating): Seating {
-  const e = events.find((x) => x.type === 'partie_creee')
-  // `e.seating` peut manquer sur un document ancien : on retombe sur le placement connu
-  return e && e.type === 'partie_creee' && e.seating ? e.seating : fallback
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.type === 'placement') return e.seating
+    // `e.seating` manque tant que la table n'était pas complète : on retombe sur le placement connu
+    if (e.type === 'partie_creee') return e.seating ?? fallback
+  }
+  return fallback
 }
 
 export function biddingFromEvents(events: GameEvent[], dealer: PlayerId, seating: Seating): BiddingState {

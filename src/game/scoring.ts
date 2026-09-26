@@ -75,10 +75,13 @@ export function scoreDeal(
   compared[defense] = cardPoints[defense]
 
   const wonAllTricks = tricksWon[taker] === tricks.length
+  // ENC-9 — la générale se fait seul : un pli ramassé par le partenaire la fait chuter.
+  const takerAlone = tricks.every((trick) => trickWinner(trick, contract.trump) === contract.takerSeat)
 
   // DEC-3 — atteindre le contrat ET être devant. DEC-7 : l'égalité chute.
-  const made =
-    contract.capot || contract.generale
+  const made = contract.generale
+    ? takerAlone
+    : contract.capot
       ? wonAllTricks
       : isContractMade(compared[taker], compared[defense], contract.value)
 

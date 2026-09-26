@@ -95,6 +95,8 @@ export type GameEvent = Base &
     /** Un joueur arrête la partie pour tous : elle n'est pas archivée. */
     | { type: 'partie_annulee'; player: PlayerId }
     | { type: 'joueur_connecte'; player: PlayerId }
+    /** Les équipes changées au salon, avant la première donne. */
+    | { type: 'placement'; player: PlayerId; seating: Seating; dealer: PlayerId }
     | { type: 'joueur_deconnecte'; player: PlayerId }
     | { type: 'message_chat'; player: PlayerId; text: string }
   )

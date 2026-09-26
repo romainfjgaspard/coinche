@@ -111,7 +111,8 @@ function coupsPermis(
   if (suivre) {
     if (entame === t.couleurAtout || toutAtout) {
       const plusHautes = (suivre & t.plusFortes[maitresse]) >>> 0
-      return plusHautes && !partenaireMaitre ? plusHautes : suivre
+      // JEU-6 — on monte, même sur son partenaire.
+      return plusHautes || suivre
     }
     return suivre
   }
