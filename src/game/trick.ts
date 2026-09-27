@@ -52,11 +52,11 @@ export function playableCards(hand: Card[], trick: PlayedCard[], trump: Atout, s
 
   // JEU-2 — fournir la couleur demandée
   if (followers.length > 0) {
-    // Cas particulier : on demande atout, il faut monter si possible — et au
-    // tout-atout, chaque couleur est un atout : on monte toujours.
+    // JEU-6 — on demande atout : il faut monter si on le peut, même sur son partenaire ;
+    // au tout-atout, chaque couleur est un atout : on monte toujours.
     if (lead === trump || trump === 'ta') {
       const higher = followers.filter((c) => strength(c, trump) > strength(winningCard, trump))
-      return higher.length > 0 && !partnerWinning ? higher : followers
+      return higher.length > 0 ? higher : followers
     }
     return followers
   }

@@ -60,11 +60,17 @@ describe('pause', () => {
 
 describe("reprise d'un bot", () => {
   let code: string
+  // Deux autres joueurs, chacun dans son onglet : seul un joueur assis reprend un bot.
+  let a: Awaited<ReturnType<typeof makeClient>>
+  let b: Awaited<ReturnType<typeof makeClient>>
 
   beforeAll(async () => {
     await signIn()
     code = await createGame('benel', DEFAULT_SEATING)
-    for (const p of ['roux', 'viv'] as const) await takeSeat(code, p)
+    a = await makeClient('reprise-a')
+    b = await makeClient('reprise-b')
+    await takeSeat(code, 'roux', a)
+    await takeSeat(code, 'viv', b)
     // Le bot de Romain, assis par l'onglet (disparu depuis) d'un autre joueur.
     await takeSeat(code, 'romain', await makeClient('bots-disparu'), true, 'compteur')
   }, 30_000)
@@ -75,7 +81,6 @@ describe("reprise d'un bot", () => {
 
   it("deux onglets le reprennent en même temps : un seul l'emporte", async () => {
     const ancien = (await lire(code)).seats.romain!.uid
-    const [a, b] = [await makeClient('reprise-a'), await makeClient('reprise-b')]
     const resultats = await Promise.allSettled([
       reprendreSiegeBot(code, 'romain', ancien, a),
       reprendreSiegeBot(code, 'romain', ancien, b),
@@ -98,27 +103,33 @@ describe("reprise d'un bot", () => {
 describe('un joueur absent remplacé par un bot', () => {
   let code: string
   let viv: Awaited<ReturnType<typeof makeClient>>
+  let roux: Awaited<ReturnType<typeof makeClient>>
 
   beforeAll(async () => {
     await signIn()
     code = await createGame('benel', DEFAULT_SEATING)
     viv = await makeClient('absente-viv')
+    roux = await makeClient('remplacant-roux')
     await takeSeat(code, 'viv', viv)
-    for (const p of ['roux', 'romain'] as const) await takeSeat(code, p)
+    await takeSeat(code, 'roux', roux)
+    await takeSeat(code, 'romain')
   }, 30_000)
 
   it('un autre joueur confie la place de Viv à un bot', async () => {
     const ancien = (await lire(code)).seats.viv!.uid
-    const bots = await makeClient('remplacant')
-    await remplacerParBot(code, 'viv', ancien, 'simple', bots)
-    expect((await lire(code)).seats.viv).toMatchObject({ bot: true, niveau: 'simple', remplace: true })
+    // Roux, assis, fait tourner le bot chez lui ; le siège garde le compte de Viv.
+    await remplacerParBot(code, 'viv', ancien, 'simple', roux)
+    expect((await lire(code)).seats.viv).toMatchObject({
+      bot: true,
+      niveau: 'simple',
+      remplace: true,
+      ancien: viv.auth.currentUser?.uid,
+    })
   })
 
   it('on ne remplace pas deux fois : le bot tient déjà la place', async () => {
     const actuel = (await lire(code)).seats.viv!.uid
-    await expect(
-      remplacerParBot(code, 'viv', actuel, 'simple', await makeClient('remplacant-2')),
-    ).rejects.toThrow(/déjà/)
+    await expect(remplacerParBot(code, 'viv', actuel, 'simple')).rejects.toThrow(/déjà/)
   })
 
   it('Viv revient et reprend sa place ; la partie reste marquée « avec bot »', async () => {

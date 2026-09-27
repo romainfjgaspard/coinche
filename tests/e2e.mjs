@@ -4,10 +4,12 @@
  *
  * Nécessite l'émulateur et le serveur de dev déjà lancés.
  */
+import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
-const SP = process.env.SORTIE ?? '.'
-const URL = 'http://127.0.0.1:5173/coinche/'
+const SP = process.env.SORTIE ?? 'captures'
+mkdirSync(SP, { recursive: true })
+const URL = 'http://localhost:5173/coinche/'
 const navigateur = await chromium.launch()
 const erreurs = []
 const echecs = []
@@ -17,7 +19,7 @@ async function ouvrir(nom) {
   const p = await ctx.newPage()
   p.on('pageerror', (e) => erreurs.push(`${nom}: ${e}`))
   p.on('console', (m) => m.type() === 'error' && erreurs.push(`${nom}: ${m.text()}`))
-  await p.goto(URL, { waitUntil: 'networkidle' })
+  await p.goto(URL, { waitUntil: 'domcontentloaded' })
   return { nom, p }
 }
 
@@ -37,17 +39,19 @@ async function celuiQuiVoit(texte, essais = 25) {
 }
 
 // --- Création et arrivée des quatre joueurs
-await benel.p.getByRole('button', { name: 'Benel' }).click()
+await benel.p.getByRole('button', { name: 'Benel' }).first().click()
 await benel.p.getByRole('button', { name: 'Créer une nouvelle partie' }).click()
-await benel.p.waitForSelector('text=Autour de la table', { timeout: 20000 })
-const code = (await benel.p.locator('.font-display').first().innerText()).trim()
+await benel.p.waitForSelector('text=Code de la partie', { timeout: 20000 })
+const code = (
+  await benel.p.locator('text=Code de la partie :').locator('xpath=following-sibling::span[1]').innerText()
+).trim()
 console.log('code de partie :', code)
 
 for (const j of [roux, viv, romain]) {
   await j.p.getByRole('button', { name: j.nom, exact: false }).first().click()
   await j.p.locator('#code').fill(code)
   await j.p.getByRole('button', { name: 'Rejoindre' }).click()
-  await j.p.waitForSelector('text=Autour de la table', { timeout: 20000 })
+  await j.p.waitForSelector('text=Code de la partie', { timeout: 20000 })
 }
 await benel.p.screenshot({ path: `${SP}/03-salon-complet.png` })
 
@@ -71,7 +75,7 @@ async function dumpJournal(etiquette) {
     `[${etiquette}] ${brut.length} événements, fin :`,
     brut
       .slice(-5)
-      .map((e) => `${e.type}${e.joueur ? '/' + e.joueur : ''}${e.carte ? '/' + e.carte : ''}`)
+      .map((e) => `${e.type}${e.player ? '/' + e.player : ''}${e.card ? '/' + e.card : ''}`)
       .join(' > '),
   )
   for (const j of table) {
@@ -90,7 +94,7 @@ async function encherir(valeur) {
     try {
       if (!annonce && passes >= 2) {
         await parleur.p.getByRole('button', { name: String(valeur), exact: true }).click({ timeout: 4000 })
-        await parleur.p.getByRole('button', { name: '♥' }).click({ timeout: 4000 })
+        await parleur.p.getByRole('button', { name: 'Atout ♥' }).click({ timeout: 4000 })
         await parleur.p.getByRole('button', { name: /Annoncer/ }).click({ timeout: 4000 })
         annonce = true
       } else {
@@ -114,7 +118,7 @@ async function jouerLaDonne() {
     const joueur = await celuiQuiVoit('à toi de jouer', 20)
     if (!joueur) {
       // le décompte peut simplement tarder à s'afficher
-      if (await celuiQuiVoit('Voir les statistiques', 12)) return cartes
+      if (await celuiQuiVoit('Statistiques', 12)) return cartes
       await dumpJournal(`blocage après ${cartes} cartes`)
       return cartes
     }
@@ -125,7 +129,7 @@ async function jouerLaDonne() {
     // La main se redessine dès qu'un autre joueur pose : le bouton peut se détacher
     // pendant le clic. On note et on repasse au tour suivant.
     try {
-      await carte.click({ force: true, timeout: 6000 })
+      await carte.evaluate((b) => b.click())
     } catch {
       echecs.push(`carte détachée (${joueur.nom})`)
       continue
@@ -141,7 +145,7 @@ async function jouerLaDonne() {
       continue
     }
     // Pourquoi la main n'a-t-elle pas bougé ? On lit ce que l'app a affiché.
-    const banniere = joueur.p.locator('p.bg-red-card')
+    const banniere = joueur.p.locator('p[class*="bg-red-card"]')
     const message = (await banniere.count()) ? await banniere.first().innerText() : '(aucun message)'
     const tour = (await joueur.p.locator('text=à toi de jouer').count())
       ? 'a encore la main'
@@ -162,7 +166,7 @@ for (let d = 0; d < 20 && !finie; d++) {
     await dumpJournal('personne ne peut distribuer')
     break
   }
-  await donneur.p.getByRole('button', { name: /Distribuer/ }).click()
+  await donneur.p.getByRole('button', { name: /Distribuer|Lancer la partie/ }).click()
 
   if (!(await encherir(valeurs[d % valeurs.length]))) {
     console.log('donne blanche, on redonne')
@@ -179,10 +183,10 @@ for (let d = 0; d < 20 && !finie; d++) {
 console.log('donnes jouées :', donnes, '· partie terminée :', finie)
 
 // --- Les statistiques
-const surLeDecompte = await celuiQuiVoit('Voir les statistiques', 30)
+const surLeDecompte = await celuiQuiVoit('Statistiques', 30)
 const ecran = surLeDecompte ?? benel
 if (surLeDecompte) {
-  await ecran.p.getByRole('button', { name: 'Voir les statistiques' }).click({ timeout: 8000 })
+  await ecran.p.getByRole('button', { name: 'Statistiques' }).click({ timeout: 8000 })
 } else {
   // la partie n'est pas allée au bout : on passe par le bouton de la table
   console.log('attention : décompte final absent, statistiques ouvertes depuis la table')

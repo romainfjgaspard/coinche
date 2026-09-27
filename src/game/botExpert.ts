@@ -62,10 +62,9 @@ export function choisirCarteExpert(vue: VueExpert, permis: Card[], options: Opti
 
   // Ce que chaque camp a déjà ramassé : points (dix de der compris) ou plis.
   const acquis: [number, number] = [0, 0]
-  vue.completed.forEach((t, i) => {
+  vue.completed.forEach((t) => {
     const camp = (siege(t.winner) & 1) as 0 | 1
-    acquis[camp] +=
-      objectif === 'plis' ? 1 : t.plays.reduce((n, p) => n + value(p.card, trump), 0) + (i === 7 ? 10 : 0)
+    acquis[camp] += objectif === 'plis' ? 1 : t.plays.reduce((n, p) => n + value(p.card, trump), 0)
   })
   const restePoints = 162 - acquis[0] - acquis[1]
   const entameur = pli.length > 0 ? pli[0].siege : siege(vue.completed.at(-1)?.winner ?? vue.me)

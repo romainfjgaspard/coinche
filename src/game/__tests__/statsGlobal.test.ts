@@ -259,6 +259,19 @@ describe('bots regroupés, soirées, enchères et temps', () => {
     expect(jd([r])).toEqual(['romain', 'bot-simple', 'bot-etoile'])
   })
 
+  it('deux « Bot » partenaires : les chiffres de leur duo ne sont pas comptés deux fois', async () => {
+    const { regrouperBots, duoStats: ds } = await import('../statsGlobal')
+    const a = partie({
+      code: 'DUO',
+      seating: ['romain', 'bot-simple-1', 'viv', 'bot-simple-2'],
+      scores: [500, 1000],
+      joueurs: { 'bot-simple-1': { prises: 2 }, 'bot-simple-2': { prises: 1 } },
+    })
+    const [r] = regrouperBots([{ ...a, bots: ['bot-simple-1', 'bot-simple-2'] }])
+    const duo = ds([r]).find((d) => d.paire.every((p) => p === 'bot-simple'))!
+    expect(duo.prises).toBe(3)
+  })
+
   it("les soirées réunissent les parties enchaînées, les plus récentes d'abord", async () => {
     const { soirees } = await import('../statsGlobal')
     const x = (code: string, soiree: string | undefined, finishedAt: number, scores: [number, number]) => ({

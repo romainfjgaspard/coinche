@@ -57,7 +57,7 @@ import { DEFAULT_SEATING, type Seating, teamOfPlayer } from '../game/players'
 import { type Impasse, impasseTallies, impassesOfGame } from '../game/impasses'
 import type { BotLevel } from '../game/bot'
 import { type BotHandle, type PublicFeed, startBot } from '../firebase/botRunner'
-import { type Client, makeClient } from '../firebase/app'
+import { mainClient } from '../firebase/app'
 import { nomDe } from './roster'
 
 const STORE_KEY = 'coinche.session'
@@ -332,18 +332,14 @@ export const useSession = defineStore('session', () => {
   function continueToNextDeal(): void {
     if (game.value) dealAcknowledged.value = game.value.dealNumber
   }
-  /** Un seul client Firebase pour tous les bots de l'onglet, créé à la demande. */
-  /**
-   * Par partie, et gardé tant que l'onglet vit : relancer plusieurs bots d'un coup
-   * créait le client en double (même nom d'application), et seul le premier démarrait.
-   */
-  const botClients = new Map<string, Promise<Client>>()
-
   /**
    * Installe un bot sur un siège libre.
    *
-   * Il obtient sa **propre** session anonyme, donc les règles Firestore lui
-   * interdisent de lire la main des autres — au même titre qu'un humain.
+   * Il tourne avec la session de cet onglet, celle du joueur qui l'héberge : les règles
+   * Firestore n'autorisent qu'un joueur assis à reprendre ou à remplacer un siège, et ce
+   * joueur doit donc être celui qui fait tourner le bot. Ce que le bot décide ne dépend
+   * que de sa main et du journal public (`bot.ts`, `botExpert.ts`) : il ne triche pas,
+   * même si la session lui donnerait accès aux mains des autres bots de l'onglet.
    */
   async function addBot(
     player: PlayerId,
@@ -361,15 +357,12 @@ export const useSession = defineStore('session', () => {
         cb(game.value, events.value)
         return watch([game, events], () => cb(game.value, events.value), { deep: false })
       }
-      const cle = code.value!
-      if (!botClients.has(cle)) botClients.set(cle, makeClient(`bots-${cle}`))
-      const botClient = await botClients.get(cle)!
       bots.value.push(
         await startBot(code.value!, player, {
           level,
           delayMs,
           feed,
-          client: botClient,
+          client: mainClient,
           mayDealNext: (n) => dealAcknowledged.value === n,
           reprendDe,
           remplaceHumain,
@@ -508,7 +501,8 @@ export const useSession = defineStore('session', () => {
   /** Ma place, prise par un bot pendant mon absence : je peux la reprendre. */
   const placePrise = computed(() => {
     const s = playerId.value ? game.value?.seats[playerId.value] : undefined
-    return Boolean(s?.bot && s.remplace && s.uid !== uid.value)
+    // Les règles ne laissent reprendre la place qu'au compte qui l'occupait : sur cet appareil.
+    return Boolean(s?.bot && s.remplace && s.uid !== uid.value && s.ancien === uid.value)
   })
   async function reprendreMaPlace(): Promise<void> {
     if (!code.value || !playerId.value) return
@@ -569,8 +563,8 @@ export const useSession = defineStore('session', () => {
   }
 
   async function chooseSeating(next: Seating): Promise<void> {
-    if (!code.value) return
-    await run(() => setSeating(code.value!, next))
+    if (!code.value || !playerId.value) return
+    await run(() => setSeating(code.value!, next, playerId.value!))
   }
 
   async function bid(entry: BiddingEntry): Promise<void> {

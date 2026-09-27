@@ -21,6 +21,8 @@ const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID
  */
 export const useEmulators =
   import.meta.env.VITE_USE_EMULATORS === '1' ||
+  // `npm run dev:emu` (vite --mode emu)
+  import.meta.env.MODE === 'emu' ||
   !projectId ||
   // Vitest charge `.env.local` : sans cette garde, `tests/flow.test.ts` jouait ses
   // parties et déposait ses archives dans la vraie base.

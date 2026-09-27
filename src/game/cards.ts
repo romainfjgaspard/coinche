@@ -9,20 +9,6 @@ export type Rank = (typeof RANKS)[number]
 /** Identifiant compact et stable : '7s', '10h', 'Jd', 'Ac'. Sert aussi de clé en base. */
 export type Card = `${Rank}${Suit}`
 
-export const SUIT_LABELS: Record<Suit, string> = {
-  s: '♠',
-  h: '♥',
-  d: '♦',
-  c: '♣',
-}
-
-export const SUIT_NAMES: Record<Suit, string> = {
-  s: 'Pique',
-  h: 'Cœur',
-  d: 'Carreau',
-  c: 'Trèfle',
-}
-
 export const DECK: Card[] = SUITS.flatMap((s) => RANKS.map((r) => `${r}${s}` as Card))
 
 export const suitOf = (card: Card): Suit => card.slice(-1) as Suit

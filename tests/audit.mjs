@@ -4,10 +4,12 @@
  * Sert à relire l'interface, pas à valider une règle — d'où les captures plutôt
  * que des assertions. Nécessite l'émulateur et `npm run dev:emu`.
  */
+import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
-const SP = process.env.SORTIE ?? '.'
-const URL = 'http://127.0.0.1:5173/coinche/?botDelay=120'
+const SP = process.env.SORTIE ?? 'captures'
+mkdirSync(SP, { recursive: true })
+const URL = 'http://localhost:5173/coinche/?botDelay=120'
 const FORMATS = [
   { nom: 'tel', width: 390, height: 844 },
   { nom: 'pc', width: 1920, height: 1080 },
@@ -24,12 +26,12 @@ for (const f of FORMATS) {
     await p.screenshot({ path: `${SP}/audit-${f.nom}-${nom}.png` })
   }
 
-  await p.goto(URL, { waitUntil: 'networkidle' })
+  await p.goto(URL, { waitUntil: 'domcontentloaded' })
   await prise('1-qui-es-tu')
 
-  await p.getByRole('button', { name: 'Benel' }).click()
+  await p.getByRole('button', { name: 'Benel' }).first().click()
   await p.getByRole('button', { name: 'Créer une nouvelle partie' }).click()
-  await p.waitForSelector('text=Autour de la table', { timeout: 20000 })
+  await p.waitForSelector('text=Code de la partie', { timeout: 20000 })
   await prise('2-salon-vide')
 
   for (let i = 0; i < 3; i++) {
@@ -39,7 +41,11 @@ for (const f of FORMATS) {
   await p.waitForTimeout(1200)
   await prise('3-salon-complet')
 
-  // la table démarre seule ; on attend les enchères puis le jeu
+  // l'humain lance la partie ; on attend les enchères puis le jeu
+  await p
+    .getByRole('button', { name: /Lancer la partie|^Distribuer$/ })
+    .click({ timeout: 10000 })
+    .catch(() => {})
   await p.waitForSelector('text=DONNE 1', { timeout: 45000 }).catch(() => {})
   await p.waitForTimeout(1500)
   await prise('4-encheres')
@@ -59,22 +65,28 @@ for (const f of FORMATS) {
   for (let i = 0; i < 14; i++) {
     if (await p.locator('text=à toi de jouer').count()) {
       const c = p.locator('button[aria-label^="Jouer le"]').first()
-      if (await c.count()) await c.click({ force: true, timeout: 3000 }).catch(() => {})
+      if (await c.count()) await c.evaluate((b) => b.click()).catch(() => {})
     }
     await p.waitForTimeout(450)
   }
   await prise('6-pli-en-cours')
 
-  // fin de donne
-  await p.waitForSelector('text=Voir les statistiques', { timeout: 60000 }).catch(() => {})
+  // on joue jusqu'au décompte de la donne
+  const decompte = p.getByRole('button', { name: 'Statistiques', exact: true })
+  for (let i = 0; i < 240 && !(await decompte.count()); i++) {
+    if (await p.locator('text=à toi de jouer').count()) {
+      const c = p.locator('button[aria-label^="Jouer le"]').first()
+      if (await c.count()) await c.evaluate((b) => b.click()).catch(() => {})
+    }
+    await p.waitForTimeout(450)
+  }
   await prise('7-fin-de-donne')
 
-  const stats = p.getByRole('button', { name: 'Stats' })
-  if (await stats.count()) await stats.click().catch(() => {})
+  if (await decompte.count()) await decompte.click({ timeout: 5000 }).catch(() => {})
   else
     await p
-      .getByRole('button', { name: 'Voir les statistiques' })
-      .click()
+      .getByRole('button', { name: 'Stats' })
+      .click({ timeout: 5000 })
       .catch(() => {})
   await p.waitForTimeout(1200)
   await prise('8-stats-partie')

@@ -31,7 +31,8 @@ const zoom = useFitZoom(
 
 /** Ma main dans le panneau, sur téléphone : la largeur du panneau, moins ses marges. */
 const mainEncheres = computed(() => {
-  const place = L.value.width - 40
+  // La colonne `max-w-md` (448 px), pas la fenêtre : sinon, sur tablette, la main débordait.
+  const place = Math.min(L.value.width, 448) - 40
   const n = Math.max(1, session.sortedHand.length)
   const carte = Math.min(120, Math.round(place * 0.34))
   const pas = Math.min(carte - 8, (place - carte) / Math.max(1, n - 1))

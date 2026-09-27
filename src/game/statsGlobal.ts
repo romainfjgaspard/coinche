@@ -111,7 +111,9 @@ export function duoStats(archives: Archive[]): DuoStats[] {
       d.scores.push(a.scores[team])
       d.pireScore = d.pireScore === null ? a.scores[team] : Math.min(d.pireScore, a.scores[team])
 
-      for (const j of paire) {
+      // Deux bots du même niveau, partenaires, ne font qu'un joueur une fois regroupés
+      // (`regrouperBots`), et leur condensé contient déjà les deux : on ne l'ajoute qu'une fois.
+      for (const j of new Set(paire)) {
         const p = a.players[j]
         d.prises += p.prises
         d.reussies += p.reussies
@@ -121,7 +123,7 @@ export function duoStats(archives: Archive[]): DuoStats[] {
         d.donnesGagnees += p.reussies
       }
       // … ou celui de l'adversaire chuté.
-      for (const j of contre) d.donnesGagnees += a.players[j].chutes
+      for (const j of new Set(contre)) d.donnesGagnees += a.players[j].chutes
     }
   }
 

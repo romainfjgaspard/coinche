@@ -29,7 +29,8 @@ import { outcome } from '../src/game/bidding'
 import { currentPlayer, playableFor } from '../src/game/play'
 import type { Card } from '../src/game/cards'
 import { DEFAULT_SEATING, PLAYER_IDS } from '../src/game/players'
-import { DECK } from '../src/game/cards'
+import { DECK, gatherAndCut } from '../src/game/cards'
+import { dealHands } from '../src/game/deal'
 import { ENGINE_VERSION } from '../src/game/rules'
 
 let code: string
@@ -186,6 +187,17 @@ describe('une donne complète, jouée à travers Firestore', () => {
       expect(cards).toHaveLength(0)
     }
   })
+
+  it('DIS-2 — la donne suivante ne rebat pas : on ramasse les plis, on coupe', async () => {
+    const plis = (await readEvents(code)).flatMap((e) => (e.type === 'pli_termine' ? [e.cards] : []))
+    await deal(code)
+    const depart = [...(await readEvents(code))].reverse().find((e) => e.type === 'donne_commencee')!
+    if (depart.type !== 'donne_commencee') throw new Error('pas de donne')
+    const attendu = dealHands(gatherAndCut(plis, depart.cut), depart.dealer, DEFAULT_SEATING)
+    for (const p of PLAYER_IDS) {
+      expect((await getDoc(handRef(code, p))).data()!.cards).toEqual(attendu[p])
+    }
+  })
 })
 
 describe('écriture concurrente', () => {
@@ -247,7 +259,15 @@ describe('écriture concurrente', () => {
 describe('archive de fin de partie', () => {
   it('descelle les donnes, calcule la force des mains et dépose le condensé', async () => {
     // On force la fin de partie sans jouer douze donnes : la phase déclenche le descellement.
-    await updateDoc(gameRef(code), { phase: 'terminee', scores: [1010, 480] })
+    // Les règles veulent un numéro de journal à chaque écriture, des scores qui montent d'au
+    // plus une donne, et un objectif dépassé pour finir : deux pas.
+    const g = (await getDoc(gameRef(code))).data() as GameDoc
+    await updateDoc(gameRef(code), { eventSeq: g.eventSeq + 1, scores: [g.scores[0] + 510, g.scores[1]] })
+    await updateDoc(gameRef(code), {
+      eventSeq: g.eventSeq + 2,
+      phase: 'terminee',
+      scores: [g.scores[0] + 1010, g.scores[1]],
+    })
     const archive = await archiveGame(code, DEFAULT_SEATING)
 
     expect(archive.code).toBe(code)
