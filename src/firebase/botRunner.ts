@@ -5,18 +5,18 @@
  * d'autre (voir `bot.ts` et `botExpert.ts`). Attention, ce sont le code et les tests
  * qui le garantissent, pas les règles Firestore : les bots d'un même onglet partagent
  * une session anonyme, qui a donc accès à leurs mains à tous. Rien ici ne contourne
- * `partie.ts` — le bot passe par les mêmes fonctions que l'écran, donc il subit les
+ * `game.ts` — le bot passe par les mêmes fonctions que l'écran, donc il subit les
  * mêmes validations et écrit les mêmes événements.
  */
 import type { Card } from '../game/cards'
 import type { GameEvent } from '../game/events'
 import type { PlayerId } from '../game/players'
 import { type BiddingEntry, canCoinche, currentBidder } from '../game/bidding'
-import { beloteAnnonces, biddingFromEvents, currentDeal, playFromEvents } from '../game/replay'
+import { beloteDeclarations, biddingFromEvents, currentDeal, playFromEvents } from '../game/replay'
 import { canDeclareBelote, currentPlayer, playableFor } from '../game/play'
-import { type BotLevel, type BotView, chooseBid, chooseCard, doitCoincher } from '../game/bot'
-import { carteExpert } from '../game/botExpertFil'
-import { PLI_VISIBLE_MS } from '../game/display'
+import { type BotLevel, type BotView, chooseBid, chooseCard, shouldCoinche } from '../game/bot'
+import { expertCard } from '../game/botExpertWorker'
+import { TRICK_VISIBLE_MS } from '../game/display'
 import { type Client, makeClient } from './app'
 import {
   type GameDoc,
@@ -25,18 +25,18 @@ import {
   moveCount,
   placeBid,
   playCard,
-  remplacerParBot,
-  reprendreSiegeBot,
+  replaceWithBot,
+  takeOverBotSeat,
   signIn,
-  tableDe,
+  tableOf,
   takeSeat,
   watchEvents,
   watchGame,
   watchHand,
-} from './partie'
+} from './game'
 
 /** Un temps de réflexion par défaut, pour que la table reste lisible par des humains. */
-export const REFLEXION_MS = 550
+export const THINK_MS = 550
 
 export interface BotHandle {
   player: PlayerId
@@ -78,7 +78,7 @@ export interface BotOptions {
    * rejoué ; le reste doit se voir, d'où le journal par défaut plutôt qu'un
    * `catch` muet.
    */
-  onError?: (quoi: string, erreur: unknown) => void
+  onError?: (what: string, error: unknown) => void
   /**
    * Feu vert pour distribuer la donne suivante. Sans lui, un bot donneur relançait
    * la donne en moins d'une seconde et personne n'avait le temps de lire le décompte.
@@ -89,37 +89,37 @@ export interface BotOptions {
    * Reprendre un bot dont l'onglet a disparu, plutôt que d'en asseoir un nouveau :
    * l'uid qui tenait son siège, que la reprise remplace.
    */
-  reprendDe?: string
-  /** Avec `reprendDe` : le siège est celui d'un joueur humain qui ne répond plus. */
-  remplaceHumain?: boolean
+  takeOverFrom?: string
+  /** Avec `takeOverFrom` : le siège est celui d'un joueur humain qui ne répond plus. */
+  replacesHuman?: boolean
   /** Prévenu quand un autre onglet a repris ce bot : celui-ci s'est arrêté. */
   onDetache?: () => void
 }
 
 export async function startBot(code: string, player: PlayerId, options: BotOptions = {}): Promise<BotHandle> {
   const {
-    level = 'simple',
-    delayMs = REFLEXION_MS,
+    level = 'basic',
+    delayMs = THINK_MS,
     feed,
     client,
     onError = defaultOnError,
     mayDealNext,
-    reprendDe,
+    takeOverFrom,
     onDetache,
-    remplaceHumain,
+    replacesHuman,
   } = options
   /** La pause après un pli suit le rythme du bot : les tests accélérés ne l'attendent pas. */
-  const pausePli = Math.round((PLI_VISIBLE_MS * delayMs) / REFLEXION_MS)
+  const trickPause = Math.round((TRICK_VISIBLE_MS * delayMs) / THINK_MS)
   const c: Client = client ?? (await makeClient(`bot-${code}-${Date.now()}`))
-  const monUid = await signIn(c)
-  if (reprendDe && remplaceHumain) await remplacerParBot(code, player, reprendDe, level, c)
-  else if (reprendDe) await reprendreSiegeBot(code, player, reprendDe, c)
+  const myUid = await signIn(c)
+  if (takeOverFrom && replacesHuman) await replaceWithBot(code, player, takeOverFrom, level, c)
+  else if (takeOverFrom) await takeOverBotSeat(code, player, takeOverFrom, c)
   else await takeSeat(code, player, c, true, level)
 
   let game: GameDoc | null = null
   let events: GameEvent[] = []
   let hand: Card[] = []
-  let occupe = false
+  let busyNow = false
   /**
    * L'état exact sur lequel le bot a déjà agi, pour ne pas jouer deux fois pendant
    * que son écriture se propage.
@@ -128,112 +128,112 @@ export async function startBot(code: string, player: PlayerId, options: BotOptio
    * compteur une fois l'action terminée revenait à s'attribuer les décisions que
    * les autres avaient écrites entre-temps, et le bot refusait ensuite d'y répondre.
    */
-  let dernierActe = ''
+  let lastAct = ''
   /** La dernière donne que ce bot a distribuée, pour ne pas distribuer deux fois. */
-  let derniereDonne = -1
-  let trace = ''
+  let lastDeal = -1
+  let lastKey = ''
   /** Quand le bot a vu que c'était à lui : son temps de réflexion part de là. */
-  let vuA = Date.now()
-  let vivant = true
+  let seenAt = Date.now()
+  let alive = true
 
-  type Action = 'distribuer' | 'parler' | 'poser'
+  type Action = 'deal' | 'bid' | 'play'
 
   /** Ce que le bot a à faire, et l'empreinte de l'état correspondant. */
-  function aFaire(g: GameDoc): { quoi: Action; cle: string } | null {
-    const cle = `${g.phase}|${g.dealNumber}|${moveCount(events)}`
-    if (cle === dernierActe || g.phase === 'terminee' || g.phase === 'annulee') return null
+  function nextAction(g: GameDoc): { what: Action; key: string } | null {
+    const key = `${g.phase}|${g.dealNumber}|${moveCount(events)}`
+    if (key === lastAct || g.phase === 'finished' || g.phase === 'cancelled') return null
     // En pause, on attend ; à la reprise, la réflexion repart de zéro.
     if (g.pause) {
-      trace = ''
+      lastKey = ''
       return null
     }
 
-    if (g.phase === 'lobby' || g.phase === 'decompte') {
+    if (g.phase === 'lobby' || g.phase === 'scoring') {
       // Un bot donneur attend toujours le feu vert d'un humain de son onglet, y compris
       // pour la première donne : partie seule, elle sautait le salon, et avec lui le
       // choix des équipes. Après une donne jouée — ou blanche, qui ramène la partie en
       // « lobby » — c'est le temps de lire ce qui s'est passé.
-      const feuVert = !mayDealNext || mayDealNext(g.dealNumber)
-      return g.dealer === player && allSeatsTaken(g) && g.dealNumber !== derniereDonne && feuVert
-        ? { quoi: 'distribuer', cle }
+      const goAhead = !mayDealNext || mayDealNext(g.dealNumber)
+      return g.dealer === player && allSeatsTaken(g) && g.dealNumber !== lastDeal && goAhead
+        ? { what: 'deal', key }
         : null
     }
-    if (g.phase === 'encheres') {
-      return currentBidder(biddingFromEvents(events, g.dealer, tableDe(g))) === player
-        ? { quoi: 'parler', cle }
+    if (g.phase === 'bidding') {
+      return currentBidder(biddingFromEvents(events, g.dealer, tableOf(g))) === player
+        ? { what: 'bid', key }
         : null
     }
-    if (g.phase === 'jeu') {
-      const etat = playFromEvents(events, g.dealer, tableDe(g))
-      return etat && currentPlayer(etat) === player ? { quoi: 'poser', cle } : null
+    if (g.phase === 'playing') {
+      const state = playFromEvents(events, g.dealer, tableOf(g))
+      return state && currentPlayer(state) === player ? { what: 'play', key } : null
     }
     return null
   }
 
-  async function agir(): Promise<void> {
-    if (!vivant || occupe || !game) return
+  async function act(): Promise<void> {
+    if (!alive || busyNow || !game) return
     // Repris par un autre onglet (celui-ci, ralenti en arrière-plan, passait pour
     // disparu) : on s'efface, sinon deux onglets joueraient pour le même bot.
-    const siege = game.seats[player]
-    if (siege && siege.uid !== monUid) {
-      arreter()
+    const seat = game.seats[player]
+    if (seat && seat.uid !== myUid) {
+      halt()
       onDetache?.()
       return
     }
-    const decision = aFaire(game)
+    const decision = nextAction(game)
     if (!decision) return
-    const { quoi, cle } = decision
-    if (cle !== trace) {
-      trace = cle
-      vuA = Date.now()
-      console.warn('[p]', player, quoi, cle)
+    const { what, key } = decision
+    if (key !== lastKey) {
+      lastKey = key
+      seenAt = Date.now()
+      console.warn('[p]', player, what, key)
     }
 
-    occupe = true
+    busyNow = true
     try {
       // Entamer juste après un pli : on laisse d'abord le pli complet sur le tapis.
-      const etat = quoi === 'poser' ? playFromEvents(events, game!.dealer, tableDe(game!)) : null
-      const entame = etat !== null && etat.current.length === 0 && etat.completed.length > 0
-      // Le pli reste affiché `pausePli` : on entame juste après, sans y ajouter la réflexion.
-      await attendre(entame ? Math.max(delayMs, pausePli + Math.round(delayMs / 4)) : delayMs)
-      const apres = aFaire(game!)?.cle
-      if (!vivant || !game || apres !== cle) {
-        console.warn('[p]', player, 'abandon', quoi, cle, '->', apres)
+      const state = what === 'play' ? playFromEvents(events, game!.dealer, tableOf(game!)) : null
+      const lead = state !== null && state.current.length === 0 && state.completed.length > 0
+      // Le pli reste affiché `trickPause` : on entame juste après, sans y ajouter la réflexion.
+      await wait(lead ? Math.max(delayMs, trickPause + Math.round(delayMs / 4)) : delayMs)
+      const after = nextAction(game!)?.key
+      if (!alive || !game || after !== key) {
+        console.warn('[p]', player, 'abandon', what, key, '->', after)
         return
       }
-      console.warn('[p]', player, 'exécute', quoi, cle)
+      console.warn('[p]', player, 'exécute', what, key)
 
-      let agi: boolean
-      if (quoi === 'distribuer') {
-        const numero = game.dealNumber
+      let acted: boolean
+      if (what === 'deal') {
+        const number = game.dealNumber
         await deal(code, null, c)
         // On note le succès, jamais l'intention : sinon un échec verrouillerait
         // définitivement cette donne et le bot ne distribuerait plus jamais.
-        derniereDonne = numero
-        agi = true
+        lastDeal = number
+        acted = true
       } else {
         // Une main vide alors que c'est notre tour n'est pas une situation de jeu :
         // c'est que l'écoute n'a pas encore livré. On le dit, et le battement
         // suivant réessaiera plutôt que de laisser le bot muet.
         if (hand.length === 0) throw new Error(`main vide pour ${player}`)
-        agi =
-          quoi === 'parler'
-            ? await parler(code, player, game, events, hand, c, Date.now() - vuA)
-            : await poser(code, player, game, events, hand, level, c, Date.now() - vuA)
+        acted =
+          what === 'bid'
+            ? await speak(code, player, game, events, hand, c, Date.now() - seenAt)
+            : await placeCard(code, player, game, events, hand, level, c, Date.now() - seenAt)
       }
       // On ne marque un état comme traité **que si on a réellement joué**. Le tour
       // peut avoir bougé pendant la lecture de la main : marquer quand même
       // verrouillait le bot sur un état qu'il n'avait pas joué, et la table gelait.
-      if (agi) dernierActe = cle
+      if (acted) lastAct = key
     } catch (e) {
       // Refus concurrent ou coup devenu illégal : le prochain instantané rejouera.
-      onError(quoi, e)
+      onError(what, e)
     } finally {
-      occupe = false
+      busyNow = false
     }
   }
 
-  const arrets = [
+  const cleanups = [
     /**
      * La main du bot, et elle seule — les règles Firestore interdisent aux autres
      * sièges de la lire. Une **écoute**, pas une lecture ponctuelle : sans écoute
@@ -283,26 +283,26 @@ export async function startBot(code: string, player: PlayerId, options: BotOptio
    * sont venus de là. Ici la réévaluation ne coûte rien — elle lit un état déjà en
    * mémoire, sans aucune requête — donc autant la rendre inconditionnelle.
    */
-  const battement = setInterval(() => void agir(), Math.max(120, Math.round(delayMs / 3)))
+  const heartbeat = setInterval(() => void act(), Math.max(120, Math.round(delayMs / 3)))
 
-  function arreter(): void {
-    if (!vivant) return
-    vivant = false
-    clearInterval(battement)
-    for (const a of arrets) a()
+  function halt(): void {
+    if (!alive) return
+    alive = false
+    clearInterval(heartbeat)
+    for (const a of cleanups) a()
   }
 
-  return { player, level, stop: arreter }
+  return { player, level, stop: halt }
 }
 
-const attendre = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-const defaultOnError = (quoi: string, erreur: unknown): void => {
-  console.warn(`[bot] ${quoi} a échoué :`, erreur)
+const defaultOnError = (what: string, error: unknown): void => {
+  console.warn(`[bot] ${what} a échoué :`, error)
 }
 
 /** L'enchère. Rend `false` si le tour a bougé entre-temps : rien n'a été écrit. */
-async function parler(
+async function speak(
   code: string,
   player: PlayerId,
   game: GameDoc,
@@ -311,26 +311,26 @@ async function parler(
   c: Client,
   thinkMs?: number,
 ): Promise<boolean> {
-  const etat = biddingFromEvents(events, game.dealer, tableDe(game))
-  if (currentBidder(etat) !== player) return false
+  const state = biddingFromEvents(events, game.dealer, tableOf(game))
+  if (currentBidder(state) !== player) return false
 
   // CO-5 — coinché, le preneur ne peut plus surenchérir : il laisse jouer.
-  const coinche = etat.entries.some((e) => e.kind === 'coinche')
+  const coinche = state.entries.some((e) => e.kind === 'coinche')
   // CO-1 — le bot coinche à son tour de parole quand il tient de quoi faire chuter.
-  const coincher = !coinche && canCoinche(etat, player) && doitCoincher(hand, etat, player)
-  const choix = coinche || coincher ? null : chooseBid(hand, etat, player)
-  const entry: BiddingEntry = coincher
+  const coincheIt = !coinche && canCoinche(state, player) && shouldCoinche(hand, state, player)
+  const choice = coinche || coincheIt ? null : chooseBid(hand, state, player)
+  const entry: BiddingEntry = coincheIt
     ? { kind: 'coinche', player }
-    : choix
-      ? { kind: 'contrat', player, value: choix.value, suit: choix.trump }
-      : { kind: 'passe', player }
+    : choice
+      ? { kind: 'contract', player, value: choice.value, suit: choice.trump }
+      : { kind: 'pass', player }
 
   await placeBid(code, entry, c, thinkMs)
   return true
 }
 
 /** La carte. Rend `false` si le tour a bougé entre-temps : rien n'a été écrit. */
-async function poser(
+async function placeCard(
   code: string,
   player: PlayerId,
   game: GameDoc,
@@ -340,42 +340,42 @@ async function poser(
   c: Client,
   thinkMs?: number,
 ): Promise<boolean> {
-  const etat = playFromEvents(events, game.dealer, tableDe(game))
-  if (!etat || currentPlayer(etat) !== player) return false
+  const state = playFromEvents(events, game.dealer, tableOf(game))
+  if (!state || currentPlayer(state) !== player) return false
 
-  const jouables = playableFor(etat, player, hand)
-  if (jouables.length === 0) return false
+  const playable = playableFor(state, player, hand)
+  if (playable.length === 0) return false
 
   // Le contrat de la donne en cours : `find` sur tout le journal renvoyait celui de la
   // première donne, et le bot jouait ensuite avec un faux preneur.
-  const contrat = [...currentDeal(events)].reverse().find((e) => e.type === 'contrat_fixe')
-  const preneur = contrat && contrat.type === 'contrat_fixe' ? contrat.taker : player
+  const contract = [...currentDeal(events)].reverse().find((e) => e.type === 'contract_set')
+  const taker = contract && contract.type === 'contract_set' ? contract.taker : player
 
-  const vue: BotView = {
+  const view: BotView = {
     me: player,
-    seating: tableDe(game),
+    seating: tableOf(game),
     hand,
-    trump: etat.trump,
-    taker: preneur,
-    current: etat.current,
-    completed: etat.completed,
+    trump: state.trump,
+    taker: taker,
+    current: state.current,
+    completed: state.completed,
   }
   // Le bot ★ réfléchit avec le solveur, sur ce qu'il sait seulement ; le bot de base suit ses règles.
-  const annonces = beloteAnnonces(events)
-  const carte =
-    level === 'compteur' && contrat && contrat.type === 'contrat_fixe'
-      ? await carteExpert(
+  const calls = beloteDeclarations(events)
+  const card =
+    level === 'expert' && contract && contract.type === 'contract_set'
+      ? await expertCard(
           {
-            ...vue,
-            contrat: { value: contrat.value, capot: contrat.capot, generale: contrat.generale },
-            beloteAnnoncee: [...annonces.keys()][0] ?? null,
+            ...view,
+            contract: { value: contract.value, capot: contract.capot, generale: contract.generale },
+            beloteDeclared: [...calls.keys()][0] ?? null,
           },
-          jouables,
+          playable,
         )
-      : chooseCard(vue, jouables)
+      : chooseCard(view, playable)
 
   // BEL-2 — un bot n'oublie jamais sa belote.
-  const annonce = canDeclareBelote(etat, player, carte, hand, etat.trump, (annonces.get(player) ?? 0) > 0)
-  await playCard(code, player, carte, annonce, c, thinkMs)
+  const bid = canDeclareBelote(state, player, card, hand, state.trump, (calls.get(player) ?? 0) > 0)
+  await playCard(code, player, card, bid, c, thinkMs)
   return true
 }

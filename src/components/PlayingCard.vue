@@ -122,7 +122,7 @@ const s = computed(() => {
           :style="{
             left: `${pip.x}%`,
             top: `${pip.y}%`,
-            fontSize: pip.large ? s.bigPip : s.smallPip,
+            fontSize: pip.wide ? s.bigPip : s.smallPip,
             color: ink,
             transform: `translate(-50%, -50%) rotate(${pip.flipped ? 180 : 0}deg)`,
           }"

@@ -49,7 +49,7 @@ npx firebase deploy --only firestore:rules --project prod
 
 `npx firebase projects:list` peut ne pas montrer le projet même quand on est connecté avec le bon compte : ce n'est pas bloquant, le déploiement par alias fonctionne. `npx firebase login:list` dit avec quel compte on est connecté.
 
-Vérifier ensuite dans la console (**Firestore → Règles**) qu'on voit bien `holdsSeat`, `claimsSeat` et le bloc `match /mains/{playerId}`.
+Vérifier ensuite dans la console (**Firestore → Règles**) qu'on voit bien `holdsSeat`, `claimsSeat` et le bloc `match /hands/{playerId}`.
 
 ## Index
 
@@ -57,7 +57,7 @@ Aucun index composite n'est nécessaire : chaque requête porte sur un seul cham
 
 ## Remplir la vraie base de parties de démonstration
 
-`npm run seed:stats:prod` joue de vraies parties entre bots et les archive dans la **vraie** base. Il refuse de tourner sans `$env:SEED_CONFIRME='coinche-e708b'`. À n'utiliser qu'en connaissance de cause : ces parties apparaissent dans les statistiques de tout le monde.
+`npm run seed:stats:prod` joue de vraies parties entre bots et les archive dans la **vraie** base. Il refuse de tourner sans `$env:SEED_CONFIRM='coinche-e708b'`. À n'utiliser qu'en connaissance de cause : ces parties apparaissent dans les statistiques de tout le monde.
 
 ## Refaire le projet de zéro
 
@@ -66,4 +66,4 @@ Aucun index composite n'est nécessaire : chaque requête porte sur un seul cham
 3. **Firestore Database** → *Créer une base*, mode **production**, emplacement **`eur3`** ou **`europe-west1`** (définitif).
 4. **Paramètres du projet** → *Vos applications* → `</>`, surnom `coinche-web`, sans Firebase Hosting. Remplir `.env.local` comme plus haut.
 5. Mettre le nouvel identifiant sous l'alias `prod` de `.firebaserc`, régler les secrets GitHub et le domaine autorisé, puis déployer les règles (par la CI ou à la main).
-6. Vérifier : **Authentication → Users** se remplit d'un compte anonyme par onglet ouvert, et **Firestore → Données** montre `parties` après la première partie.
+6. Vérifier : **Authentication → Users** se remplit d'un compte anonyme par onglet ouvert, et **Firestore → Données** montre `games` après la première partie.

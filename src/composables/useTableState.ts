@@ -11,15 +11,15 @@ import type { Declaration } from '../game/bidding'
 import { currentDeal } from '../game/replay'
 import { useSession } from '../stores/session'
 
-export type Place = 'me' | 'left' | 'top' | 'right'
+export type Spot = 'me' | 'left' | 'top' | 'right'
 
 /** La dernière parole d'un joueur pendant les enchères, à côté de son nom. */
-export interface DerniereAnnonce {
+export interface LastBid {
   /** « 90 », « Capot », « Passe », « Coinche » — sans le symbole */
-  texte: string
+  text: string
   /** L'atout annoncé, affiché à part en couleur ; sans objet pour une passe ou une coinche */
-  couleur: Declaration | null
-  passe: boolean
+  suit: Declaration | null
+  pass: boolean
   coinche: boolean
 }
 
@@ -28,12 +28,12 @@ export function useTableState() {
 
   const me = computed<PlayerId>(() => session.playerId ?? 'romain')
   const around = computed(() => {
-    const places = session.seating
-    const moi = seatOf(me.value, places)
+    const spots = session.seating
+    const mySeat = seatOf(me.value, spots)
     return {
-      left: playerAtSeat(moi + 1, places),
-      top: playerAtSeat(moi + 2, places),
-      right: playerAtSeat(moi + 3, places),
+      left: playerAtSeat(mySeat + 1, spots),
+      top: playerAtSeat(mySeat + 2, spots),
+      right: playerAtSeat(mySeat + 3, spots),
     }
   })
 
@@ -49,7 +49,7 @@ export function useTableState() {
 
   const contract = computed(() => {
     const r = session.biddingResult
-    return r && r.status === 'contrat' ? r : null
+    return r && r.status === 'contract' ? r : null
   })
   /** « 100 », « Capot », « Générale » : un capot ne se lit pas comme un 250. */
   const contractLabel = computed(() => {
@@ -63,7 +63,7 @@ export function useTableState() {
    * cours, ou celui qui vient d'être ramassé, le temps qu'on voie qui l'emporte.
    */
   const trickAt = computed(() => {
-    const map: Partial<Record<Place, Card>> = {}
+    const map: Partial<Record<Spot, Card>> = {}
     for (const p of session.shownTrick.plays) {
       if (p.player === me.value) map.me = p.card
       else if (p.player === around.value.left) map.left = p.card
@@ -74,9 +74,9 @@ export function useTableState() {
   })
   /** Ordre de pose, pour que la dernière carte jouée passe au-dessus des autres. */
   const trickOrder = computed(() => {
-    const order: Partial<Record<Place, number>> = {}
+    const order: Partial<Record<Spot, number>> = {}
     session.shownTrick.plays.forEach((p, i) => {
-      const place: Place =
+      const spot: Spot =
         p.player === me.value
           ? 'me'
           : p.player === around.value.left
@@ -84,7 +84,7 @@ export function useTableState() {
             : p.player === around.value.top
               ? 'top'
               : 'right'
-      order[place] = i
+      order[spot] = i
     })
     return order
   })
@@ -112,32 +112,32 @@ export function useTableState() {
    * en est chacun. Une coinche l'emporte sur l'annonce qui la précède.
    */
   const lastBid = computed(() => {
-    const out = new Map<PlayerId, DerniereAnnonce>()
-    if (session.game?.phase !== 'encheres') return out
+    const out = new Map<PlayerId, LastBid>()
+    if (session.game?.phase !== 'bidding') return out
     for (const e of currentDeal(session.events)) {
       if (e.type === 'coinche' || e.type === 'surcoinche') {
         out.set(e.player, {
-          texte: e.type === 'coinche' ? 'Coinche' : 'Surcoinche',
-          couleur: null,
-          passe: false,
+          text: e.type === 'coinche' ? 'Coinche' : 'Surcoinche',
+          suit: null,
+          pass: false,
           coinche: true,
         })
-      } else if (e.type === 'enchere') {
+      } else if (e.type === 'bid') {
         const b = e.entry
         // Le symbole à part : il s'affiche en couleur sur un rond ivoire, comme le contrat.
-        const couleur =
-          b.kind === 'contrat' ? b.suit : b.kind === 'capot' || b.kind === 'generale' ? b.declaration : null
-        const texte =
-          b.kind === 'passe'
+        const suit =
+          b.kind === 'contract' ? b.suit : b.kind === 'capot' || b.kind === 'generale' ? b.declaration : null
+        const text =
+          b.kind === 'pass'
             ? 'Passe'
-            : b.kind === 'contrat'
+            : b.kind === 'contract'
               ? String(b.value)
               : b.kind === 'capot'
                 ? 'Capot'
                 : b.kind === 'generale'
                   ? 'Générale'
                   : ''
-        if (texte) out.set(e.player, { texte, couleur, passe: b.kind === 'passe', coinche: false })
+        if (text) out.set(e.player, { text, suit, pass: b.kind === 'pass', coinche: false })
       }
     }
     return out
@@ -147,17 +147,17 @@ export function useTableState() {
    * BEL-2 / BEL-6 — la belote annoncée se voit à côté du nom, pour tous. Elle
    * disparaît si la seconde tête est posée sans rebelote : la belote est alors perdue.
    */
-  function beloteDe(p: PlayerId): 'belote' | 'rebelote' | null {
+  function beloteOf(p: PlayerId): 'belote' | 'rebelote' | null {
     const st = session.play
     const trump = contract.value?.trump
-    if (!st || session.game?.phase !== 'jeu' || !trump) return null
-    const n = session.annoncesBelote.get(p) ?? 0
+    if (!st || session.game?.phase !== 'playing' || !trump) return null
+    const n = session.beloteCalls.get(p) ?? 0
     if (n >= 2) return 'rebelote'
     if (n === 0) return null
-    const posees = [...st.completed.flatMap((t) => t.plays), ...st.current].filter(
+    const placedCards = [...st.completed.flatMap((t) => t.plays), ...st.current].filter(
       (x) => x.player === p && (x.card === `K${trump}` || x.card === `Q${trump}`),
     ).length
-    return posees >= 2 ? null : 'belote'
+    return placedCards >= 2 ? null : 'belote'
   }
 
   return {
@@ -175,6 +175,6 @@ export function useTableState() {
     starsOf,
     isActive,
     lastBid,
-    beloteDe,
+    beloteOf,
   }
 }

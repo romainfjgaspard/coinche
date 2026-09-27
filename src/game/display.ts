@@ -23,10 +23,10 @@ export const SUIT_GLYPH: Record<Suit, string> = { s: '♠', h: '♥', d: '♦', 
  * Sans elle, la quatrième carte n'apparaissait jamais : le pli se vidait à l'instant
  * où elle était posée.
  */
-export const PLI_VISIBLE_MS = 1100
+export const TRICK_VISIBLE_MS = 1100
 
 /** Une durée lisible : « < 1 s », « 4 s », « 4,5 s » sous 10 s, « 1 min 05 ». */
-export function duree(ms: number): string {
+export function duration(ms: number): string {
   if (ms < 1000) return '< 1 s'
   if (ms < 10_000) return `${(Math.round(ms / 100) / 10).toString().replace('.', ',')} s`
   const s = Math.round(ms / 1000)
@@ -79,7 +79,7 @@ const COURT_FRAME: Record<string, readonly [number, number, number, number]> = {
  * Plus petite que le plus étroit des cadres (7 unités) : le contour de carte dessiné
  * dans le SVG, à 0,25 du bord, reste toujours dehors.
  */
-const MARGE_CADRE = 6
+const FRAME_MARGIN = 6
 
 /**
  * Où placer l'image d'une figure pour que son cadre soit à la même distance du bord
@@ -92,7 +92,7 @@ export function courtCrop(card: Card): { left: string; top: string; width: strin
   const rank = rankOf(card)
   if (!isCourt(rank)) return null
   const [fl, fr, ft, fb] = COURT_FRAME[`${COURT_FILE[rank as 'J' | 'Q' | 'K']}_of_${SUIT_FILE[suitOf(card)]}`]
-  const [l, r, t, b] = [fl, fr, ft, fb].map((v) => v - MARGE_CADRE)
+  const [l, r, t, b] = [fl, fr, ft, fb].map((v) => v - FRAME_MARGIN)
   const w = 167.09 - l - r
   const h = 242.67 - t - b
   const pct = (v: number) => `${(v * 100).toFixed(3)}%`
@@ -105,7 +105,7 @@ export interface Pip {
   y: number
   /** Les pointes de la moitié basse sont retournées, comme sur une vraie carte */
   flipped: boolean
-  large: boolean
+  wide: boolean
 }
 
 /**
@@ -165,7 +165,7 @@ export function pipLayout(rank: Rank): Pip[] {
     x,
     y,
     flipped: y > 52,
-    large: rank === 'A',
+    wide: rank === 'A',
   }))
 }
 

@@ -23,8 +23,8 @@ export const PLAYER_NAMES: Readonly<Record<PlayerId, string>> = {
  * Identifiant tiré d'un nom : minuscules, sans accents ni espaces.
  * « Jean-Éric » → « jean-eric ». Vide si le nom ne contient rien d'utilisable.
  */
-export function playerIdFrom(nom: string): PlayerId {
-  return nom
+export function playerIdFrom(name: string): PlayerId {
+  return name
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
@@ -38,15 +38,15 @@ export function playerIdFrom(nom: string): PlayerId {
  * « bot-etoile-2 »… Le niveau fait partie de l'identifiant, ce qui permet aux
  * statistiques de regrouper tous les « Bot » et tous les « Bot ★ ».
  */
-export type NiveauBot = 'simple' | 'compteur'
-export const estBotId = (p: PlayerId): boolean => p.startsWith('bot-')
-export const niveauDeBotId = (p: PlayerId): NiveauBot => (p.startsWith('bot-etoile') ? 'compteur' : 'simple')
+export type BotLevelName = 'basic' | 'expert'
+export const isBotId = (p: PlayerId): boolean => p.startsWith('bot-')
+export const levelOfBotId = (p: PlayerId): BotLevelName => (p.startsWith('bot-expert') ? 'expert' : 'basic')
 /** Le premier identifiant libre pour un bot de ce niveau, à côté des sièges déjà pris. */
-export function botId(niveau: NiveauBot, pris: readonly PlayerId[]): PlayerId {
-  const racine = `bot-${niveau === 'compteur' ? 'etoile' : 'simple'}-`
+export function botId(level: BotLevelName, taken: readonly PlayerId[]): PlayerId {
+  const root = `bot-${level === 'expert' ? 'expert' : 'basic'}-`
   let n = 1
-  while (pris.includes(racine + n)) n++
-  return racine + n
+  while (taken.includes(root + n)) n++
+  return root + n
 }
 
 /** Les quatre places, dans le sens du jeu (MAT-2). Les sièges 0 et 2 font équipe. */
@@ -79,8 +79,8 @@ export const PAIRINGS: readonly Seating[] = pairingsOf(DEFAULT_SEATING)
 
 /** Nom stable d'un appariement, pour regrouper les statistiques. */
 export function pairingKey(seating: Seating): string {
-  const paire = (a: PlayerId, b: PlayerId) => [a, b].sort().join('+')
-  return [paire(seating[0], seating[2]), paire(seating[1], seating[3])].sort().join(' vs ')
+  const pair = (a: PlayerId, b: PlayerId) => [a, b].sort().join('+')
+  return [pair(seating[0], seating[2]), pair(seating[1], seating[3])].sort().join(' vs ')
 }
 
 /** Tirage au sort d'un placement, RNG injectable pour que les tests soient sûrs. */
@@ -101,6 +101,6 @@ export function seatingFromTeam(
   team: readonly [PlayerId, PlayerId],
   table: readonly PlayerId[] = PLAYER_IDS,
 ): Seating {
-  const autres = table.filter((p) => !team.includes(p))
-  return [team[0], autres[0], team[1], autres[1]] as Seating
+  const others = table.filter((p) => !team.includes(p))
+  return [team[0], others[0], team[1], others[1]] as Seating
 }

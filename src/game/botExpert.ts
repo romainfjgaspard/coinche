@@ -12,125 +12,125 @@
  */
 import { type Card, DECK, suitOf, value } from './cards'
 import { type BotView, chooseCard } from './bot'
-import { cartesImpossibles, hasard, tirerRepartition } from './analyseJoueur'
+import { impossibleCards, random, drawDistribution } from './cardAnalysis'
 import { type PlayerId, seatOf } from './players'
-import { type Memoire, resoudre } from './solveur'
+import { type TransTable, solve } from './solver'
 
-export interface VueExpert extends BotView {
-  contrat: { value: number; capot: boolean; generale: boolean }
+export interface ExpertView extends BotView {
+  contract: { value: number; capot: boolean; generale: boolean }
   /** Qui a annoncé la belote dans cette donne : c'est public */
-  beloteAnnoncee: PlayerId | null
+  beloteDeclared: PlayerId | null
 }
 
-export interface OptionsExpert {
+export interface ExpertOptions {
   /** Au plus tant de répartitions imaginées */
-  echantillons?: number
+  samples?: number
   /** Au moins tant, même si le temps est écoulé */
   minimum?: number
   /** Temps de réflexion visé, en millisecondes */
   budgetMs?: number
-  graine?: number
+  seed?: number
   /** Voir `TOLERANCE` */
-  tolerance?: { chances: number; points: number }
+  tolerance?: { odds: number; points: number }
 }
 
 /** Le bot ★ sait-il jouer ce contrat ? Sinon il joue comme le bot de base. */
-export const expertSaitJouer = (vue: VueExpert): boolean =>
-  vue.trump !== null && vue.trump !== 'ta' && !vue.contrat.generale
+export const expertCanPlay = (view: ExpertView): boolean =>
+  view.trump !== null && view.trump !== 'ta' && !view.contract.generale
 
-export function choisirCarteExpert(vue: VueExpert, permis: Card[], options: OptionsExpert = {}): Card {
-  if (permis.length === 1) return permis[0]
-  if (!expertSaitJouer(vue)) return chooseCard(vue, permis)
-  const { echantillons = 40, minimum = 8, budgetMs = 1500 } = options
-  const trump = vue.trump
-  const siege = (p: PlayerId) => seatOf(p, vue.seating)
-  const s = siege(vue.me)
-  const monCamp = (s & 1) as 0 | 1
-  const preneur = (siege(vue.taker) & 1) as 0 | 1
-  const objectif = vue.contrat.capot ? 'plis' : 'points'
+export function chooseExpertCard(view: ExpertView, legal: Card[], options: ExpertOptions = {}): Card {
+  if (legal.length === 1) return legal[0]
+  if (!expertCanPlay(view)) return chooseCard(view, legal)
+  const { samples = 40, minimum = 8, budgetMs = 1500 } = options
+  const trump = view.trump
+  const seat = (p: PlayerId) => seatOf(p, view.seating)
+  const s = seat(view.me)
+  const myTeamIdx = (s & 1) as 0 | 1
+  const taker = (seat(view.taker) & 1) as 0 | 1
+  const target = view.contract.capot ? 'tricks' : 'points'
 
-  const faits = vue.completed.map((t) => t.plays.map((p) => ({ siege: siege(p.player), carte: p.card })))
-  const pli = vue.current.map((p) => ({ siege: siege(p.player), carte: p.card }))
-  const joues = [...faits.flat(), ...pli]
-  const interdit = cartesImpossibles([...faits, pli], trump)
-  const connues = new Set<Card>([...vue.hand, ...joues.map((x) => x.carte)])
-  const inconnues = DECK.filter((c) => !connues.has(c))
-  const autres = [0, 1, 2, 3].filter((x) => x !== s)
-  const places = [0, 1, 2, 3].map((x) =>
-    x === s ? vue.hand.length : 8 - vue.completed.length - (pli.some((y) => y.siege === x) ? 1 : 0),
+  const playedTricks = view.completed.map((t) => t.plays.map((p) => ({ seat: seat(p.player), card: p.card })))
+  const trick = view.current.map((p) => ({ seat: seat(p.player), card: p.card }))
+  const played = [...playedTricks.flat(), ...trick]
+  const forbidden = impossibleCards([...playedTricks, trick], trump)
+  const knownCards = new Set<Card>([...view.hand, ...played.map((x) => x.card)])
+  const unknownCards = DECK.filter((c) => !knownCards.has(c))
+  const others = [0, 1, 2, 3].filter((x) => x !== s)
+  const spots = [0, 1, 2, 3].map((x) =>
+    x === s ? view.hand.length : 8 - view.completed.length - (trick.some((y) => y.seat === x) ? 1 : 0),
   )
 
   // Ce que chaque camp a déjà ramassé : points (dix de der compris) ou plis.
-  const acquis: [number, number] = [0, 0]
-  vue.completed.forEach((t) => {
-    const camp = (siege(t.winner) & 1) as 0 | 1
-    acquis[camp] += objectif === 'plis' ? 1 : t.plays.reduce((n, p) => n + value(p.card, trump), 0)
+  const banked: [number, number] = [0, 0]
+  view.completed.forEach((t) => {
+    const team = (seat(t.winner) & 1) as 0 | 1
+    banked[team] += target === 'tricks' ? 1 : t.plays.reduce((n, p) => n + value(p.card, trump), 0)
   })
-  const restePoints = 162 - acquis[0] - acquis[1]
-  const entameur = pli.length > 0 ? pli[0].siege : siege(vue.completed.at(-1)?.winner ?? vue.me)
+  const pointsLeft = 162 - banked[0] - banked[1]
+  const leader = trick.length > 0 ? trick[0].seat : seat(view.completed.at(-1)?.winner ?? view.me)
 
-  const passe = (totalPreneur: number, belote: number): boolean =>
-    vue.contrat.capot
-      ? totalPreneur === 8
-      : totalPreneur + belote >= vue.contrat.value && totalPreneur + belote > 162 - totalPreneur
-  const aPose = (x: number, c: Card) => joues.some((y) => y.siege === x && y.carte === c)
+  const pass = (takerPoints: number, belote: number): boolean =>
+    view.contract.capot
+      ? takerPoints === 8
+      : takerPoints + belote >= view.contract.value && takerPoints + belote > 162 - takerPoints
+  const hasPlayed = (x: number, c: Card) => played.some((y) => y.seat === x && y.card === c)
 
-  const r = hasard(options.graine ?? 1 + joues.length * 97 + s)
-  const reussites = new Map<Card, number>(permis.map((c) => [c, 0]))
-  const points = new Map<Card, number>(permis.map((c) => [c, 0]))
-  const debut = Date.now()
+  const r = random(options.seed ?? 1 + played.length * 97 + s)
+  const successes = new Map<Card, number>(legal.map((c) => [c, 0]))
+  const points = new Map<Card, number>(legal.map((c) => [c, 0]))
+  const start = Date.now()
   let n = 0
-  for (let k = 0; k < echantillons; k++) {
-    if (n >= minimum && Date.now() - debut > budgetMs) break
-    const tirage = tirerRepartition(inconnues, places, interdit, autres, r)
-    if (!tirage) continue
-    const mains = [0, 1, 2, 3].map((x) => (x === s ? vue.hand : tirage[x]))
+  for (let k = 0; k < samples; k++) {
+    if (n >= minimum && Date.now() - start > budgetMs) break
+    const sample = drawDistribution(unknownCards, spots, forbidden, others, r)
+    if (!sample) continue
+    const hands = [0, 1, 2, 3].map((x) => (x === s ? view.hand : sample[x]))
     // La belote du preneur : annoncée par son camp, ou Roi et Dame dans une même main imaginée.
-    const roi = `K${trump}` as Card
-    const dame = `Q${trump}` as Card
+    const king = `K${trump}` as Card
+    const queen = `Q${trump}` as Card
     const belote =
-      objectif === 'points' &&
-      ((vue.beloteAnnoncee !== null && (siege(vue.beloteAnnoncee) & 1) === preneur) ||
+      target === 'points' &&
+      ((view.beloteDeclared !== null && (seat(view.beloteDeclared) & 1) === taker) ||
         [0, 1, 2, 3].some(
           (x) =>
-            (x & 1) === preneur &&
-            (mains[x].includes(roi) || aPose(x, roi)) &&
-            (mains[x].includes(dame) || aPose(x, dame)),
+            (x & 1) === taker &&
+            (hands[x].includes(king) || hasPlayed(x, king)) &&
+            (hands[x].includes(queen) || hasPlayed(x, queen)),
         ))
         ? 20
         : 0
-    const memoire: Memoire = new Map()
-    for (const c of permis) {
-      const v = resoudre(
+    const memo: TransTable = new Map()
+    for (const c of legal) {
+      const v = solve(
         {
-          mains: mains.map((m, x) => (x === s ? m.filter((y) => y !== c) : m)),
-          pli: [...pli, { siege: s, carte: c }],
-          entameur,
-          plisJoues: vue.completed.length,
+          hands: hands.map((m, x) => (x === s ? m.filter((y) => y !== c) : m)),
+          trick: [...trick, { seat: s, card: c }],
+          leader,
+          tricksPlayed: view.completed.length,
           trump,
-          equipe: preneur,
-          objectif,
+          team: taker,
+          target,
         },
-        memoire,
+        memo,
       )
-      const totalPreneur = acquis[preneur] + v
-      if (passe(totalPreneur, belote)) reussites.set(c, reussites.get(c)! + 1)
-      const pourMonCamp =
-        objectif === 'plis' ? 0 : monCamp === preneur ? totalPreneur : acquis[monCamp] + restePoints - v
-      points.set(c, points.get(c)! + pourMonCamp)
+      const takerPoints = banked[taker] + v
+      if (pass(takerPoints, belote)) successes.set(c, successes.get(c)! + 1)
+      const forMyTeam =
+        target === 'tricks' ? 0 : myTeamIdx === taker ? takerPoints : banked[myTeamIdx] + pointsLeft - v
+      points.set(c, points.get(c)! + forMyTeam)
     }
     n += 1
   }
-  if (n === 0) return chooseCard(vue, permis)
+  if (n === 0) return chooseCard(view, legal)
 
-  const pourMoi = (c: Card) => {
-    const chances = reussites.get(c)! / n
-    return monCamp === preneur ? chances : 1 - chances
+  const forMe = (c: Card) => {
+    const odds = successes.get(c)! / n
+    return myTeamIdx === taker ? odds : 1 - odds
   }
   // À égalité de chances et de points, la carte la moins chère : on garde les honneurs.
-  const meilleure = [...permis].sort(
+  const bestOption = [...legal].sort(
     (a, b) =>
-      pourMoi(b) - pourMoi(a) ||
+      forMe(b) - forMe(a) ||
       points.get(b)! - points.get(a)! ||
       value(a, trump) - value(b, trump) ||
       suitOf(a).localeCompare(suitOf(b)),
@@ -139,15 +139,15 @@ export function choisirCarteExpert(vue: VueExpert, permis: Card[], options: Opti
   // Imaginer les mains à cartes ouvertes a un travers : dans chaque tirage, le bot « sait »
   // où sont les cartes, donc tirer atout ne lui paraît jamais urgent. Quand l'écart avec
   // le bon réflexe du bot de base tient dans le bruit des tirages, on garde le réflexe.
-  const reflexe = chooseCard(vue, permis)
+  const reflex = chooseCard(view, legal)
   const tolerance = options.tolerance ?? TOLERANCE
   if (
-    pourMoi(meilleure) - pourMoi(reflexe) <= tolerance.chances &&
-    (points.get(meilleure)! - points.get(reflexe)!) / n <= tolerance.points
+    forMe(bestOption) - forMe(reflex) <= tolerance.odds &&
+    (points.get(bestOption)! - points.get(reflex)!) / n <= tolerance.points
   )
-    return reflexe
-  return meilleure
+    return reflex
+  return bestOption
 }
 
 /** Jusqu'où le réflexe du bot de base l'emporte : en part de chances (0-1), en points. */
-export const TOLERANCE = { chances: 0.05, points: 4 }
+export const TOLERANCE = { odds: 0.05, points: 4 }

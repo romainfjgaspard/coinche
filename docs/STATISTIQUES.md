@@ -5,7 +5,7 @@ Deux onglets, sur téléphone comme sur PC (le PC montre plus de colonnes) :
 - **Partie en cours** : calculée en direct depuis le journal de la partie ;
 - **Toutes les parties** : calculée depuis les archives, déposées à la fin de chaque partie (voir `docs/MODELE-DONNEES.md`). Accessible aussi depuis l'accueil.
 
-Tout est calculé dans le navigateur, dans `src/game/` : `stats.ts` (partie en cours), `statsGlobal.ts` (toutes les parties), `statsEncheres.ts` (enchères, écarts, temps), `impasses.ts`, `force.ts`.
+Tout est calculé dans le navigateur, dans `src/game/` : `stats.ts` (partie en cours), `statsGlobal.ts` (toutes les parties), `statsBidding.ts` (enchères, écarts, temps), `finesses.ts`, `strength.ts`.
 
 ## Deux interrupteurs : avec bot, sans bot
 
@@ -39,7 +39,7 @@ Les statistiques globales se filtrent par deux interrupteurs indépendants : les
 - **Temps de réflexion** : mesuré sur l'écran de chacun, de l'instant où c'est à lui jusqu'à sa décision ; une pause n'y compte pas, la dernière carte (jouée d'office) non plus.
 - **Impasse** : garder l'as de la couleur entamée alors que personne n'a coupé. Réussie si l'as ramasse ensuite un dix, ratée s'il se fait couper (détail dans `docs/MODELE-DONNEES.md`).
 - **Étoile de la honte** : un capot fait sans l'avoir annoncé (DEC-8) ; trois dans une partie, c'est la honte complète.
-- **Force de main** (`force.ts`) : un barème simple sur la main du preneur au moment de l'enchère, à l'atout choisi — 1 par atout, +3 pour le valet, +2 pour le neuf, +2 par as extérieur, +1 par atout au-delà du quatrième, +2 par coupe franche.
+- **Force de main** (`strength.ts`) : un barème simple sur la main du preneur au moment de l'enchère, à l'atout choisi — 1 par atout, +3 pour le valet, +2 pour le neuf, +2 par as extérieur, +1 par atout au-delà du quatrième, +2 par coupe franche.
 - **Panache** : l'écart moyen entre ce qu'un joueur annonce et ce que **les autres** annoncent avec une main de force comparable (même bande de 3 points de force ; on prend la médiane des autres). Positif : plus audacieux que le groupe ; négatif : plus prudent.
 - **Soirée** : une partie et toutes celles enchaînées avec « Rejouer » derrière elle.
 - **Partie non finie** : commencée (au moins une donne) mais jamais terminée. « En cours » les six premières heures, « abandonnée » ensuite, « annulée » si un joueur l'a arrêtée. Elle ne compte dans aucune autre statistique.

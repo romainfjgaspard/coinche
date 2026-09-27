@@ -4,7 +4,7 @@
  * L'état complet d'une donne se déduit de la suite des cartes posées : c'est ce qui
  * permet de le rejouer depuis le journal, et d'analyser les parties après coup.
  */
-import { type Atout, type Card, atoutCouleur, suitOf } from './cards'
+import { type TrumpMode, type Card, isSuitTrump, suitOf } from './cards'
 import { type PlayerId, type Seating, playerAtSeat, seatOf } from './players'
 import { type PlayedCard, playableCards, trickPoints, trickWinner } from './trick'
 
@@ -21,7 +21,7 @@ export interface CompletedTrick {
 }
 
 export interface PlayState {
-  trump: Atout
+  trump: TrumpMode
   /** Entame du premier pli : à gauche du donneur, ou le preneur sur une générale */
   firstLeader: PlayerId
   /** Le placement de cette partie */
@@ -32,7 +32,7 @@ export interface PlayState {
 
 export const TRICKS_PER_DEAL = 8
 
-export const newPlay = (trump: Atout, firstLeader: PlayerId, seating: Seating): PlayState => ({
+export const newPlay = (trump: TrumpMode, firstLeader: PlayerId, seating: Seating): PlayState => ({
   trump,
   firstLeader,
   seating,
@@ -107,21 +107,21 @@ export function play(state: PlayState, player: PlayerId, card: Card, hand: Card[
 /**
  * Main d'un joueur à un instant donné, reconstituée depuis la donne distribuée.
  *
- * Sert à l'analyse : les mains sont conservées scellées dans `donne/{n}` et ne
+ * Sert à l'analyse : les mains sont conservées scellées dans `deals/{n}` et ne
  * s'ouvrent qu'à la fin de la partie. Rien n'a donc besoin de circuler pendant le jeu.
  */
 export function handAt(dealt: Card[], state: PlayState, player: PlayerId): Card[] {
-  const posees = new Set(
+  const placedCards = new Set(
     [...state.completed.flatMap((t) => t.plays), ...state.current]
       .filter((p) => p.player === player)
       .map((p) => p.card),
   )
-  return dealt.filter((c) => !posees.has(c))
+  return dealt.filter((c) => !placedCards.has(c))
 }
 
 /** Le pli a-t-il été coupé ? Utile aux statistiques, pas au décompte. */
-export function trickFlags(trick: CompletedTrick, trump: Atout): { cut: boolean; overcut: boolean } {
-  if (!atoutCouleur(trump)) return { cut: false, overcut: false }
+export function trickFlags(trick: CompletedTrick, trump: TrumpMode): { cut: boolean; overcut: boolean } {
+  if (!isSuitTrump(trump)) return { cut: false, overcut: false }
   const led = suitOf(trick.plays[0].card)
   if (led === trump) return { cut: false, overcut: false }
   const trumps = trick.plays.filter((p) => suitOf(p.card) === trump)
@@ -135,8 +135,8 @@ export function trickFlags(trick: CompletedTrick, trump: Atout): { cut: boolean;
  * Cette fonction existe pour les statistiques — savoir combien de belotes
  * ont été oubliées, et par qui.
  */
-export function beloteHeld(state: PlayState, trump: Atout): PlayerId | null {
-  if (!atoutCouleur(trump)) return null
+export function beloteHeld(state: PlayState, trump: TrumpMode): PlayerId | null {
+  if (!isSuitTrump(trump)) return null
   const plays = state.completed.flatMap((t) => t.plays)
   const king = plays.find((p) => p.card === `K${trump}`)
   const queen = plays.find((p) => p.card === `Q${trump}`)
@@ -150,28 +150,28 @@ export function beloteHeld(state: PlayState, trump: Atout): PlayerId | null {
  * L'annonce est un geste volontaire : oubliée, la belote ne compte pas.
  *
  * BEL-6 — sur la seconde tête, on n'annonce la rebelote que si la belote l'a été sur
- * la première (`dejaAnnoncee`) : sinon elle est déjà perdue, et le bouton trompait.
+ * la première (`alreadyDeclared`) : sinon elle est déjà perdue, et le bouton trompait.
  */
 export function canDeclareBelote(
   state: PlayState,
   player: PlayerId,
   card: Card,
   hand: Card[],
-  trump: Atout,
-  dejaAnnoncee: boolean,
+  trump: TrumpMode,
+  alreadyDeclared: boolean,
 ): boolean {
-  if (!atoutCouleur(trump)) return false
+  if (!isSuitTrump(trump)) return false
   const king = `K${trump}` as Card
   const queen = `Q${trump}` as Card
   if (card !== king && card !== queen) return false
 
   const other = card === king ? queen : king
   if (hand.includes(other)) return true
-  const autrePosee = state.completed
+  const otherPlayed = state.completed
     .flatMap((t) => t.plays)
     .concat(state.current)
     .some((p) => p.card === other && p.player === player)
-  return autrePosee && dejaAnnoncee
+  return otherPlayed && alreadyDeclared
 }
 
 /** Les plis dans le format attendu par `scoreDeal`. */

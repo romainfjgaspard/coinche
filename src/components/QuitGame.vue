@@ -6,15 +6,15 @@
 import { computed, ref } from 'vue'
 import { useSession } from '../stores/session'
 
-defineProps<{ grand?: boolean }>()
+defineProps<{ large?: boolean }>()
 
 const session = useSession()
-const confirmer = ref(false)
-const terminee = computed(() => session.game?.phase === 'terminee')
+const confirm = ref(false)
+const finished = computed(() => session.game?.phase === 'finished')
 
-function quitter(): void {
-  if (terminee.value) session.leave()
-  else confirmer.value = true
+function quit(): void {
+  if (finished.value) session.leave()
+  else confirm.value = true
 }
 </script>
 
@@ -22,18 +22,18 @@ function quitter(): void {
   <button
     type="button"
     class="shrink-0 cursor-pointer rounded-lg border border-white/15 font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
-    :class="grand ? 'px-3.5 py-1.5 text-sm' : 'px-2.5 py-1.5 text-sm'"
-    @click="quitter"
+    :class="large ? 'px-3.5 py-1.5 text-sm' : 'px-2.5 py-1.5 text-sm'"
+    @click="quit"
   >
     Quitter
   </button>
 
   <Teleport to="body">
     <div
-      v-if="confirmer"
+      v-if="confirm"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
-      @click.self="confirmer = false"
-      @keydown.esc="confirmer = false"
+      @click.self="confirm = false"
+      @keydown.esc="confirm = false"
     >
       <div
         role="dialog"
@@ -58,7 +58,7 @@ function quitter(): void {
           <button
             type="button"
             class="h-11 cursor-pointer rounded-xl border border-white/15 text-sm font-medium text-mist transition hover:border-white/35 hover:bg-white/5"
-            @click="confirmer = false"
+            @click="confirm = false"
           >
             Continuer à jouer
           </button>

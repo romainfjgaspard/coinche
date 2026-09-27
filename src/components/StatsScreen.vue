@@ -5,325 +5,320 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { type PlayerId, teamOfPlayer } from '../game/players'
-import { nomDe } from '../stores/roster'
-import { type Chrono, bilan, cascade, enchereMoyenne, moyenne } from '../game/stats'
-import { duree } from '../game/display'
+import { nameOf } from '../stores/roster'
+import { type Timing, balance, cascade, averageBid, average } from '../game/stats'
+import { duration } from '../game/display'
 import StatsGlobalView from './StatsGlobalView.vue'
-import StatsPartiePc from './StatsPartiePc.vue'
+import StatsGamePc from './StatsGamePc.vue'
 import StatsGlobalPc from './StatsGlobalPc.vue'
-import { resumeGlobal } from '../game/statsGlobal'
+import { globalSummary } from '../game/statsGlobal'
 import { partnerOf, playerAtSeat, seatOf } from '../game/players'
-import { ecartsAnnonce, repartitionAnnonces, rolesPrise, tempsParJoueur } from '../game/statsEncheres'
-import { couleursPartie } from '../composables/couleursJoueurs'
-import { useFiltreArchives } from '../composables/useFiltreArchives'
-import FiltreBots from './FiltreBots.vue'
-import SousOnglets from './SousOnglets.vue'
-import StatsEncheres from './StatsEncheres.vue'
-import StatsEcarts from './StatsEcarts.vue'
-import StatsTemps from './StatsTemps.vue'
-import StatsDonnes from './StatsDonnes.vue'
+import { bidGaps, bidDistribution, takeRoles, timesByPlayer } from '../game/statsBidding'
+import { gameColors } from '../composables/playerColors'
+import { useArchiveFilter } from '../composables/useArchiveFilter'
+import BotFilter from './BotFilter.vue'
+import SubTabs from './SubTabs.vue'
+import StatsBidding from './StatsBidding.vue'
+import StatsGaps from './StatsGaps.vue'
+import StatsTimes from './StatsTimes.vue'
+import StatsDeals from './StatsDeals.vue'
 import { useSession } from '../stores/session'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableLayout } from '../composables/useTableLayout'
 
 const session = useSession()
-const grand = useLargeScreen()
+const large = useLargeScreen()
 const L = useTableLayout()
 /** Ouvert depuis l'accueil : pas de partie en cours, seulement l'historique. */
-const props = defineProps<{ globalSeulement?: boolean }>()
-const emit = defineEmits<{ fermer: [] }>()
-const onglet = ref<'partie' | 'global'>(props.globalSeulement ? 'global' : 'partie')
+const props = defineProps<{ globalOnly?: boolean }>()
+const emit = defineEmits<{ close: [] }>()
+const tab = ref<'game' | 'global'>(props.globalOnly ? 'global' : 'game')
 
 /*
  * Sur PC, les archives sont lues ici : l'en-tête résume toutes les parties, et le
  * choix « avec ou sans bots » s'y trouve. Rechargées à chaque ouverture.
  */
 onMounted(() => {
-  if (grand.value) void session.loadArchives()
+  if (large.value) void session.loadArchives()
 })
-const { archives } = useFiltreArchives()
+const { archives } = useArchiveFilter()
 
 /** Les sous-onglets de la partie en cours : une page par thème. */
-const SOUS_ONGLETS_PARTIE = [
+const SUB_TABS_GAME = [
   { id: 'score', label: 'Score' },
-  { id: 'encheres', label: 'Enchères' },
-  { id: 'jeu', label: 'Jeu' },
-  { id: 'donnes', label: 'Donnes' },
+  { id: 'bidding', label: 'Enchères' },
+  { id: 'playing', label: 'Jeu' },
+  { id: 'deals', label: 'Donnes' },
 ] as const
-const vuePartie = ref<string>('score')
-const SOUS_ONGLETS_GLOBAL = [
+const gameView = ref<string>('score')
+const SUB_TABS_GLOBAL = [
   { id: 'duos', label: 'Duos' },
-  { id: 'joueurs', label: 'Joueurs' },
-  { id: 'encheres', label: 'Enchères' },
-  { id: 'temps', label: 'Temps' },
-  { id: 'parties', label: 'Parties' },
+  { id: 'players', label: 'Joueurs' },
+  { id: 'bidding', label: 'Enchères' },
+  { id: 'times', label: 'Temps' },
+  { id: 'games', label: 'Parties' },
 ] as const
-const vueGlobale = ref<string>('duos')
+const globalView = ref<string>('duos')
 
 /** Moi, mon partenaire, puis les deux autres : l'ordre et les couleurs des courbes. */
-const joueursPartie = computed<PlayerId[]>(() => {
+const gamePlayers = computed<PlayerId[]>(() => {
   const s = session.seating
-  const moi = session.playerId && s.includes(session.playerId) ? session.playerId : s[0]
-  const i = seatOf(moi, s)
-  return [moi, partnerOf(moi, s), playerAtSeat(i + 1, s), playerAtSeat(i + 3, s)]
+  const me = session.playerId && s.includes(session.playerId) ? session.playerId : s[0]
+  const i = seatOf(me, s)
+  return [me, partnerOf(me, s), playerAtSeat(i + 1, s), playerAtSeat(i + 3, s)]
 })
-const couleursJoueursPartie = computed(() => couleursPartie(joueursPartie.value))
-const annoncesPartie = computed(() => repartitionAnnonces(session.events))
-const rolesPartie = computed(() => rolesPrise(session.events, session.seating))
-const ecartsPartie = computed(() => ecartsAnnonce(session.events, session.seating))
-const tempsPartie = computed(() => tempsParJoueur(session.events))
-const nomCamp = (team: 0 | 1): string =>
+const gamePlayerColors = computed(() => gameColors(gamePlayers.value))
+const gameCalls = computed(() => bidDistribution(session.events))
+const gameRoles = computed(() => takeRoles(session.events, session.seating))
+const gameGaps = computed(() => bidGaps(session.events, session.seating))
+const gameTimes = computed(() => timesByPlayer(session.events))
+const teamName = (team: 0 | 1): string =>
   session.seating
     .filter((p) => teamOfPlayer(p, session.seating) === team)
-    .map((p) => nomDe(p))
+    .map((p) => nameOf(p))
     .join(' & ')
 /** La phrase à droite des onglets, comme sur la maquette. */
-const enTete = computed(() => {
-  if (onglet.value === 'partie') {
+const header = computed(() => {
+  if (tab.value === 'game') {
     const n = session.dealSummaries.filter((d) => d.status !== null).length
-    const eux = session.myTeam === 0 ? 1 : 0
-    return `${nomCamp(session.myTeam)} contre ${nomCamp(eux)} · ${n} donne${n > 1 ? 's' : ''} · objectif ${session.game?.objectif ?? 1000}${session.game?.blitz ? ' · blitz' : ''}`
+    const them = session.myTeam === 0 ? 1 : 0
+    return `${teamName(session.myTeam)} contre ${teamName(them)} · ${n} donne${n > 1 ? 's' : ''} · objectif ${session.game?.target ?? 1000}${session.game?.blitz ? ' · blitz' : ''}`
   }
-  const r = resumeGlobal(archives.value)
-  const pl = (v: number, mot: string) => `${v} ${mot}${v > 1 ? 's' : ''}`
-  const depuis =
-    r.depuis === null
+  const r = globalSummary(archives.value)
+  const pl = (v: number, word: string) => `${v} ${word}${v > 1 ? 's' : ''}`
+  const since =
+    r.since === null
       ? ''
-      : ` · depuis le ${new Date(r.depuis).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
-  return `${pl(r.parties, 'partie')} · ${pl(r.donnes, 'donne')} · ${pl(r.prises, 'prise')}${depuis}`
+      : ` · depuis le ${new Date(r.since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+  return `${pl(r.games, 'partie')} · ${pl(r.deals, 'donne')} · ${pl(r.takes, 'prise')}${since}`
 })
 /** Les donnes jouées jusqu'au bout, comme sur PC : ni la donne en cours ni les blanches. */
-const donnesJouees = computed(() => session.dealSummaries.filter((d) => d.status !== null).length)
-const ONGLETS = computed(() =>
+const dealsPlayedCount = computed(() => session.dealSummaries.filter((d) => d.status !== null).length)
+const TABS = computed(() =>
   (
     [
-      { id: 'partie', label: 'Partie en cours' },
+      { id: 'game', label: 'Partie en cours' },
       { id: 'global', label: 'Toutes les parties' },
     ] as const
-  ).filter((t) => !props.globalSeulement || t.id === 'global'),
+  ).filter((t) => !props.globalOnly || t.id === 'global'),
 )
-const retour = computed(() => (props.globalSeulement ? 'Accueil' : 'Table'))
+const backLabel = computed(() => (props.globalOnly ? 'Accueil' : 'Table'))
 
-const OR = '#d9a441'
-const BLEU = '#7fa8c9'
+const GOLD = '#d9a441'
+const BLUE = '#7fa8c9'
 
 /** Le camp du joueur est toujours « nous » : les couleurs suivent, pas les numéros. */
-const mien = (team: 0 | 1): boolean => team === session.myTeam
+const isMyTeam = (team: 0 | 1): boolean => team === session.myTeam
 
 const scores = computed<[number, number]>(() => session.game?.scores ?? [0, 0])
-const nous = computed(() => scores.value[session.myTeam])
-const eux = computed(() => scores.value[session.myTeam === 0 ? 1 : 0])
+const us = computed(() => scores.value[session.myTeam])
+const them = computed(() => scores.value[session.myTeam === 0 ? 1 : 0])
 
 /**
  * Courbe d'évolution : deux polylignes dans un repère de 360 × 170. Chaque donne
  * porte son point et son numéro, et le score final est écrit au bout des courbes :
  * un graphe sans valeurs obligeait à deviner.
  */
-const courbe = computed(() => {
+const curve = computed(() => {
   const points = session.scoreCurve
   const max = Math.max(320, ...points.map((p) => Math.max(...p.scores)))
   const n = Math.max(1, points.length - 1)
   const x = (i: number): number => 34 + (i / n) * 262
   const y = (v: number): number => 140 - (v / max) * 126
-  const eux = session.myTeam === 0 ? 1 : 0
-  const serie = (team: 0 | 1) => points.map((p, i) => ({ x: x(i), y: y(p.scores[team]) }))
-  const ligne = (team: 0 | 1): string =>
-    serie(team)
+  const them = session.myTeam === 0 ? 1 : 0
+  const seriesOf = (team: 0 | 1) => points.map((p, i) => ({ x: x(i), y: y(p.scores[team]) }))
+  const row = (team: 0 | 1): string =>
+    seriesOf(team)
       .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
       .join(' ')
-  const paliers = [0, Math.round(max / 2), max]
-  const dernier = points.at(-1)
+  const tiers = [0, Math.round(max / 2), max]
+  const last = points.at(-1)
   // Les deux étiquettes de fin ne doivent pas se chevaucher quand les scores sont proches.
-  let yNous = dernier ? y(dernier.scores[session.myTeam]) : 0
-  let yEux = dernier ? y(dernier.scores[eux]) : 0
-  if (Math.abs(yNous - yEux) < 12) {
-    const milieu = (yNous + yEux) / 2
-    const nousDessus = dernier ? dernier.scores[session.myTeam] >= dernier.scores[eux] : true
-    yNous = milieu + (nousDessus ? -6 : 6)
-    yEux = milieu + (nousDessus ? 6 : -6)
+  let yUs = last ? y(last.scores[session.myTeam]) : 0
+  let yThem = last ? y(last.scores[them]) : 0
+  if (Math.abs(yUs - yThem) < 12) {
+    const middle = (yUs + yThem) / 2
+    const usOnTop = last ? last.scores[session.myTeam] >= last.scores[them] : true
+    yUs = middle + (usOnTop ? -6 : 6)
+    yThem = middle + (usOnTop ? 6 : -6)
   }
   // Un numéro de donne sur deux au-delà de quinze, pour qu'ils restent lisibles.
-  const pas = points.length > 16 ? 2 : 1
+  const step = points.length > 16 ? 2 : 1
   return {
-    nous: ligne(session.myTeam),
-    eux: ligne(eux),
-    pointsNous: serie(session.myTeam),
-    pointsEux: serie(eux),
-    paliers: paliers.map((v) => ({ v, y: y(v) })),
+    us: row(session.myTeam),
+    them: row(them),
+    pointsUs: seriesOf(session.myTeam),
+    pointsThem: seriesOf(them),
+    tiers: tiers.map((v) => ({ v, y: y(v) })),
     // Le numéro de la donne, pas son rang : une donne blanche ne laisse pas de point.
-    donnes: points.map((p, i) => ({ i, n: p.deal, x: x(i) })).filter((d) => d.i % pas === 0),
-    fin: dernier
+    deals: points.map((p, i) => ({ i, n: p.deal, x: x(i) })).filter((d) => d.i % step === 0),
+    end: last
       ? {
           x: x(points.length - 1) + 8,
-          nous: dernier.scores[session.myTeam],
-          eux: dernier.scores[eux],
-          yNous,
-          yEux,
+          us: last.scores[session.myTeam],
+          them: last.scores[them],
+          yUs,
+          yThem,
         }
       : null,
   }
 })
 
 /** Momentum en cascade, comme sur PC : chaque barre part de la fin de la précédente. */
-const HAUTEUR_MOMENTUM = 170
+const MOMENTUM_HEIGHT = 170
 const momentum = computed(() => {
   const c = cascade(session.momentumBars, session.myTeam)
-  const hi = Math.max(0, ...c.map((b) => Math.max(b.avant, b.apres)))
-  const lo = Math.min(0, ...c.map((b) => Math.min(b.avant, b.apres)))
-  const y = (v: number) => ((hi - v) / Math.max(1, hi - lo)) * HAUTEUR_MOMENTUM
+  const hi = Math.max(0, ...c.map((b) => Math.max(b.before, b.after)))
+  const lo = Math.min(0, ...c.map((b) => Math.min(b.before, b.after)))
+  const y = (v: number) => ((hi - v) / Math.max(1, hi - lo)) * MOMENTUM_HEIGHT
   return {
-    zero: y(0),
-    barres: c.map((b) => {
-      const haut = y(Math.max(b.avant, b.apres))
+    zeroY: y(0),
+    barItems: c.map((b) => {
+      const top = y(Math.max(b.before, b.after))
       return {
         deal: b.deal,
-        nous: b.nous,
+        us: b.us,
         points: b.points,
-        top: haut,
-        height: Math.max(2, y(Math.min(b.avant, b.apres)) - haut),
+        top: top,
+        height: Math.max(2, y(Math.min(b.before, b.after)) - top),
       }
     }),
   }
 })
 
 /** Les prises, joueur par joueur — sans pourcentage : trop peu de donnes. */
-const prises = computed(() =>
+const takes = computed(() =>
   session.seating
     .map((p) => {
       const t = session.playerTallies.get(p)
-      const resultats = session.dealSummaries
+      const outcomes = session.dealSummaries
         .filter((d) => d.taker === p && d.status !== null)
-        .map((d) => d.status !== 'chute')
+        .map((d) => d.status !== 'down')
       return {
         id: p,
-        nom: nomDe(p),
-        prises: t?.prises ?? 0,
-        resultats,
-        enchere: t ? enchereMoyenne(t) : null,
-        bilan: t ? bilan(t) : 0,
-        couleur: mien(teamOfPlayer(p, session.seating)) ? OR : BLEU,
+        name: nameOf(p),
+        takes: t?.takes ?? 0,
+        outcomes,
+        bidEntry: t ? averageBid(t) : null,
+        balance: t ? balance(t) : 0,
+        color: isMyTeam(teamOfPlayer(p, session.seating)) ? GOLD : BLUE,
       }
     })
-    .sort((a, b) => b.bilan - a.bilan),
+    .sort((a, b) => b.balance - a.balance),
 )
 
 /**
  * Les impasses : garder l'as de la couleur entamée alors que personne n'a coupé.
  * Coupé derrière, c'est raté ; s'il ramasse un dix, c'est réussi.
  */
-const impasses = computed(() =>
+const finesses = computed(() =>
   session.seating
     .map((p) => {
-      const t = session.impasseCounts.get(p)
+      const t = session.finesseCounts.get(p)
       return {
         id: p,
-        nom: nomDe(p),
-        tentees: t?.tentees ?? 0,
-        reussies: t?.reussies ?? 0,
-        ratees: t?.ratees ?? 0,
+        name: nameOf(p),
+        tried: t?.tried ?? 0,
+        made: t?.made ?? 0,
+        failed: t?.failed ?? 0,
       }
     })
-    .sort((a, b) => b.tentees - a.tentees),
+    .sort((a, b) => b.tried - a.tried),
 )
 
-const aucuneImpasse = computed(() => impasses.value.every((i) => i.tentees === 0))
+const noFinesse = computed(() => finesses.value.every((i) => i.tried === 0))
 
 /** Le temps de réflexion : moyenne pour annoncer, pour jouer, et la plus longue hésitation. */
-const tempsReflexion = computed(() =>
+const thinkRows = computed(() =>
   [...session.seating].map((p) => {
-    const r = session.reflexionsPartie.get(p)
-    const m = (c?: Chrono) => (c ? moyenne(c) : null)
-    const max = Math.max(r?.encheres.max ?? 0, r?.cartes.max ?? 0)
+    const r = session.gameThinkTimes.get(p)
+    const m = (c?: Timing) => (c ? average(c) : null)
+    const max = Math.max(r?.bids.max ?? 0, r?.cards.max ?? 0)
     return {
       id: p,
-      nom: nomDe(p),
-      annonce: m(r?.encheres),
-      carte: m(r?.cartes),
+      name: nameOf(p),
+      bid: m(r?.bids),
+      card: m(r?.cards),
       max: max > 0 ? max : null,
     }
   }),
 )
-const aucunTemps = computed(() => tempsReflexion.value.every((t) => t.annonce === null && t.carte === null))
+const noTimes = computed(() => thinkRows.value.every((t) => t.bid === null && t.card === null))
 
 /** « Roux ×2, Viv » plutôt que « Roux, Roux, Viv ». */
-function parJoueur(joueurs: PlayerId[]): string {
+function byPlayer(players: PlayerId[]): string {
   const n = new Map<PlayerId, number>()
-  for (const j of joueurs) n.set(j, (n.get(j) ?? 0) + 1)
-  return [...n].map(([j, k]) => (k > 1 ? `${nomDe(j)} ×${k}` : nomDe(j))).join(', ')
+  for (const j of players) n.set(j, (n.get(j) ?? 0) + 1)
+  return [...n].map(([j, k]) => (k > 1 ? `${nameOf(j)} ×${k}` : nameOf(j))).join(', ')
 }
 
-const faits = computed(() => {
+const playedTricks = computed(() => {
   const list = session.dealSummaries
-  const etoiles = list.filter((d) => d.etoile)
-  const oublis = list.filter((d) => d.beloteForgottenBy)
-  const plusGrosse = [...list].sort((a, b) => Math.max(...b.scores) - Math.max(...a.scores))[0]
-  const coinches = list.reduce((s, d) => s + d.coincheurs.length, 0)
+  const shameStars = list.filter((d) => d.shameStar)
+  const forgets = list.filter((d) => d.beloteForgottenBy)
+  const biggest = [...list].sort((a, b) => Math.max(...b.scores) - Math.max(...a.scores))[0]
+  const coinches = list.reduce((s, d) => s + d.coinchers.length, 0)
   return [
     {
-      titre: 'Étoiles de la honte',
-      valeur: etoiles.length === 0 ? 'aucune' : parJoueur(etoiles.map((d) => d.etoile!)),
-      alerte: etoiles.length > 0,
+      title: 'Étoiles de la honte',
+      value: shameStars.length === 0 ? 'aucune' : byPlayer(shameStars.map((d) => d.shameStar!)),
+      alert: shameStars.length > 0,
     },
     {
-      titre: 'Belotes oubliées',
-      valeur: oublis.length === 0 ? 'aucune' : parJoueur(oublis.map((d) => d.beloteForgottenBy!)),
-      alerte: oublis.length > 0,
+      title: 'Belotes oubliées',
+      value: forgets.length === 0 ? 'aucune' : byPlayer(forgets.map((d) => d.beloteForgottenBy!)),
+      alert: forgets.length > 0,
     },
     {
-      titre: 'Plus grosse donne',
-      valeur:
-        plusGrosse && plusGrosse.status
-          ? `${Math.max(...plusGrosse.scores)} points · donne ${plusGrosse.dealNumber}`
+      title: 'Plus grosse donne',
+      value:
+        biggest && biggest.status
+          ? `${Math.max(...biggest.scores)} points · donne ${biggest.dealNumber}`
           : '—',
-      alerte: false,
+      alert: false,
     },
-    { titre: 'Coinches', valeur: coinches === 0 ? 'aucune' : String(coinches), alerte: false },
+    { title: 'Coinches', value: coinches === 0 ? 'aucune' : String(coinches), alert: false },
   ]
 })
 </script>
 
 <template>
   <!-- Sur PC : les maquettes validées, dessinées pour 1920 px et mises à l'échelle de l'écran -->
-  <div v-if="grand" class="h-full w-full overflow-y-auto bg-felt-dark text-ivory">
+  <div v-if="large" class="h-full w-full overflow-y-auto bg-felt-dark text-ivory">
     <div class="px-11 pt-[22px] pb-10" :style="{ zoom: L.t }">
       <div class="flex items-center gap-2">
         <button
-          v-for="t in ONGLETS"
+          v-for="t in TABS"
           :key="t.id"
           type="button"
           class="cursor-pointer rounded-full border px-3.5 py-[7px] text-[13px] transition"
           :class="
-            onglet === t.id
+            tab === t.id
               ? 'border-gold bg-gold/20 font-semibold text-gold'
               : 'border-white/14 font-medium text-sage hover:border-white/35 hover:text-mist'
           "
-          @click="onglet = t.id"
+          @click="tab = t.id"
         >
           {{ t.label }}
         </button>
-        <FiltreBots v-if="onglet === 'global'" class="ml-3" />
-        <span class="ml-auto text-xs text-dusk">{{ enTete }}</span>
+        <BotFilter v-if="tab === 'global'" class="ml-3" />
+        <span class="ml-auto text-xs text-dusk">{{ header }}</span>
         <button
           type="button"
           class="ml-4 cursor-pointer rounded-lg border border-white/15 px-2.5 py-1.5 text-xs font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
-          @click="emit('fermer')"
+          @click="emit('close')"
         >
-          {{ retour }}
+          {{ backLabel }}
         </button>
       </div>
-      <SousOnglets
-        v-if="onglet === 'partie'"
-        v-model="vuePartie"
-        :options="SOUS_ONGLETS_PARTIE"
-        class="mt-5 max-w-xl"
-      />
-      <SousOnglets v-else v-model="vueGlobale" :options="SOUS_ONGLETS_GLOBAL" class="mt-5 max-w-2xl" />
-      <StatsPartiePc v-if="onglet === 'partie'" :vue="vuePartie" />
+      <SubTabs v-if="tab === 'game'" v-model="gameView" :options="SUB_TABS_GAME" class="mt-5 max-w-xl" />
+      <SubTabs v-else v-model="globalView" :options="SUB_TABS_GLOBAL" class="mt-5 max-w-2xl" />
+      <StatsGamePc v-if="tab === 'game'" :view="gameView" />
       <template v-else>
-        <p v-if="!archives.length && vueGlobale !== 'parties'" class="mt-10 text-sm text-sage">
+        <p v-if="!archives.length && globalView !== 'games'" class="mt-10 text-sm text-sage">
           Aucune partie terminée dans cette sélection : changez les interrupteurs ci-dessus.
         </p>
-        <StatsGlobalPc v-else :archives="archives" :vue="vueGlobale" />
+        <StatsGlobalPc v-else :archives="archives" :view="globalView" />
       </template>
     </div>
   </div>
@@ -332,57 +327,57 @@ const faits = computed(() => {
     <!-- Sur PC le contenu suit l'échelle de l'écran : à 2560 px, les textes tombaient à 11 px -->
     <div
       class="mx-auto px-5 pt-4 pb-8 max-[380px]:px-4 lg:max-w-[1180px] lg:px-10 lg:pt-8"
-      :style="grand ? { zoom: L.t * 1.2 } : undefined"
+      :style="large ? { zoom: L.t * 1.2 } : undefined"
     >
       <div class="flex items-center gap-1.5">
         <button
-          v-for="t in ONGLETS"
+          v-for="t in TABS"
           :key="t.id"
           type="button"
           class="cursor-pointer rounded-full border px-3.5 py-1.5 text-[15px] whitespace-nowrap transition max-[380px]:px-3"
           :class="
-            onglet === t.id
+            tab === t.id
               ? 'border-gold bg-gold/20 font-semibold text-gold'
               : 'border-white/15 text-sage hover:border-white/35 hover:text-mist'
           "
-          @click="onglet = t.id"
+          @click="tab = t.id"
         >
           {{ t.label }}
         </button>
         <button
           type="button"
           class="ml-auto shrink-0 cursor-pointer rounded-lg border border-white/15 px-2.5 py-1.5 text-[13px] font-semibold text-mist transition hover:border-white/35 hover:bg-white/5"
-          @click="emit('fermer')"
+          @click="emit('close')"
         >
-          {{ retour }}
+          {{ backLabel }}
         </button>
       </div>
 
-      <StatsGlobalView v-if="onglet === 'global'" />
+      <StatsGlobalView v-if="tab === 'global'" />
 
       <template v-else>
         <div class="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-12">
           <section class="lg:col-span-2">
-            <SousOnglets v-model="vuePartie" :options="SOUS_ONGLETS_PARTIE" class="mt-3" />
+            <SubTabs v-model="gameView" :options="SUB_TABS_GAME" class="mt-3" />
 
             <div class="mt-4 flex items-end gap-3">
               <div>
                 <p class="text-[13px] tracking-widest text-gold">NOUS</p>
-                <p class="font-display text-5xl leading-none">{{ nous }}</p>
+                <p class="font-display text-5xl leading-none">{{ us }}</p>
               </div>
               <p class="pb-1 text-2xl leading-none text-dusk">·</p>
               <div>
                 <p class="text-[13px] tracking-widest text-them">EUX</p>
-                <p class="font-display text-5xl leading-none text-mist">{{ eux }}</p>
+                <p class="font-display text-5xl leading-none text-mist">{{ them }}</p>
               </div>
               <p class="ml-auto text-right text-[13px] text-sage">
-                {{ donnesJouees }} donne{{ donnesJouees > 1 ? 's' : '' }}<br />objectif
-                {{ session.game?.objectif ?? 1000 }}<template v-if="session.game?.blitz"> · blitz</template>
+                {{ dealsPlayedCount }} donne{{ dealsPlayedCount > 1 ? 's' : '' }}<br />objectif
+                {{ session.game?.target ?? 1000 }}<template v-if="session.game?.blitz"> · blitz</template>
               </p>
             </div>
           </section>
 
-          <section v-if="vuePartie === 'score'">
+          <section v-if="gameView === 'score'">
             <h2 class="mt-6 text-[15px] font-semibold">Évolution du score</h2>
             <p class="text-[13px] text-sage">Cumul après chaque donne</p>
             <!-- Un point unique ne fait pas une courbe : on attend la première donne -->
@@ -397,10 +392,10 @@ const faits = computed(() => {
                 aria-label="Évolution du score"
               >
                 <g stroke="rgba(255,255,255,.08)" stroke-width="1">
-                  <line v-for="p in courbe.paliers" :key="p.v" x1="34" :y1="p.y" x2="300" :y2="p.y" />
+                  <line v-for="p in curve.tiers" :key="p.v" x1="34" :y1="p.y" x2="300" :y2="p.y" />
                 </g>
                 <text
-                  v-for="p in courbe.paliers"
+                  v-for="p in curve.tiers"
                   :key="`t${p.v}`"
                   x="28"
                   :y="p.y + 3"
@@ -412,7 +407,7 @@ const faits = computed(() => {
                 </text>
                 <!-- Numéros de donne sous l'axe ; la donne 0 est le point de départ -->
                 <text
-                  v-for="d in courbe.donnes"
+                  v-for="d in curve.deals"
                   :key="`d${d.i}`"
                   :x="d.x"
                   y="156"
@@ -424,53 +419,53 @@ const faits = computed(() => {
                 </text>
                 <text x="165" y="168" text-anchor="middle" font-size="9.5" fill="#6f8f82">donne</text>
                 <polyline
-                  :points="courbe.nous"
+                  :points="curve.us"
                   fill="none"
-                  :stroke="OR"
+                  :stroke="GOLD"
                   stroke-width="2"
                   stroke-linejoin="round"
                 />
                 <polyline
-                  :points="courbe.eux"
+                  :points="curve.them"
                   fill="none"
-                  :stroke="BLEU"
+                  :stroke="BLUE"
                   stroke-width="2"
                   stroke-linejoin="round"
                 />
                 <circle
-                  v-for="(p, i) in courbe.pointsNous"
+                  v-for="(p, i) in curve.pointsUs"
                   :key="`pn${i}`"
                   :cx="p.x"
                   :cy="p.y"
                   r="2.2"
-                  :fill="OR"
+                  :fill="GOLD"
                 />
                 <circle
-                  v-for="(p, i) in courbe.pointsEux"
+                  v-for="(p, i) in curve.pointsThem"
                   :key="`pe${i}`"
                   :cx="p.x"
                   :cy="p.y"
                   r="2.2"
-                  :fill="BLEU"
+                  :fill="BLUE"
                 />
-                <template v-if="courbe.fin">
+                <template v-if="curve.end">
                   <text
-                    :x="courbe.fin.x"
-                    :y="courbe.fin.yNous + 3.5"
+                    :x="curve.end.x"
+                    :y="curve.end.yUs + 3.5"
                     font-size="12.5"
                     font-weight="700"
-                    :fill="OR"
+                    :fill="GOLD"
                   >
-                    {{ `Nous ${courbe.fin.nous}` }}
+                    {{ `Nous ${curve.end.us}` }}
                   </text>
                   <text
-                    :x="courbe.fin.x"
-                    :y="courbe.fin.yEux + 3.5"
+                    :x="curve.end.x"
+                    :y="curve.end.yThem + 3.5"
                     font-size="12.5"
                     font-weight="700"
-                    :fill="BLEU"
+                    :fill="BLUE"
                   >
-                    {{ `Eux ${courbe.fin.eux}` }}
+                    {{ `Eux ${curve.end.them}` }}
                   </text>
                 </template>
               </svg>
@@ -481,32 +476,35 @@ const faits = computed(() => {
             </template>
           </section>
 
-          <section v-if="vuePartie === 'score'">
+          <section v-if="gameView === 'score'">
             <h2 class="mt-6 text-[15px] font-semibold">Momentum</h2>
             <p class="mb-2 text-[13px] text-sage">
               Points gagnés par donne, en cascade : chaque barre part de la fin de la précédente — vers le
               haut pour nous, vers le bas pour eux
             </p>
             <!-- Chaque barre porte ses points : une barre sans valeur obligeait à deviner -->
-            <div v-if="momentum.barres.length">
-              <div class="relative mt-4 mb-4" :style="{ height: `${HAUTEUR_MOMENTUM}px` }">
-                <div class="absolute inset-x-0 h-px bg-white/20" :style="{ top: `${momentum.zero}px` }"></div>
+            <div v-if="momentum.barItems.length">
+              <div class="relative mt-4 mb-4" :style="{ height: `${MOMENTUM_HEIGHT}px` }">
+                <div
+                  class="absolute inset-x-0 h-px bg-white/20"
+                  :style="{ top: `${momentum.zeroY}px` }"
+                ></div>
                 <div class="absolute inset-0 flex gap-1">
                   <div
-                    v-for="b in momentum.barres"
+                    v-for="b in momentum.barItems"
                     :key="b.deal"
                     class="relative max-w-12 grow"
-                    :title="`Donne ${b.deal} : ${b.points} points pour ${b.nous ? 'nous' : 'eux'}`"
+                    :title="`Donne ${b.deal} : ${b.points} points pour ${b.us ? 'nous' : 'eux'}`"
                   >
                     <div
                       class="absolute left-[12.5%] w-3/4 rounded-sm"
-                      :class="b.nous ? 'bg-gold' : 'bg-them'"
+                      :class="b.us ? 'bg-gold' : 'bg-them'"
                       :style="{ top: `${b.top}px`, height: `${b.height}px` }"
                     ></div>
                     <span
                       class="absolute inset-x-0 text-center text-[12px] font-semibold tabular-nums"
-                      :class="b.nous ? 'text-gold' : 'text-them'"
-                      :style="b.nous ? { top: `${b.top - 18}px` } : { top: `${b.top + b.height + 2}px` }"
+                      :class="b.us ? 'text-gold' : 'text-them'"
+                      :style="b.us ? { top: `${b.top - 18}px` } : { top: `${b.top + b.height + 2}px` }"
                       >{{ b.points }}</span
                     >
                   </div>
@@ -514,7 +512,7 @@ const faits = computed(() => {
               </div>
               <div class="flex gap-1">
                 <span
-                  v-for="b in momentum.barres"
+                  v-for="b in momentum.barItems"
                   :key="b.deal"
                   class="max-w-12 grow text-center text-[12px] text-sage"
                   >D{{ b.deal }}</span
@@ -524,7 +522,7 @@ const faits = computed(() => {
             <p v-else class="text-[15px] text-sage">Aucune donne terminée.</p>
           </section>
 
-          <section v-if="vuePartie === 'jeu'">
+          <section v-if="gameView === 'playing'">
             <h2 class="mt-6 mb-1 text-[15px] font-semibold">Les prises</h2>
             <!-- En-têtes : sans eux, la colonne de l'enchère moyenne n'était qu'un nombre isolé -->
             <div
@@ -537,15 +535,15 @@ const faits = computed(() => {
               <span class="w-12 text-right">Bilan</span>
             </div>
             <div
-              v-for="p in prises"
+              v-for="p in takes"
               :key="p.id"
               class="flex items-center gap-2.5 border-b border-white/8 py-2"
             >
-              <span class="w-16 text-[15px] font-semibold">{{ p.nom }}</span>
-              <span class="w-12 text-[15px] tabular-nums text-mist">{{ p.prises }}</span>
+              <span class="w-16 text-[15px] font-semibold">{{ p.name }}</span>
+              <span class="w-12 text-[15px] tabular-nums text-mist">{{ p.takes }}</span>
               <span class="flex grow gap-1">
                 <span
-                  v-for="(ok, i) in p.resultats"
+                  v-for="(ok, i) in p.outcomes"
                   :key="i"
                   class="size-3.5 rounded-[3px] border"
                   :class="ok ? 'border-gold bg-gold' : 'border-gold/45'"
@@ -553,10 +551,10 @@ const faits = computed(() => {
                 ></span>
               </span>
               <span class="w-[72px] text-right text-[14px] tabular-nums text-sage">{{
-                p.enchere ?? '—'
+                p.bidEntry ?? '—'
               }}</span>
-              <span class="w-12 text-right text-[15px] font-bold tabular-nums" :style="{ color: p.couleur }">
-                {{ p.bilan > 0 ? '+' : '' }}{{ p.bilan }}
+              <span class="w-12 text-right text-[15px] font-bold tabular-nums" :style="{ color: p.color }">
+                {{ p.balance > 0 ? '+' : '' }}{{ p.balance }}
               </span>
             </div>
             <p class="mt-2 text-[13px] leading-relaxed text-dusk">
@@ -565,28 +563,24 @@ const faits = computed(() => {
             </p>
           </section>
 
-          <section v-if="vuePartie === 'jeu'">
+          <section v-if="gameView === 'playing'">
             <h2 class="mt-6 mb-1 text-[15px] font-semibold">Les impasses</h2>
-            <p v-if="aucuneImpasse" class="text-[15px] text-sage">
-              Personne n'a encore gardé un as. Ça viendra.
-            </p>
+            <p v-if="noFinesse" class="text-[15px] text-sage">Personne n'a encore gardé un as. Ça viendra.</p>
             <template v-else>
               <div
-                v-for="i in impasses"
+                v-for="i in finesses"
                 :key="i.id"
                 class="flex items-center gap-2.5 border-b border-white/8 py-2"
               >
-                <span class="w-16 text-[15px] font-semibold">{{ i.nom }}</span>
-                <span class="w-6 text-[15px] tabular-nums text-mist">{{ i.tentees }}</span>
+                <span class="w-16 text-[15px] font-semibold">{{ i.name }}</span>
+                <span class="w-6 text-[15px] tabular-nums text-mist">{{ i.tried }}</span>
                 <span class="grow text-[14px]">
-                  <span v-if="i.reussies" class="text-good"
-                    >{{ i.reussies }} réussie{{ i.reussies > 1 ? 's' : '' }}</span
+                  <span v-if="i.made" class="text-good">{{ i.made }} réussie{{ i.made > 1 ? 's' : '' }}</span>
+                  <span v-if="i.made && i.failed" class="text-dusk"> · </span>
+                  <span v-if="i.failed" class="text-bad"
+                    >{{ i.failed }} ratée{{ i.failed > 1 ? 's' : '' }}</span
                   >
-                  <span v-if="i.reussies && i.ratees" class="text-dusk"> · </span>
-                  <span v-if="i.ratees" class="text-bad"
-                    >{{ i.ratees }} ratée{{ i.ratees > 1 ? 's' : '' }}</span
-                  >
-                  <span v-if="!i.reussies && !i.ratees" class="text-dusk">sans suite</span>
+                  <span v-if="!i.made && !i.failed" class="text-dusk">sans suite</span>
                 </span>
               </div>
               <p class="mt-2 text-[13px] leading-relaxed text-dusk">
@@ -596,20 +590,20 @@ const faits = computed(() => {
             </template>
           </section>
 
-          <template v-if="vuePartie === 'jeu'">
-            <StatsEcarts :joueurs="joueursPartie" :couleurs="couleursJoueursPartie" :ecarts="ecartsPartie" />
+          <template v-if="gameView === 'playing'">
+            <StatsGaps :players="gamePlayers" :colors="gamePlayerColors" :gaps="gameGaps" />
           </template>
-          <template v-if="vuePartie === 'encheres'">
-            <StatsEncheres
-              :joueurs="joueursPartie"
-              :couleurs="couleursJoueursPartie"
-              :annonces="annoncesPartie"
-              :roles="rolesPartie"
+          <template v-if="gameView === 'bidding'">
+            <StatsBidding
+              :players="gamePlayers"
+              :colors="gamePlayerColors"
+              :calls="gameCalls"
+              :roles="gameRoles"
             />
           </template>
-          <section v-if="vuePartie === 'jeu'">
+          <section v-if="gameView === 'playing'">
             <h2 class="mt-6 mb-1 text-[15px] font-semibold">Temps de réflexion</h2>
-            <p v-if="aucunTemps" class="text-[15px] text-sage">Pas encore mesuré sur cette partie.</p>
+            <p v-if="noTimes" class="text-[15px] text-sage">Pas encore mesuré sur cette partie.</p>
             <template v-else>
               <div
                 class="flex items-center gap-2.5 border-b border-white/15 pb-1 text-[12px] tracking-wider text-dusk uppercase"
@@ -620,19 +614,19 @@ const faits = computed(() => {
                 <span class="w-16 text-right">Max</span>
               </div>
               <div
-                v-for="t in tempsReflexion"
+                v-for="t in thinkRows"
                 :key="t.id"
                 class="flex items-center gap-2.5 border-b border-white/8 py-2"
               >
-                <span class="w-16 text-[15px] font-semibold">{{ t.nom }}</span>
+                <span class="w-16 text-[15px] font-semibold">{{ t.name }}</span>
                 <span class="grow text-right text-[14px] tabular-nums text-mist">{{
-                  t.annonce === null ? '—' : duree(t.annonce)
+                  t.bid === null ? '—' : duration(t.bid)
                 }}</span>
                 <span class="w-16 text-right text-[14px] tabular-nums text-mist">{{
-                  t.carte === null ? '—' : duree(t.carte)
+                  t.card === null ? '—' : duration(t.card)
                 }}</span>
                 <span class="w-16 text-right text-[14px] tabular-nums text-mist">{{
-                  t.max === null ? '—' : duree(t.max)
+                  t.max === null ? '—' : duration(t.max)
                 }}</span>
               </div>
               <p class="mt-2 text-[13px] leading-relaxed text-dusk">
@@ -642,29 +636,29 @@ const faits = computed(() => {
             </template>
           </section>
 
-          <StatsTemps
-            v-if="vuePartie === 'jeu'"
-            :joueurs="joueursPartie"
-            :couleurs="couleursJoueursPartie"
-            :temps="tempsPartie"
+          <StatsTimes
+            v-if="gameView === 'playing'"
+            :players="gamePlayers"
+            :colors="gamePlayerColors"
+            :times="gameTimes"
           />
-          <StatsDonnes
-            v-if="vuePartie === 'donnes'"
+          <StatsDeals
+            v-if="gameView === 'deals'"
             :events="session.events"
             :seating="session.seating"
-            :nous="session.myTeam"
+            :us="session.myTeam"
           />
-          <section v-if="vuePartie === 'donnes'" class="lg:col-span-2">
+          <section v-if="gameView === 'deals'" class="lg:col-span-2">
             <h2 class="mt-6 mb-2 text-[15px] font-semibold">Ce qui s'est passé</h2>
             <div class="grid grid-cols-2 gap-2.5">
               <div
-                v-for="f in faits"
-                :key="f.titre"
+                v-for="f in playedTricks"
+                :key="f.title"
                 class="rounded-xl border border-white/8 bg-white/5 px-3.5 py-3"
               >
-                <p class="text-[13px] text-sage">{{ f.titre }}</p>
-                <p class="mt-1 text-[15px] font-semibold" :class="f.alerte ? 'text-red-card' : 'text-ivory'">
-                  {{ f.valeur }}
+                <p class="text-[13px] text-sage">{{ f.title }}</p>
+                <p class="mt-1 text-[15px] font-semibold" :class="f.alert ? 'text-red-card' : 'text-ivory'">
+                  {{ f.value }}
                 </p>
               </div>
             </div>

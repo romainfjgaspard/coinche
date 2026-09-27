@@ -1,20 +1,20 @@
 /** Le fil du bot ★ : il réfléchit à côté, sans figer l'écran de celui qui l'héberge. */
 import type { Card } from './cards'
-import { type OptionsExpert, type VueExpert, choisirCarteExpert } from './botExpert'
+import { type ExpertOptions, type ExpertView, chooseExpertCard } from './botExpert'
 
-interface Demande {
+interface Request {
   id: number
-  vue: VueExpert
-  permis: Card[]
-  options: OptionsExpert
+  view: ExpertView
+  legal: Card[]
+  options: ExpertOptions
 }
 
-const fil = self as unknown as {
-  onmessage: ((e: MessageEvent<Demande>) => void) | null
+const worker = self as unknown as {
+  onmessage: ((e: MessageEvent<Request>) => void) | null
   postMessage: (message: unknown) => void
 }
 
-fil.onmessage = (e) => {
-  const { id, vue, permis, options } = e.data
-  fil.postMessage({ id, carte: choisirCarteExpert(vue, permis, options) })
+worker.onmessage = (e) => {
+  const { id, view, legal, options } = e.data
+  worker.postMessage({ id, card: chooseExpertCard(view, legal, options) })
 }
