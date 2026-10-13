@@ -112,9 +112,19 @@ const gameOver = computed(
     (session.game?.phase === 'finished' || session.game?.phase === 'cancelled'),
 )
 const canJoin = computed(() => Boolean(chosen.value) && cleanCode.value.length === 4 && !gameOver.value)
-function isTaken(p: PlayerId): boolean {
-  return watched.value && Boolean(session.takenBy[p]) && p !== session.playerId
+/**
+ * Une place de joueur dans une partie commencée : son propriétaire peut la reprendre depuis
+ * un autre appareil (session perdue). On ne la grise donc pas.
+ */
+function resumable(p: PlayerId): boolean {
+  const seat = session.game?.seats[p]
+  return watched.value && Boolean(seat && !seat.bot) && (session.game?.dealNumber ?? 0) > 0
 }
+function isTaken(p: PlayerId): boolean {
+  return watched.value && Boolean(session.takenBy[p]) && p !== session.playerId && !resumable(p)
+}
+/** J'ai choisi une place déjà tenue, d'une partie commencée : « Rejoindre » la reprend. */
+const resuming = computed(() => Boolean(chosen.value && resumable(chosen.value)))
 function offTable(p: PlayerId): boolean {
   return watched.value && !session.takenBy[p] && session.present.length >= 4
 }
@@ -196,7 +206,15 @@ async function add(): Promise<void> {
               >
               <span class="grow text-lg font-semibold">{{ nameOf(p) }}</span>
               <span class="text-xs" :class="teamClass(p)">
-                {{ isTaken(p) ? 'déjà pris' : offTable(p) ? 'table complète' : teamLabel(p) }}
+                {{
+                  isTaken(p)
+                    ? 'déjà pris'
+                    : offTable(p)
+                      ? 'table complète'
+                      : resumable(p)
+                        ? 'reprendre sa place'
+                        : teamLabel(p)
+                }}
               </span>
             </button>
             <!-- Masque le nom sur ce navigateur seulement : rien n'est effacé en base -->
@@ -275,9 +293,13 @@ async function add(): Promise<void> {
           class="h-[50px] w-28 shrink-0 cursor-pointer rounded-xl bg-gold text-[15px] font-bold text-felt transition enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40"
           @click="joinGame"
         >
-          {{ pendingAction === 'join' ? '…' : 'Rejoindre' }}
+          {{ pendingAction === 'join' ? '…' : resuming ? 'Reprendre' : 'Rejoindre' }}
         </button>
       </div>
+      <p v-if="resuming" class="mt-1.5 text-xs text-sage">
+        Partie en cours : tu reprends ta place sur cet appareil. S'il était ouvert ailleurs, l'autre appareil
+        la perd.
+      </p>
       <p v-if="gameOver" class="mt-1.5 text-xs text-sage">
         La partie {{ cleanCode }} est {{ session.game?.phase === 'cancelled' ? 'annulée' : 'terminée' }} :
         crée-en une nouvelle.

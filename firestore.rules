@@ -85,6 +85,15 @@ service cloud.firestore {
                || (k in before && before[k].get('replaced', false) == true
                  && before[k].get('formerUid', '') == request.auth.uid
                  && s.keys().hasOnly(['uid', 'botAssisted']) && s.botAssisted == true)
+               // 5. changer d'appareil : un joueur reprend son siège depuis un autre téléphone
+               //    (session perdue, données du site effacées), une fois la partie commencée.
+               //    Siège humain seulement ; l'ancien compte est noté et perd l'accès à la main.
+               || (k in before && before[k].get('bot', false) != true && !seated
+                 && resource.data.dealNumber > 0
+                 && !(resource.data.phase in ['finished', 'cancelled'])
+                 && s.keys().hasOnly(['uid', 'formerUid', 'botAssisted'])
+                 && s.formerUid == before[k].uid
+                 && s.get('botAssisted', false) == before[k].get('botAssisted', false))
              )
              && (!changed().hasAny(['seating', 'dealer'])
                  || (resource.data.seating == null && validSeating(d)));
