@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import PlayingCard from '../PlayingCard.vue'
 import { courtCrop } from '../../game/display'
+import type { Card } from '../../game/cards'
 
 describe('PlayingCard', () => {
   it("une figure n'ajoute pas d'index : l'illustration porte déjà les siens", () => {
@@ -45,13 +46,13 @@ describe('PlayingCard', () => {
   })
 
   it("les pointes ont la même taille du 7 au 10 ; seul l'as porte un grand symbole", () => {
-    const tip = (card: string) => {
+    const tip = (card: Card) => {
       const sizes = mount(PlayingCard, { props: { card, width: 120 } })
         .findAll('svg')
         .map((x) => parseInt(x.attributes('style')?.match(/width: (\d+)px/)?.[1] ?? '0', 10))
       return Math.max(...sizes)
     }
-    const sizes = ['7s', '8h', '9d', '10c'].map(tip)
+    const sizes = (['7s', '8h', '9d', '10c'] as Card[]).map(tip)
     expect(new Set(sizes).size).toBe(1)
     expect(tip('As')).toBeGreaterThan(sizes[0] * 1.5)
   })
