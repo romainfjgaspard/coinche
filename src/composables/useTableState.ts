@@ -58,6 +58,10 @@ export function useTableState() {
     return c.generale ? 'Générale' : c.capot ? 'Capot' : String(c.value)
   })
 
+  /** La place d'un joueur autour de la table, vue de mon siège. */
+  const spotOf = (p: PlayerId): Spot =>
+    p === me.value ? 'me' : p === around.value.left ? 'left' : p === around.value.top ? 'top' : 'right'
+
   /**
    * Le pli montré sur le tapis, rangé par position autour de la table : le pli en
    * cours, ou celui qui vient d'être ramassé, le temps qu'on voie qui l'emporte.
@@ -75,19 +79,22 @@ export function useTableState() {
   /** Ordre de pose, pour que la dernière carte jouée passe au-dessus des autres. */
   const trickOrder = computed(() => {
     const order: Partial<Record<Spot, number>> = {}
-    session.shownTrick.plays.forEach((p, i) => {
-      const spot: Spot =
-        p.player === me.value
-          ? 'me'
-          : p.player === around.value.left
-            ? 'left'
-            : p.player === around.value.top
-              ? 'top'
-              : 'right'
-      order[spot] = i
-    })
+    session.shownTrick.plays.forEach((p, i) => (order[spotOf(p.player)] = i))
     return order
   })
+  /**
+   * La place où l'on attend une carte : celle du joueur dont c'est le tour, qu'il
+   * s'agisse de moi ou d'un autre. Pas pendant qu'un pli fini reste sur le tapis.
+   */
+  const turnSpot = computed<Spot | null>(() => {
+    if (session.game?.phase !== 'playing' || session.heldTrick || !session.toPlay) return null
+    const spot = spotOf(session.toPlay)
+    return trickAt.value[spot] ? null : spot
+  })
+  /** Qui ramasse le pli posé sur le tapis : les cartes partent de son côté. */
+  const winnerSpot = computed<Spot | null>(() =>
+    session.shownTrick.winner ? spotOf(session.shownTrick.winner) : null,
+  )
   const trickWinnerCard = computed(
     () => session.shownTrick.plays.find((p) => p.player === session.shownTrick.winner)?.card ?? null,
   )
@@ -170,6 +177,9 @@ export function useTableState() {
     trickAt,
     trickOrder,
     trickWinnerCard,
+    spotOf,
+    turnSpot,
+    winnerSpot,
     isTrump,
     canPlay,
     starsOf,

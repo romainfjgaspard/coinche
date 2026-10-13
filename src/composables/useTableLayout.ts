@@ -67,6 +67,11 @@ export function tableLayout(width: number, height: number): TableLayout {
   const feltTop = header + partnerZone
   const feltBottom = height - handVisible - meZone
   const felt: Box = { x: side, y: feltTop, w: width - 2 * side, h: feltBottom - feltTop }
+  const rim = r(16)
+  // Les cartes du pli, presque à la taille de ma main : petites, elles se perdaient au
+  // milieu du tapis. Le pli en croix fait un peu plus de deux hauteurs de carte, et doit
+  // tenir dans le tapis.
+  const trickW = Math.min(Math.round(cardW * 0.92), Math.floor((felt.h - 2 * rim - r(40)) / (2.08 * 1.44)))
 
   return {
     u,
@@ -75,12 +80,12 @@ export function tableLayout(width: number, height: number): TableLayout {
     height,
     header,
     felt,
-    rim: r(16),
+    rim,
     cardW,
     cardH,
     handStep: Math.round(cardW * 0.62),
     handVisible,
-    trickW: Math.round(cardW * 0.74),
+    trickW,
     backW,
     backStep: Math.round(backW * 0.42),
     meY: feltBottom + Math.round(meZone / 2),

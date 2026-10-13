@@ -6,12 +6,13 @@
  */
 import { computed } from 'vue'
 import type { Suit } from '../game/cards'
-import { SUIT_GLYPH, duration } from '../game/display'
+import { duration } from '../game/display'
 import { currentDeal } from '../game/replay'
 import { useSession } from '../stores/session'
 import { nameOf } from '../stores/roster'
 import DealerChip from './DealerChip.vue'
 import { type PlayerId, teamOfPlayer } from '../game/players'
+import SuitBadge from './SuitBadge.vue'
 
 const session = useSession()
 /** Le nom à la couleur de son équipe : or pour la mienne, bleu pour l'autre, comme partout. */
@@ -96,12 +97,7 @@ const rows = computed(() => {
             :class="l.coinche ? 'text-[#f0a293]' : l.pass ? 'text-sage' : 'text-gold'"
             >{{ l.what }}</span
           >
-          <span
-            v-if="l.suit"
-            class="flex h-7 min-w-7 items-center justify-center rounded-full bg-ivory px-1 text-[17px] leading-none font-bold lg:h-6 lg:min-w-6 lg:text-[15px]"
-            :class="l.suit === 'h' || l.suit === 'd' ? 'text-red-card' : 'text-felt-dark'"
-            >{{ l.suit === 'sa' || l.suit === 'ta' ? l.suit.toUpperCase() : SUIT_GLYPH[l.suit] }}</span
-          >
+          <SuitBadge v-if="l.suit" :suit="l.suit" :size="26" />
         </span>
         <span class="text-xs tabular-nums text-dusk lg:text-[11px]" title="temps de réflexion">{{
           l.times

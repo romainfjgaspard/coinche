@@ -17,12 +17,13 @@ import QuitGame from './QuitGame.vue'
 import CoincheButton from './CoincheButton.vue'
 import BiddingHistory from './BiddingHistory.vue'
 import LastTrickCross from './LastTrickCross.vue'
-import { SUIT_GLYPH, isRed } from '../game/display'
 
 import { nameOf } from '../stores/roster'
 import type { Card } from '../game/cards'
 import { type Spot, useTableState } from '../composables/useTableState'
 import { useTableLayout } from '../composables/useTableLayout'
+import { type Vector, useTrickMotion } from '../composables/useTrickMotion'
+import SuitBadge from './SuitBadge.vue'
 
 const emit = defineEmits<{ stats: []; rules: [] }>()
 
@@ -36,6 +37,7 @@ const {
   trickAt,
   trickOrder,
   trickWinnerCard,
+  turnSpot,
   isTrump,
   canPlay,
   starsOf,
@@ -47,23 +49,44 @@ const L = useTableLayout()
 
 const px = (n: number) => `${n}px`
 
-/** Le pli : quatre cartes en croix autour du centre du tapis, sans se chevaucher. */
-const trickPos = computed(() => {
-  const w = L.value.trickW
-  const h = Math.round(w * 1.44)
+/** Le pli : le centre de chaque carte, en croix autour du centre du tapis. */
+const trickCenters = computed<Record<Spot, Vector>>(() => {
+  const h = Math.round(L.value.trickW * 1.44)
   const cx = L.value.felt.x + L.value.felt.w / 2
   const cy = L.value.felt.y + L.value.felt.h / 2
   const dy = Math.round(h * 0.54)
-  const dx = Math.round(w * 1.06)
-  const at = (x: number, y: number) => ({ left: px(Math.round(x - w / 2)), top: px(Math.round(y - h / 2)) })
+  const dx = Math.round(L.value.trickW * 1.06)
   return {
-    top: at(cx, cy - dy),
-    me: at(cx, cy + dy),
-    left: at(cx - dx, cy),
-    right: at(cx + dx, cy),
-  } satisfies Record<Spot, { left: string; top: string }>
+    top: { x: cx, y: cy - dy },
+    me: { x: cx, y: cy + dy },
+    left: { x: cx - dx, y: cy },
+    right: { x: cx + dx, y: cy },
+  }
+})
+const trickPos = computed(() => {
+  const w = L.value.trickW
+  const h = Math.round(w * 1.44)
+  const at = ({ x, y }: Vector) => ({ left: px(Math.round(x - w / 2)), top: px(Math.round(y - h / 2)) })
+  const c = trickCenters.value
+  return { top: at(c.top), me: at(c.me), left: at(c.left), right: at(c.right) } satisfies Record<
+    Spot,
+    { left: string; top: string }
+  >
 })
 const spots: Spot[] = ['top', 'left', 'right', 'me']
+
+/** D'où vient chaque carte : de la main de son joueur, autour du tapis. */
+const origins = computed<Record<Spot, Vector>>(() => {
+  const c = trickCenters.value
+  const l = L.value
+  return {
+    me: { x: 0, y: l.height - l.handVisible / 2 - c.me.y },
+    top: { x: 0, y: l.partnerY + Math.round(l.backW * 0.72) - c.top.y },
+    left: { x: l.sideX - c.left.x, y: 0 },
+    right: { x: l.width - l.sideX - c.right.x, y: 0 },
+  }
+})
+const motion = useTrickMotion(origins, trickCenters)
 
 /** Ma main en éventail, centrée, coupée par le bas de l'écran. */
 const hand = computed(() => {
@@ -171,13 +194,7 @@ const teams = computed(() => [
         <div class="mt-1.5 flex items-center gap-2.5">
           <span class="font-display text-4xl leading-none text-gold">{{ contractLabel }}</span>
           <!-- Le symbole sur fond ivoire, comme sur une carte : noir sur le tapis, il disparaissait -->
-          <span
-            class="flex h-9 min-w-9 items-center justify-center rounded-full bg-ivory px-1.5 text-2xl leading-none font-bold"
-            :class="contract.trump && isRed(contract.trump) ? 'text-red-card' : 'text-felt-dark'"
-            >{{
-              contract.trump ? SUIT_GLYPH[contract.trump] : contract.declaration === 'sa' ? 'SA' : 'TA'
-            }}</span
-          >
+          <SuitBadge :suit="contract.declaration" :size="38" />
         </div>
         <p class="mt-1.5 text-base text-mist">
           par <span class="font-semibold text-ivory">{{ nameOf(contract.taker) }}</span>
@@ -216,11 +233,11 @@ const teams = computed(() => [
     >
       <div class="flex items-start gap-7" :style="{ zoom: L.t }">
         <!-- Largeur fixe : le bloc ne doit pas bouger quand arrive le premier pli -->
-        <div class="w-[208px]">
+        <div class="w-[256px]">
           <p class="mb-2.5 text-sm font-semibold tracking-widest text-sage">DERNIER PLI</p>
           <!-- En croix : chaque carte à la place de celui qui l'a jouée -->
-          <LastTrickCross v-if="session.lastTrick" :trick="session.lastTrick" :width="64" />
-          <p v-else class="flex h-[190px] items-center text-base text-sage">aucun pli joué</p>
+          <LastTrickCross v-if="session.lastTrick" :trick="session.lastTrick" :width="80" />
+          <p v-else class="flex h-[238px] items-center text-base text-sage">aucun pli joué</p>
           <p class="mt-1.5 h-6 text-base text-mist">
             <template v-if="session.lastTrick">
               pris par <span class="font-semibold text-gold">{{ nameOf(session.lastTrick.winner) }}</span>
@@ -300,22 +317,34 @@ const teams = computed(() => [
       </div>
     </div>
 
-    <!-- Le pli -->
-    <template v-for="spot in spots" :key="spot">
-      <div
-        v-if="trickAt[spot]"
-        class="absolute"
-        :style="{ ...trickPos[spot], zIndex: 10 + (trickOrder[spot] ?? 0) }"
-      >
-        <PlayingCard :card="trickAt[spot]!" :width="L.trickW" :winner="trickAt[spot] === trickWinnerCard" />
-      </div>
-    </template>
-    <!-- Ma place dans le pli, quand c'est à moi -->
+    <!--
+      La place où l'on attend une carte : la mienne, ou celle du joueur dont c'est le tour.
+      Dessinée avant les cartes, pour rester dessous.
+    -->
     <span
-      v-if="!trickAt.me && session.myPlayTurn"
-      class="absolute rounded-xl border-2 border-dashed border-gold/60 bg-black/10"
-      :style="{ ...trickPos.me, width: px(L.trickW), height: px(Math.round(L.trickW * 1.44)) }"
+      v-if="turnSpot"
+      class="absolute rounded-xl border-2 border-dashed bg-black/10"
+      :class="turnSpot === 'me' ? 'border-gold/70' : 'border-ivory/35'"
+      :style="{ ...trickPos[turnSpot], width: px(L.trickW), height: px(Math.round(L.trickW * 1.44)) }"
     ></span>
+
+    <!-- Le pli : chaque carte arrive de son joueur, et le pli part vers qui le remporte -->
+    <template v-for="spot in spots" :key="spot">
+      <Transition
+        :css="false"
+        @enter="(el, done) => motion.enter(spot)(el, done)"
+        @leave="(el, done) => motion.leave(spot)(el, done)"
+      >
+        <div
+          v-if="trickAt[spot]"
+          :key="trickAt[spot]"
+          class="absolute"
+          :style="{ ...trickPos[spot], zIndex: 10 + (trickOrder[spot] ?? 0) }"
+        >
+          <PlayingCard :card="trickAt[spot]!" :width="L.trickW" :winner="trickAt[spot] === trickWinnerCard" />
+        </div>
+      </Transition>
+    </template>
 
     <!-- Moi, entre le tapis et ma main -->
     <div

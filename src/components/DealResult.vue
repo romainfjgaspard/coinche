@@ -3,7 +3,7 @@
 import { computed, ref } from 'vue'
 import { type PlayerId, teamOfPlayer } from '../game/players'
 import { nameOf } from '../stores/roster'
-import { SUIT_GLYPH, isRed } from '../game/display'
+import { SUIT_GLYPH } from '../game/display'
 import { SHAME_THRESHOLD } from '../game/replay'
 import { useSession } from '../stores/session'
 import { useLargeScreen } from '../composables/useLargeScreen'
@@ -11,6 +11,7 @@ import { useTableLayout } from '../composables/useTableLayout'
 import { trickPoints2, reviewDeal } from '../game/review'
 import { LAST_TRICK_BONUS } from '../game/scoring'
 import DealReview from './DealReview.vue'
+import SuitBadge from './SuitBadge.vue'
 
 const session = useSession()
 const large = useLargeScreen()
@@ -36,7 +37,7 @@ const creatorId = computed<PlayerId>(() => {
   return e && e.type === 'game_created' ? (Object.keys(e.seats)[0] ?? '') : ''
 })
 const isOrganizer = computed(() => session.playerId !== null && session.playerId === creatorId.value)
-/** ENC-7 — quatre passes : la donne est annulée et le même donneur redistribue. */
+/** ENC-7 — quatre passes : la donne est annulée et le donneur suivant redistribue (DIS-3). */
 const passedOut = computed(() => session.game?.phase === 'lobby')
 const final = computed(() => {
   const e = [...session.events].reverse().find((x) => x.type === 'game_over')
@@ -118,7 +119,9 @@ function next(): void {
       <template v-if="passedOut">
         <h2 class="font-display text-3xl leading-none">Donne blanche</h2>
         <p class="mt-3 text-[15px] text-mist">Tout le monde a passé : personne ne prend.</p>
-        <p class="mt-1 text-[13px] text-sage">Même donneur, on redistribue.</p>
+        <p class="mt-1 text-[13px] text-sage">
+          La main passe : {{ nameOf(session.game?.dealer ?? '') }} distribue.
+        </p>
       </template>
 
       <template v-else-if="result?.shameStar">
@@ -162,12 +165,7 @@ function next(): void {
           <span class="font-semibold">{{ nameOf(contract.taker) }}</span>
           <span class="text-sage">·</span>
           <span class="font-bold text-gold">{{ contractText }}</span>
-          <span
-            v-if="contract.trump"
-            class="flex size-6 items-center justify-center rounded-full bg-ivory text-base leading-none"
-            :class="isRed(contract.trump) ? 'text-red-card' : 'text-felt-dark'"
-            >{{ SUIT_GLYPH[contract.trump] }}</span
-          >
+          <SuitBadge :suit="contract.declaration" :size="28" />
           <span
             v-if="contract.multiplier > 1"
             class="rounded-full bg-red-card px-2 py-0.5 text-[11px] font-bold tracking-wide text-ivory"

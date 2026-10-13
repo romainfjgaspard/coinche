@@ -29,23 +29,24 @@ describe('PlayingCard', () => {
   it('une carte à points porte ses quatre index et le bon nombre de pointes', () => {
     const w = mount(PlayingCard, { props: { card: '9d', width: 120 } })
     expect(w.find('img').exists()).toBe(false)
-    const glyphs = w
-      .text()
-      .split('')
-      .filter((c) => c === '♦')
-    // 4 index + 9 pointes
-    expect(glyphs).toHaveLength(13)
+    // Les symboles sont des tracés vectoriels, ceux des figures : 4 index + 9 pointes.
+    expect(w.findAll('svg')).toHaveLength(13)
   })
 
   it('les pointes du centre dominent nettement celles des index', () => {
     const w = mount(PlayingCard, { props: { card: '7s', width: 100 } })
     const sizes = w
-      .findAll('span')
-      .filter((s) => s.text() === '♠')
-      .map((s) => parseInt(s.attributes('style')?.match(/font-size: (\d+)px/)?.[1] ?? '0', 10))
+      .findAll('svg')
+      .map((s) => parseInt(s.attributes('style')?.match(/width: (\d+)px/)?.[1] ?? '0', 10))
     const index = Math.min(...sizes)
     const tip = Math.max(...sizes)
+    expect(index).toBeGreaterThan(0)
     expect(tip).toBeGreaterThanOrEqual(index * 1.8)
+  })
+
+  it('le symbole des cartes à points est celui des figures, pas un caractère de police', () => {
+    const w = mount(PlayingCard, { props: { card: '8h', width: 100 } })
+    expect(w.text()).not.toContain('♥')
   })
 
   it('une carte injouable reçoit un voile opaque, pas de la transparence', () => {

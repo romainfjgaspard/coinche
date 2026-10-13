@@ -1,10 +1,12 @@
 <script setup lang="ts">
 /** La table, avec le panneau d'enchères ou le décompte par-dessus selon la phase. */
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import GameTable from './GameTable.vue'
 import GameTablePc from './GameTablePc.vue'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import BiddingPanel from './BiddingPanel.vue'
+import BiddingPanelPhone from './BiddingPanelPhone.vue'
+import UndoBid from './UndoBid.vue'
 import DealResult from './DealResult.vue'
 import StatsScreen from './StatsScreen.vue'
 import RulesScreen from './RulesScreen.vue'
@@ -15,6 +17,35 @@ const session = useSession()
 const phase = computed(() => session.game?.phase ?? 'lobby')
 const view = ref<'table' | 'stats' | 'rules'>('table')
 const large = useLargeScreen()
+
+/**
+ * C'est à moi d'agir. Hors de la table (stats, règles) ou l'onglet en arrière-plan, on
+ * ne le voyait pas : la table attendait sans que personne sache pourquoi.
+ */
+const myTurn = computed<'bid' | 'play' | null>(() =>
+  session.pause ? null : session.myBidTurn ? 'bid' : session.myPlayTurn ? 'play' : null,
+)
+const TITLE = document.title
+watch(myTurn, (turn, before) => {
+  const away = view.value !== 'table' || document.hidden
+  if (turn && !before && away) {
+    // Une courte vibration sur téléphone, là où le navigateur l'autorise.
+    try {
+      navigator.vibrate?.(180)
+    } catch {
+      /* sans vibration, le bandeau suffit */
+    }
+  }
+  document.title = turn && document.hidden ? `● À toi — ${TITLE}` : TITLE
+})
+const onVisible = () => {
+  if (!document.hidden) document.title = TITLE
+}
+document.addEventListener('visibilitychange', onVisible)
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisible)
+  document.title = TITLE
+})
 </script>
 
 <template>
@@ -27,7 +58,11 @@ const large = useLargeScreen()
       <template v-if="view === 'table'">
         <GameTablePc v-if="large" @stats="view = 'stats'" @rules="view = 'rules'" />
         <GameTable v-else @stats="view = 'stats'" @rules="view = 'rules'" />
-        <BiddingPanel v-if="phase === 'bidding'" />
+        <template v-if="phase === 'bidding'">
+          <BiddingPanel v-if="large" />
+          <BiddingPanelPhone v-else />
+          <UndoBid />
+        </template>
         <!-- Le décompte attend que le dernier pli ait été vu sur le tapis -->
         <DealResult
           v-else-if="(phase === 'scoring' || phase === 'finished' || phase === 'lobby') && !session.heldTrick"
@@ -99,6 +134,27 @@ const large = useLargeScreen()
       </template>
       <RulesScreen v-else-if="view === 'rules'" back-label="Table" @close="view = 'table'" />
       <StatsScreen v-else @close="view = 'table'" />
+      <!-- À moi d'agir pendant que je lis les stats ou les règles -->
+      <div
+        v-if="view !== 'table' && myTurn"
+        role="alert"
+        class="fixed inset-x-3 bottom-4 z-[70] mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-gold py-2.5 pr-2.5 pl-4 text-felt shadow-[0_10px_30px_rgba(0,0,0,.55)]"
+      >
+        <span class="relative flex size-3 shrink-0">
+          <span class="absolute inline-flex size-full animate-ping rounded-full bg-felt/50"></span>
+          <span class="relative inline-flex size-3 rounded-full bg-felt"></span>
+        </span>
+        <span class="grow text-[15px] font-bold">
+          {{ myTurn === 'bid' ? "C'est à toi de parler" : "C'est à toi de jouer" }}
+        </span>
+        <button
+          type="button"
+          class="h-10 shrink-0 cursor-pointer rounded-xl bg-felt px-3.5 text-sm font-bold text-ivory transition hover:brightness-125"
+          @click="view = 'table'"
+        >
+          Retour à la table
+        </button>
+      </div>
       <p
         v-if="session.error"
         class="absolute inset-x-4 top-20 rounded-xl bg-red-card px-4 py-2.5 text-center text-sm text-ivory"

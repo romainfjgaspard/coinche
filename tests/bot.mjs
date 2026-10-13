@@ -109,7 +109,7 @@ while (Date.now() < deadline && (await dealsDone()) < DEALS) {
     }
     continue
   }
-  if (await p.locator('text=Ton enchère').count()) {
+  if (await p.locator('[data-testid=ton-enchere]').count()) {
     await p
       .getByRole('button', { name: 'Passe' })
       .click({ timeout: 3000 })

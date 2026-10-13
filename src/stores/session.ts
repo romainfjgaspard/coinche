@@ -12,6 +12,7 @@ import {
   ConcurrentWrite,
   type GameDoc,
   allSeatsTaken,
+  answerUndo as answerUndoInDb,
   cancelGame,
   createGame,
   deal,
@@ -21,6 +22,7 @@ import {
   readArchives,
   replay as replayGame,
   reclaimSeat as reclaimSeatInDb,
+  requestUndo as requestUndoInDb,
   setOptions,
   setPause,
   setSeating,
@@ -65,6 +67,9 @@ import type { BotLevel } from '../game/bot'
 import { type BotHandle, type PublicFeed, startBot } from '../firebase/botRunner'
 import { mainClient } from '../firebase/app'
 import { nameOf } from './roster'
+import { lastRefusal, pendingUndo, undoableBid, withoutUndoneBids } from '../game/undo'
+import { saveAnalysis, watchAnalyses } from '../firebase/analyses'
+import type { JudgedCard } from '../game/cardAnalysis'
 
 const STORE_KEY = 'coinche.session'
 /** Le dernier code de partie utilisé : l'accueil le pré-remplit. */
@@ -124,6 +129,9 @@ export const useSession = defineStore('session', () => {
   let stopGame: (() => void) | null = null
   let stopHand: (() => void) | null = null
   let stopEvents: (() => void) | null = null
+  let stopAnalyses: (() => void) | null = null
+  /** Les analyses carte par carte déjà faites dans cette partie, par numéro de donne. */
+  const analyses = ref<Map<number, JudgedCard[]>>(new Map())
 
   const seated = computed(() => Boolean(playerId.value && game.value?.seats[playerId.value]))
   const ready = computed(() => Boolean(game.value && allSeatsTaken(game.value)))
@@ -140,8 +148,26 @@ export const useSession = defineStore('session', () => {
     stopGame?.()
     stopHand?.()
     stopEvents?.()
-    stopGame = watchGame(gameCode, (g) => (game.value = g))
-    stopEvents = watchEvents(gameCode, (e) => (events.value = e))
+    stopAnalyses?.()
+    analyses.value = new Map()
+    stopAnalyses = watchAnalyses(gameCode, (m) => (analyses.value = m))
+    stopGame = watchGame(
+      gameCode,
+      (g) => (game.value = g),
+      mainClient,
+      (reason) => {
+        // La partie mémorisée n'est plus lisible : retour à l'accueil, avec un mot.
+        if (code.value !== gameCode) return
+        leave()
+        opinion.value =
+          reason === 'absent'
+            ? `La partie ${gameCode} n'existe plus.`
+            : `Impossible de rejoindre la partie ${gameCode}.`
+      },
+    )
+    // Les enchères annulées sur vote sortent du journal dès la lecture : la table, les
+    // statistiques et les bots ne les voient jamais.
+    stopEvents = watchEvents(gameCode, (e) => (events.value = withoutUndoneBids(e)))
     if (playerId.value) stopHand = watchHand(gameCode, playerId.value, (c) => (hand.value = c))
   }
 
@@ -153,18 +179,41 @@ export const useSession = defineStore('session', () => {
     game.value ? biddingFromEvents(events.value, game.value.dealer, seating.value) : null,
   )
   const biddingResult = computed(() => (bidding.value ? outcome(bidding.value) : null))
-  const toBid = computed(() => (bidding.value ? currentBidder(bidding.value) : null))
+  /** Une annulation d'enchère en cours de vote : la parole est suspendue. */
+  const undoPending = computed(() => (game.value?.phase === 'bidding' ? pendingUndo(events.value) : null))
+  const toBid = computed(() => (bidding.value && !undoPending.value ? currentBidder(bidding.value) : null))
+  /** Ma dernière enchère, tant que je peux encore demander à la reprendre. */
+  const myUndoableBid = computed(() =>
+    game.value?.phase === 'bidding' && playerId.value && !undoPending.value
+      ? undoableBid(events.value, playerId.value)
+      : null,
+  )
+  /** Ma demande vient d'être refusée : par qui. */
+  const undoRefusedBy = computed(() => {
+    const r = game.value?.phase === 'bidding' ? lastRefusal(events.value) : null
+    return r && r.player === playerId.value ? r.by : null
+  })
   const myBidTurn = computed(() => toBid.value !== null && toBid.value === playerId.value)
   const bidValues = computed(() => (bidding.value ? legalValues(bidding.value) : []))
   // Seulement pendant les enchères : l'historique des annonces reste lisible une fois le
   // contrat fixé, et le bouton « Coincher », sorti du panneau, restait affiché en plein jeu.
   const inBidding = computed(() => game.value?.phase === 'bidding')
   const mayCoinche = computed(() =>
-    Boolean(inBidding.value && bidding.value && playerId.value && canCoinche(bidding.value, playerId.value)),
+    Boolean(
+      inBidding.value &&
+      !undoPending.value &&
+      bidding.value &&
+      playerId.value &&
+      canCoinche(bidding.value, playerId.value),
+    ),
   )
   const maySurcoinche = computed(() =>
     Boolean(
-      inBidding.value && bidding.value && playerId.value && canSurcoinche(bidding.value, playerId.value),
+      inBidding.value &&
+      !undoPending.value &&
+      bidding.value &&
+      playerId.value &&
+      canSurcoinche(bidding.value, playerId.value),
     ),
   )
 
@@ -580,6 +629,24 @@ export const useSession = defineStore('session', () => {
     await run(() => placeBid(code.value!, entry, undefined, outOfTurn ? undefined : thinkTimeNow()))
   }
 
+  /** Garde l'analyse d'une donne pour les quatre : personne n'aura à la relancer. */
+  async function storeAnalysis(dealNumber: number, judged: JudgedCard[]): Promise<void> {
+    if (!code.value || !playerId.value) return
+    analyses.value = new Map(analyses.value).set(dealNumber, judged)
+    await saveAnalysis(code.value, dealNumber, judged, playerId.value)
+  }
+
+  /** Demander à reprendre ma dernière enchère, sur fausse manipulation. */
+  async function requestUndo(): Promise<void> {
+    if (!code.value || !playerId.value) return
+    await run(() => requestUndoInDb(code.value!, playerId.value!))
+  }
+  /** Répondre à la demande d'un autre joueur. */
+  async function answerUndo(accept: boolean): Promise<void> {
+    if (!code.value || !playerId.value) return
+    await run(() => answerUndoInDb(code.value!, playerId.value!, accept))
+  }
+
   /**
    * Les cartes en cours d'envoi : la dernière carte part toute seule, et le joueur la
    * touchait souvent en même temps — les deux envois se croisaient, et le second
@@ -638,7 +705,9 @@ export const useSession = defineStore('session', () => {
     stopGame?.()
     stopHand?.()
     stopEvents?.()
-    stopGame = stopHand = stopEvents = null
+    stopAnalyses?.()
+    stopGame = stopHand = stopEvents = stopAnalyses = null
+    analyses.value = new Map()
     game.value = null
     hand.value = []
     events.value = []
@@ -748,13 +817,24 @@ export const useSession = defineStore('session', () => {
     },
   )
 
-  /** Reprise après rafraîchissement : on se rebranche sur la partie mémorisée. */
+  /**
+   * Reprise après rafraîchissement : on se rebranche sur la partie mémorisée. Si la
+   * connexion échoue, on revient à l'accueil plutôt que d'attendre une partie qui ne
+   * viendra pas — c'était le « Connexion à la partie… » qu'il fallait vider le cache
+   * pour quitter.
+   */
   async function resume(): Promise<void> {
     if (!code.value || !playerId.value) return
-    await run(async () => {
+    const gameCode = code.value
+    const ok = await run(async () => {
       uid.value = await signIn()
-      subscribe(code.value!)
+      subscribe(gameCode)
+      return true
     })
+    if (!ok && code.value === gameCode && !game.value) {
+      leave()
+      opinion.value = `Impossible de rejoindre la partie ${gameCode}.`
+    }
   }
 
   return {
@@ -775,6 +855,13 @@ export const useSession = defineStore('session', () => {
     seating,
     bidding,
     biddingResult,
+    analyses,
+    storeAnalysis,
+    undoPending,
+    myUndoableBid,
+    undoRefusedBy,
+    requestUndo,
+    answerUndo,
     toBid,
     myBidTurn,
     bidValues,

@@ -192,6 +192,21 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // Analyses carte par carte, une par donne : calculées une fois par un joueur, lues
+      // par les quatre. La première fait foi ; personne ne la réécrit ni ne l'efface.
+      match /analyses/{number} {
+        allow read:   if isPlayer(code);
+        allow create: if isPlayer(code)
+                      && number.matches('^[0-9]{1,3}$')
+                      && request.resource.data.keys().hasOnly(['judged', 'version', 'by', 'at'])
+                      && request.resource.data.judged is list
+                      && request.resource.data.judged.size() <= 32
+                      && request.resource.data.version is int
+                      && request.resource.data.at == request.time
+                      && holdsSeat(code, request.resource.data.by);
+        allow update, delete: if false;
+      }
+
       // Journal : append-only, jamais réécrit. Chaque événement prend le numéro que la
       // partie vient d'allouer, et un joueur n'écrit qu'en son propre nom (la honte
       // complète, conséquence d'une donne, est écrite par qui clôt la donne).

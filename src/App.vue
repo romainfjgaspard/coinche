@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import JoinScreen from './components/JoinScreen.vue'
 import LobbyScreen from './components/LobbyScreen.vue'
 import GameScreen from './components/GameScreen.vue'
@@ -25,6 +25,22 @@ const screen = computed<Screen>(() => {
   // table. Le salon — et son choix d'équipes — n'existe qu'avant la première donne.
   return session.game.phase === 'lobby' && session.game.dealNumber === 0 ? 'lobby' : 'table'
 })
+
+/**
+ * Filet de sécurité : une connexion qui traîne au-delà de quelques secondes propose de
+ * revenir à l'accueil, au lieu d'obliger à vider le cache du navigateur.
+ */
+const slow = ref(false)
+let slowTimer: ReturnType<typeof setTimeout> | undefined
+watch(
+  screen,
+  (s) => {
+    clearTimeout(slowTimer)
+    slow.value = false
+    if (s === 'loading') slowTimer = setTimeout(() => (slow.value = true), 8000)
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -33,7 +49,22 @@ const screen = computed<Screen>(() => {
   <JoinScreen v-else-if="screen === 'join'" @stats="homeStats = true" @rules="homeRules = true" />
   <LobbyScreen v-else-if="screen === 'lobby'" />
   <GameScreen v-else-if="screen === 'table'" />
-  <div v-else class="flex min-h-full items-center justify-center text-sm text-sage">
-    Connexion à la partie…
+  <div
+    v-else
+    class="flex min-h-full flex-col items-center justify-center gap-4 px-6 text-center text-sm text-sage"
+  >
+    <p>Connexion à la partie {{ session.code }}…</p>
+    <template v-if="slow">
+      <p class="max-w-xs">
+        La partie ne répond pas. Elle a peut-être été supprimée, ou la connexion est coupée.
+      </p>
+      <button
+        type="button"
+        class="h-11 cursor-pointer rounded-xl bg-gold px-5 text-[15px] font-bold text-felt transition hover:brightness-110"
+        @click="session.leave()"
+      >
+        Retour à l'accueil
+      </button>
+    </template>
   </div>
 </template>

@@ -23,13 +23,14 @@ const SECTIONS: { title: string; points: string[]; examples?: boolean }[] = [
     title: 'Capot et générale',
     points: [
       'Capot (tous les plis) et générale (tous les plis, sans son partenaire) valent 250. En générale, on entame soi-même.',
+      'Un capot ou une générale clôt les enchères : plus rien par-dessus, pas même une générale, et pas de coinche.',
       "Sans-atout et tout-atout ne s'annoncent qu'en capot ou en générale.",
     ],
   },
   {
     title: 'Coinche et surcoinche',
     points: [
-      'Un adversaire du preneur peut coincher (×2), à tout moment des enchères, sans attendre son tour.',
+      'Un adversaire du preneur peut coincher un contrat chiffré (×2), à tout moment des enchères, sans attendre son tour.',
       'Une coinche ferme les enchères : seul le camp du preneur peut encore surcoincher (×4).',
     ],
   },
@@ -87,8 +88,11 @@ const EXAMPLES = [80, 90, 100].map((contract) => ({
 
 <template>
   <div class="h-full w-full overflow-y-auto bg-felt-dark text-ivory">
-    <div class="mx-auto max-w-2xl px-5 pt-5 pb-10 lg:pt-8" :style="large ? { zoom: L.t * 1.15 } : undefined">
-      <div class="flex items-center gap-3">
+    <div class="mx-auto max-w-2xl px-5 pb-10" :style="large ? { zoom: L.t * 1.15 } : undefined">
+      <!-- Bandeau fixe, comme sur la table : le retour reste sous le doigt, même en bas de page -->
+      <div
+        class="sticky top-0 z-10 -mx-5 flex items-center gap-3 border-b border-white/8 bg-felt-dark px-5 pt-5 pb-3 lg:pt-8"
+      >
         <h1 class="grow font-display text-3xl leading-none">Les règles</h1>
         <button
           type="button"
@@ -98,7 +102,7 @@ const EXAMPLES = [80, 90, 100].map((contract) => ({
           {{ backLabel ?? 'Retour' }}
         </button>
       </div>
-      <p class="mt-2 text-sm text-sage">Ce qui distingue notre coinche. Le reste se joue comme partout.</p>
+      <p class="mt-3 text-sm text-sage">Ce qui distingue notre coinche. Le reste se joue comme partout.</p>
 
       <section v-for="s in SECTIONS" :key="s.title" class="mt-7">
         <h2 class="mb-2 font-display text-xl">{{ s.title }}</h2>

@@ -1,20 +1,19 @@
 <script setup lang="ts">
-/** Panneau d'enchères : paliers, couleur, capot, générale, coinche. */
+/**
+ * Panneau d'enchères sur PC : paliers, couleur, capot, générale. Sur téléphone, c'est
+ * `BiddingPanelPhone`, plus compact ; la coinche, sur PC, a son bouton près de ma pastille.
+ */
 import { computed, ref, watch } from 'vue'
-import PlayingCard from './PlayingCard.vue'
+import SuitIcon from './SuitIcon.vue'
 import type { Suit } from '../game/cards'
 import { SUIT_GLYPH, isRed } from '../game/display'
-import { type PlayerId, nextPlayer, playerAtSeat, seatOf } from '../game/players'
 import { nameOf } from '../stores/roster'
-import { type BiddingEntry, type Declaration, canBidCapot, canBidGenerale } from '../game/bidding'
-import { currentDeal } from '../game/replay'
+import { type Declaration, canBidCapot, canBidGenerale } from '../game/bidding'
 import { useSession } from '../stores/session'
-import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableLayout } from '../composables/useTableLayout'
 import { useFitZoom } from '../composables/useFitZoom'
 
 const session = useSession()
-const large = useLargeScreen()
 const L = useTableLayout()
 
 /**
@@ -28,17 +27,6 @@ const zoom = useFitZoom(
   computed(() => L.value.t * 1.15),
   computed(() => L.value.felt.h - 2 * L.value.rim - Math.round(44 * L.value.u)),
 )
-
-/** Ma main dans le panneau, sur téléphone : la largeur du panneau, moins ses marges. */
-const biddingHand = computed(() => {
-  // La colonne `max-w-md` (448 px), pas la fenêtre : sinon, sur tablette, la main débordait.
-  const spot = Math.min(L.value.width, 448) - 40
-  const n = Math.max(1, session.sortedHand.length)
-  const card = Math.min(120, Math.round(spot * 0.34))
-  const step = Math.min(card - 8, (spot - card) / Math.max(1, n - 1))
-  const x0 = Math.round((spot - card - (n - 1) * step) / 2)
-  return { card, step, x0, height: Math.round(card * 1.44 * 0.62) }
-})
 
 /** Ce que je m'apprête à annoncer : un palier chiffré, ou un capot, ou une générale. */
 type Level = number | 'capot' | 'generale'
@@ -55,36 +43,6 @@ const best = computed(() => {
     .reverse()
     .find((e) => e.kind === 'contract' || e.kind === 'capot' || e.kind === 'generale')
 })
-
-const history = computed(() =>
-  currentDeal(session.events).filter(
-    (e) => e.type === 'bid' || e.type === 'coinche' || e.type === 'surcoinche',
-  ),
-)
-
-/** Ordre de parole de la donne : c'est l'ordre des colonnes de l'historique. */
-const speakers = computed<PlayerId[]>(() => {
-  const g = session.game
-  if (!g) return []
-  const first = nextPlayer(g.dealer, session.seating)
-  const s = seatOf(first, session.seating)
-  return [0, 1, 2, 3].map((i) => playerAtSeat(s + i, session.seating))
-})
-
-/**
- * L'historique en grille : une colonne par joueur, une ligne par tour de parole.
- * Il tient toujours en entier, sans ascenseur — une liste défilante cachait des annonces.
- */
-const rounds = computed(() => {
-  const rows: Partial<Record<PlayerId, BiddingEntry>>[] = []
-  for (const e of history.value) {
-    if (e.type !== 'bid') continue
-    const row = (rows[e.round - 1] ??= {})
-    row[e.player] = e.entry
-  }
-  return rows
-})
-const coinches = computed(() => history.value.filter((e) => e.type === 'coinche' || e.type === 'surcoinche'))
 
 const coinched = computed(() => (session.bidding?.entries ?? []).some((e) => e.kind === 'coinche'))
 const capotOpen = computed(() => Boolean(session.bidding && canBidCapot(session.bidding)))
@@ -154,27 +112,6 @@ watch(
   },
 )
 
-function label(entry: BiddingEntry): string {
-  switch (entry.kind) {
-    case 'pass':
-      return 'Passe'
-    case 'contract':
-      return String(entry.value)
-    case 'capot':
-      return 'Capot'
-    case 'generale':
-      return 'Générale'
-    default:
-      return ''
-  }
-}
-const suitOfEntry = (entry: BiddingEntry): Declaration | null =>
-  entry.kind === 'contract'
-    ? entry.suit
-    : entry.kind === 'capot' || entry.kind === 'generale'
-      ? entry.declaration
-      : null
-
 /** « Viv a annoncé 90 ♠ », « Viv a annoncé une générale sans-atout ». */
 const bestText = computed(() => {
   const b = best.value
@@ -196,79 +133,15 @@ const bestText = computed(() => {
     à côté du joueur concerné, et l'historique a sa colonne à gauche du tapis.
   -->
   <div
-    v-if="!large || session.myBidTurn"
-    :class="large ? 'absolute z-40 -translate-x-1/2' : 'absolute inset-x-0 bottom-0 z-40'"
-    :style="large ? { left: '50%', top: `${L.felt.y + L.rim + Math.round(22 * L.u)}px` } : undefined"
+    v-if="session.myBidTurn"
+    class="absolute z-40 -translate-x-1/2"
+    :style="{ left: '50%', top: `${L.felt.y + L.rim + Math.round(22 * L.u)}px` }"
   >
     <div
       ref="panel"
-      class="bg-felt-dark px-5 pb-7 pt-5 shadow-[0_-8px_32px_rgba(0,0,0,.45)]"
-      :class="large ? 'w-[480px] rounded-2xl border border-white/10 pb-5' : 'rounded-t-3xl'"
-      :style="large ? { zoom } : undefined"
+      class="w-[480px] rounded-2xl border border-white/10 bg-felt-dark px-5 pt-5 pb-5 shadow-[0_-8px_32px_rgba(0,0,0,.45)]"
+      :style="{ zoom }"
     >
-      <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20 lg:hidden"></div>
-
-      <!--
-      Sur téléphone le panneau couvre la main : on la remet sous les yeux, en grand et
-      coupée par le bas comme la main sur la table — on n'a besoin que des index.
-    -->
-      <div class="relative mb-4 overflow-hidden lg:hidden" :style="{ height: `${biddingHand.height}px` }">
-        <div
-          v-for="(card, i) in session.sortedHand"
-          :key="card"
-          class="absolute top-0"
-          :style="{ left: `${biddingHand.x0 + i * biddingHand.step}px` }"
-        >
-          <PlayingCard :card="card" :width="biddingHand.card" />
-        </div>
-      </div>
-
-      <!--
-      Qui a dit quoi : une colonne par joueur, dans l'ordre de parole. Sur PC, l'historique
-      a sa propre colonne à droite du tapis (BiddingHistory) : la fenêtre n'en garde rien.
-    -->
-      <div v-if="history.length && !large" class="mb-4">
-        <div class="grid grid-cols-4 gap-x-2 border-b border-white/10 pb-1.5">
-          <span
-            v-for="p in speakers"
-            :key="p"
-            class="truncate text-[15px] font-semibold"
-            :class="p === session.playerId ? 'text-gold' : 'text-mist'"
-            >{{ nameOf(p) }}</span
-          >
-        </div>
-        <div
-          v-for="(row, r) in rounds"
-          :key="r"
-          class="grid grid-cols-4 gap-x-2 border-b border-white/5 py-1.5 last:border-0"
-        >
-          <span v-for="p in speakers" :key="p" class="flex h-7 items-center gap-1.5 text-[17px]">
-            <template v-if="row[p]">
-              <span :class="row[p]!.kind === 'pass' ? 'text-sage' : 'font-semibold text-ivory'">{{
-                label(row[p]!)
-              }}</span>
-              <span
-                v-if="suitOfEntry(row[p]!)"
-                class="flex h-6 min-w-6 items-center justify-center rounded-full bg-ivory px-1 text-[15px] leading-none font-bold"
-                :class="['h', 'd'].includes(suitOfEntry(row[p]!)!) ? 'text-red-card' : 'text-felt-dark'"
-                >{{
-                  ['sa', 'ta'].includes(suitOfEntry(row[p]!)!)
-                    ? suitOfEntry(row[p]!)!.toUpperCase()
-                    : SUIT_GLYPH[suitOfEntry(row[p]!) as Suit]
-                }}</span
-              >
-            </template>
-          </span>
-        </div>
-        <p
-          v-for="(e, i) in coinches"
-          :key="i"
-          class="mt-2 rounded-lg bg-red-card/20 px-3 py-1.5 text-[14px] font-semibold text-[#f0a293]"
-        >
-          {{ nameOf(e.player) }} {{ e.type === 'coinche' ? 'coinche ! ×2' : 'surcoinche ! ×4' }}
-        </p>
-      </div>
-
       <template v-if="session.myBidTurn && coinched">
         <!-- CO-5 : coinché, le preneur ne peut plus que laisser jouer ou surcoincher -->
         <h2 class="text-[17px] font-semibold">Tu es coinché</h2>
@@ -333,7 +206,7 @@ const bestText = computed(() => {
             :key="s"
             type="button"
             :aria-label="`Atout ${declarationLabel(s)}`"
-            class="h-12 cursor-pointer rounded-[10px] border-2 bg-ivory text-[26px] leading-none transition hover:brightness-95"
+            class="flex h-12 cursor-pointer items-center justify-center rounded-[10px] border-2 bg-ivory transition hover:brightness-95"
             :class="[
               declaration === s
                 ? 'border-gold ring-2 ring-gold ring-offset-2 ring-offset-felt-dark'
@@ -342,7 +215,7 @@ const bestText = computed(() => {
             ]"
             @click="pickDeclaration(s)"
           >
-            {{ SUIT_GLYPH[s] }}
+            <SuitIcon :suit="s" class="size-7" />
           </button>
           <button
             v-for="d in ['sa', 'ta'] as const"
@@ -386,31 +259,6 @@ const bestText = computed(() => {
         <span v-if="session.toBid">{{ nameOf(session.toBid) }} réfléchit…</span>
         <span v-else>Enchères closes</span>
       </p>
-
-      <!--
-      CO-3 : la coinche se prend à la volée, sans attendre son tour. Sur PC le bouton est
-      sorti du panneau (à côté de ma pastille) ; sur téléphone, le panneau est la zone
-      d'action et il y reste.
-    -->
-      <div v-if="!large && (session.mayCoinche || session.maySurcoinche)" class="mt-3">
-        <button
-          v-if="session.mayCoinche"
-          type="button"
-          class="h-12 w-full cursor-pointer rounded-[10px] bg-red-card text-[15px] font-bold text-ivory transition hover:brightness-110"
-          @click="session.playerId && session.bid({ kind: 'coinche', player: session.playerId })"
-        >
-          Coincher
-        </button>
-        <button
-          v-else
-          type="button"
-          class="h-12 w-full cursor-pointer rounded-[10px] bg-red-card text-[15px] font-bold text-ivory transition hover:brightness-110"
-          @click="session.playerId && session.bid({ kind: 'surcoinche', player: session.playerId })"
-        >
-          Surcoincher
-        </button>
-        <p class="mt-2 text-center text-xs text-sage">Possible à tout moment, sans attendre son tour.</p>
-      </div>
     </div>
   </div>
 </template>

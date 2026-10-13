@@ -2,9 +2,9 @@
 /** Pastille d'un joueur : nom, donneur, tour de jeu, étoiles de la honte. */
 import { type PlayerId } from '../game/players'
 import { nameOf } from '../stores/roster'
-import { SUIT_GLYPH } from '../game/display'
 import type { LastBid } from '../composables/useTableState'
 import DealerChip from './DealerChip.vue'
+import SuitBadge from './SuitBadge.vue'
 
 defineProps<{
   player: PlayerId
@@ -82,17 +82,7 @@ defineProps<{
       Le symbole sur fond ivoire, en rouge ou en noir. Sur PC, exactement le rappel du
       contrat : 36 et 24 px à l'échelle de la table, divisés par le 1,35 de la pastille.
     -->
-      <span
-        v-if="bid.suit"
-        class="flex items-center justify-center rounded-full bg-ivory leading-none font-bold"
-        :class="[
-          large
-            ? 'h-[26.7px] min-w-[26.7px] px-[4.4px] font-sans text-[17.8px]'
-            : 'h-[18px] min-w-[18px] px-0.5 text-xs lg:h-4 lg:min-w-4 lg:text-[11px]',
-          bid.suit === 'h' || bid.suit === 'd' ? 'text-red-card' : 'text-felt-dark',
-        ]"
-        >{{ bid.suit === 'sa' || bid.suit === 'ta' ? bid.suit.toUpperCase() : SUIT_GLYPH[bid.suit] }}</span
-      >
+      <SuitBadge v-if="bid.suit" :suit="bid.suit" :size="large ? 27 : 20" />
     </span>
   </div>
 </template>

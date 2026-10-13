@@ -29,6 +29,8 @@ parties/{code}                l'état courant (GameDoc)
                               du siège ; elle s'allège dans la même transaction que la carte posée
   donne/{numero}              { hands, cut, at } : les quatre mains distribuées, scellées
                               jusqu'à la fin de la partie, puis lisibles pour l'analyse
+  analyses/{numero}           { judged, version, by, at } : l'analyse carte par carte d'une
+                              donne, calculée une fois par un joueur, lue par les quatre
 
 archives/{code}               le condensé de fin de partie, écrit une fois, jamais retouché
 ```
@@ -72,6 +74,9 @@ Chaque événement porte `seq` (ordre), `at` (horodatage) et, pour une décision
 | `deal_started` | `dealNumber`, `dealer`, `cut` |
 | `bid` | `player`, `round`, `entry` : `{ kind: 'pass' \| 'contract' \| 'capot' \| 'generale', player, value?, suit?, declaration? }` |
 | `coinche`, `surcoinche` | `player` |
+| `undo_requested` | `player`, `bidSeq` : demande à reprendre sa dernière enchère, tant que le suivant n'a pas parlé |
+| `undo_answered` | `player`, `accept` : le vote de chacun des trois autres ; un refus fait tomber la demande, et le demandeur la retire en répondant non |
+| `bid_undone` | `of`, `by`, `bidSeq` : l'enchère `bidSeq` ne compte plus (écrit par le dernier à accepter). Le moteur, les statistiques et l'archive la retirent à la lecture (`withoutUndoneBids`) |
 | `contract_set` | `taker`, `value`, `trump`, `declaration` (absent avant le 24/09), `multiplier` (1, 2, 4), `capot`, `generale` |
 | `deal_cancelled` | `dealNumber`, `reason: 'four_passes'` |
 | `card_played` | `player`, `card`, `trickNumber`, `position` |

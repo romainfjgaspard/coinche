@@ -9,11 +9,12 @@
  * Lancement : npm run test:rules
  */
 import { describe, expect, it } from 'vitest'
-import { getDoc } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { type Client, makeClient } from '../src/firebase/app'
 import {
   ConcurrentWrite,
   type GameDoc,
+  answerUndo,
   archiveRef,
   cancelGame,
   createGame,
@@ -23,6 +24,7 @@ import {
   readEvents,
   readJournal,
   replay,
+  requestUndo,
   signIn,
   takeSeat,
 } from '../src/firebase/game'
@@ -30,6 +32,8 @@ import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId, nextPlayer, teamOfPlayer } 
 import { biddingFromEvents } from '../src/game/replay'
 import { currentBidder } from '../src/game/bidding'
 import { addPlayer, readRoster } from '../src/firebase/players'
+import { ANALYSIS_VERSION, analysesRef, saveAnalysis } from '../src/firebase/analyses'
+import type { JudgedCard } from '../src/game/cardAnalysis'
 
 let n = 0
 /** Quatre sessions anonymes indépendantes, une par joueur. */
@@ -223,11 +227,8 @@ describe('partie en 500, en blitz, puis « Rejouer »', () => {
         await placeBid(code, { kind: 'pass', player: who }, clients[who])
         who = nextPlayer(who, before.seating!)
       }
+      // ENC-4 — le capot clôt les enchères : personne ne parle après lui.
       await placeBid(code, { kind: 'capot', player: who, declaration: 's' }, clients[who])
-      for (let i = 0; i < 3; i++) {
-        who = nextPlayer(who, before.seating!)
-        await placeBid(code, { kind: 'pass', player: who }, clients[who])
-      }
       const end = (await readEvents(code, clients.benel)).filter((e) => e.type === 'deal_done').at(-1)
       expect(end).toMatchObject({ blitz: true, status: 'capot' })
     }
@@ -247,4 +248,113 @@ describe('partie en 500, en blitz, puis « Rejouer »', () => {
     expect(fresh).toMatchObject({ target: 500, blitz: true, phase: 'lobby', evening: code })
     expect(((await getDoc(gameRef(code, clients.viv))).data() as GameDoc).nextGame).toBe(nextGame)
   }, 60_000)
+})
+
+describe('annuler une enchère faite par erreur', () => {
+  /** Une partie distribuée, à quatre sessions : Viv parle en premier. */
+  async function bidding() {
+    const clients = await fourClients()
+    const code = await newGame(clients)
+    for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
+    await deal(code, null, clients.benel)
+    return { clients, code }
+  }
+
+  it("les trois autres acceptent : l'enchère tombe et la parole revient au demandeur", async () => {
+    const { clients, code } = await bidding()
+    await placeBid(code, { kind: 'contract', player: 'viv', value: 120, suit: 'h' }, clients.viv)
+    await requestUndo(code, 'viv', clients.viv)
+
+    // Pendant le vote, personne ne parle : Roux attend.
+    await expect(placeBid(code, { kind: 'pass', player: 'roux' }, clients.roux)).rejects.toThrow()
+
+    // Chaque vote est écrit par la session de son joueur : les règles Firestore l'acceptent.
+    for (const p of ['roux', 'romain', 'benel'] as const) await answerUndo(code, p, true, clients[p])
+
+    const events = await readEvents(code, clients.benel)
+    expect(events.filter((e) => e.type === 'bid_undone')).toHaveLength(1)
+    const state = biddingFromEvents(events, 'benel', DEFAULT_SEATING)
+    expect(state.entries).toEqual([])
+    expect(currentBidder(state)).toBe('viv')
+
+    // Viv annonce enfin ce qu'elle voulait dire.
+    await placeBid(code, { kind: 'contract', player: 'viv', value: 120, suit: 'd' }, clients.viv)
+    const after = biddingFromEvents(await readEvents(code, clients.benel), 'benel', DEFAULT_SEATING)
+    expect(after.entries).toEqual([{ kind: 'contract', player: 'viv', value: 120, suit: 'd' }])
+  }, 30_000)
+
+  it("un refus garde l'enchère, et on ne la redemande pas", async () => {
+    const { clients, code } = await bidding()
+    await placeBid(code, { kind: 'contract', player: 'viv', value: 90, suit: 's' }, clients.viv)
+    await requestUndo(code, 'viv', clients.viv)
+    await answerUndo(code, 'roux', false, clients.roux)
+
+    await expect(requestUndo(code, 'viv', clients.viv)).rejects.toThrow()
+    // La parole reprend : Roux peut parler.
+    await placeBid(code, { kind: 'pass', player: 'roux' }, clients.roux)
+    const state = biddingFromEvents(await readEvents(code, clients.benel), 'benel', DEFAULT_SEATING)
+    expect(state.entries).toHaveLength(2)
+  }, 30_000)
+
+  it('trop tard une fois que le suivant a parlé', async () => {
+    const { clients, code } = await bidding()
+    await placeBid(code, { kind: 'contract', player: 'viv', value: 90, suit: 's' }, clients.viv)
+    await placeBid(code, { kind: 'pass', player: 'roux' }, clients.roux)
+    await expect(requestUndo(code, 'viv', clients.viv)).rejects.toThrow()
+  }, 30_000)
+})
+
+describe('analyses gardées pour les quatre', () => {
+  const judged = [
+    {
+      trick: 1,
+      player: 'viv',
+      card: 'Ah',
+      quality: 'best',
+      oddsLoss: 0,
+      pointsLoss: 0,
+      bestOption: null,
+      oddsAfter: 60,
+      options: [{ card: 'Ah', odds: 60, points: 80 }],
+    },
+  ] as JudgedCard[]
+
+  it('un joueur la garde, les autres la lisent, personne ne la réécrit', async () => {
+    const clients = await fourClients()
+    const code = await newGame(clients)
+    for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
+
+    await saveAnalysis(code, 1, judged, 'viv', clients.viv)
+    const seen = await getDoc(doc(analysesRef(code, clients.roux), '1'))
+    expect(seen.data()).toMatchObject({ version: ANALYSIS_VERSION, by: 'viv' })
+
+    // La première fait foi : une seconde écriture est refusée.
+    await expect(
+      setDoc(doc(analysesRef(code, clients.benel), '1'), {
+        judged: [],
+        version: ANALYSIS_VERSION,
+        by: 'benel',
+        at: serverTimestamp(),
+      }),
+    ).rejects.toThrow()
+
+    // Quelqu'un qui n'est pas à la table ne la lit pas.
+    const outsider = await makeClient(`analyses-dehors-${n}`)
+    await signIn(outsider)
+    await expect(getDoc(doc(analysesRef(code, outsider), '1'))).rejects.toThrow()
+  }, 30_000)
+
+  it("on ne garde pas une analyse au nom d'un autre", async () => {
+    const clients = await fourClients()
+    const code = await newGame(clients)
+    for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
+    await expect(
+      setDoc(doc(analysesRef(code, clients.roux), '2'), {
+        judged,
+        version: ANALYSIS_VERSION,
+        by: 'viv',
+        at: serverTimestamp(),
+      }),
+    ).rejects.toThrow()
+  }, 30_000)
 })

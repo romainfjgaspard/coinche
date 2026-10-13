@@ -1,5 +1,5 @@
 /**
- * Nos règles, validées le 23/09/2026. Un seul endroit à modifier.
+ * Nos règles, validées le 23/09/2026, revues le 13/10/2026. Un seul endroit à modifier.
  * Chaque champ renvoie à un identifiant de docs/REGLES.md.
  * Toute partie embarque une copie de cet objet dans son événement `game_created`,
  * pour que les statistiques restent interprétables après un changement de règle.
@@ -18,7 +18,7 @@ export interface Rules {
   canBidAfterPass: boolean
   /** DIS-2 — false : on ramasse les plis et on coupe, sans rebattre */
   shuffleEveryDeal: boolean
-  /** DIS-3 — true : sur une donne blanche, le même donneur redonne */
+  /** DIS-3 — false : sur une donne blanche, la main passe au donneur suivant (depuis la version 3) */
   sameDealerWhenAllPass: boolean
 }
 
@@ -31,7 +31,7 @@ export const RULES: Rules = {
   generaleValue: 250,
   canBidAfterPass: true,
   shuffleEveryDeal: false,
-  sameDealerWhenAllPass: true,
+  sameDealerWhenAllPass: false,
 }
 
 /** FIN-1 — dépasser strictement l'objectif. FIN-2 et FIN-3 sont sans objet :
@@ -42,4 +42,4 @@ export const isGameOver = (scores: readonly [number, number], rules: Rules = RUL
 
 /** Version du moteur, écrite dans chaque partie : une règle qui change ne doit jamais
  *  rendre une partie archivée illisible. */
-export const ENGINE_VERSION = 2
+export const ENGINE_VERSION = 3

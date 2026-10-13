@@ -12,6 +12,7 @@ import CardText from './CardText.vue'
 import { reviewDeal } from '../game/review'
 import { nameOf } from '../stores/roster'
 import { useCardAnalysis } from '../composables/useCardAnalysis'
+import { useSession } from '../stores/session'
 
 const props = defineProps<{ events: GameEvent[]; seating: Seating; me: PlayerId | null; us: 0 | 1 }>()
 const { done, total, launch } = useCardAnalysis()
@@ -33,19 +34,35 @@ const deals = computed(() =>
     ),
 )
 
+const session = useSession()
 const pendingAction = ref(false)
 const dealInProgress = ref(0)
-const outcomes = ref<{ number: number; judged: JudgedCard[] }[] | null>(null)
+/** Combien de donnes le calcul doit couvrir, pour la barre de progression. */
+const todoCount = ref(0)
+
+/**
+ * Les donnes déjà analysées, par n'importe lequel des quatre, sont gardées en base : on
+ * ne calcule que les autres, et le bilan s'affiche d'emblée quand rien ne manque.
+ */
+const known = (n: number): JudgedCard[] | undefined => session.analyses.get(n)
+const missing = computed(() => deals.value.filter((d) => !known(d.number)))
+const outcomes = computed<{ number: number; judged: JudgedCard[] }[] | null>(() =>
+  deals.value.length && !missing.value.length
+    ? deals.value.map((d) => ({ number: d.number, judged: known(d.number)! }))
+    : null,
+)
 
 async function analyze(): Promise<void> {
   pendingAction.value = true
-  const out: { number: number; judged: JudgedCard[] }[] = []
-  for (const [i, d] of deals.value.entries()) {
+  const todo = missing.value
+  todoCount.value = todo.length
+  for (const [i, d] of todo.entries()) {
     dealInProgress.value = i + 1
+    // Un autre joueur a pu la finir entre-temps : on ne la refait pas.
+    if (known(d.number)) continue
     const judged = await launch(d, props.seating)
-    if (judged) out.push({ number: d.number, judged })
+    if (judged) await session.storeAnalysis(d.number, judged)
   }
-  outcomes.value = out
   pendingAction.value = false
 }
 
@@ -117,20 +134,24 @@ const nameColor = (p: PlayerId): string =>
         @click="analyze"
       >
         {{
-          deals.length
-            ? `Analyser les ${deals.length} donne${deals.length > 1 ? 's' : ''} · environ ${Math.max(1, Math.round((deals.length * 15) / 60))} min`
-            : 'Aucune donne à analyser'
+          !deals.length
+            ? 'Aucune donne à analyser'
+            : missing.length === deals.length
+              ? `Analyser les ${deals.length} donne${deals.length > 1 ? 's' : ''} · environ ${Math.max(1, Math.round((deals.length * 15) / 60))} min`
+              : `Analyser ${missing.length === 1 ? 'la donne restante' : `les ${missing.length} donnes restantes`} · ${deals.length - missing.length} déjà faite${deals.length - missing.length > 1 ? 's' : ''}`
         }}
       </button>
       <div v-else class="mt-3">
         <div class="h-2 overflow-hidden rounded-full bg-white/10">
           <div
             class="h-full rounded-full bg-gold transition-all"
-            :style="{ width: `${(100 * (dealInProgress - 1 + (total ? done / total : 0))) / deals.length}%` }"
+            :style="{
+              width: `${(100 * (dealInProgress - 1 + (total ? done / total : 0))) / Math.max(1, todoCount)}%`,
+            }"
           ></div>
         </div>
         <p class="mt-1.5 text-center text-[13px] lg:text-xs text-sage">
-          Donne {{ dealInProgress }} sur {{ deals.length }}…
+          Donne {{ dealInProgress }} sur {{ todoCount }}…
         </p>
       </div>
     </template>
