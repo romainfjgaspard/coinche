@@ -11,11 +11,18 @@ import { computed, ref, watch } from 'vue'
 import type { Suit } from '../game/cards'
 import { type ContractEntry, type Declaration, canBidCapot, canBidGenerale } from '../game/bidding'
 import { useSession } from '../stores/session'
+import { useTableLayout } from '../composables/useTableLayout'
 import { nameOf } from '../stores/roster'
 import SuitIcon from './SuitIcon.vue'
 import SuitBadge from './SuitBadge.vue'
 
 const session = useSession()
+const L = useTableLayout()
+/** Le haut de ma main et de ma pastille, comme sur la table (`GameTable`). */
+const bottom = computed(() => {
+  const card = Math.min(120, Math.round(Math.min(L.value.width, 448) * 0.3))
+  return Math.round(card * 1.44 * 0.58) + 48
+})
 
 type Level = number | 'capot' | 'generale'
 const SUITS: Suit[] = ['s', 'h', 'd', 'c']
@@ -75,11 +82,12 @@ const best = computed(() => {
 
 <template>
   <!--
-    Juste sous mon partenaire et sa dernière annonce : plus bas, le panneau cachait le nom
-    et l'annonce des adversaires, sur les côtés.
+    Juste au-dessus de ma pastille et de ma main : le haut de l'écran reste aux trois
+    autres, leur nom et leur dernière annonce.
   -->
   <div
-    class="absolute top-[226px] left-1/2 z-40 w-[min(92%,380px)] -translate-x-1/2 rounded-2xl border border-white/12 bg-felt-dark/95 p-3 shadow-[0_14px_40px_rgba(0,0,0,.55)] backdrop-blur-sm"
+    :style="{ bottom: `${bottom}px` }"
+    class="absolute left-1/2 z-40 w-[min(92%,380px)] -translate-x-1/2 rounded-2xl border border-white/12 bg-felt-dark/95 p-3 shadow-[0_14px_40px_rgba(0,0,0,.55)] backdrop-blur-sm"
   >
     <!-- Ce qu'il faut battre -->
     <p class="flex h-7 items-center gap-1.5 px-1 text-[13px] text-mist">
