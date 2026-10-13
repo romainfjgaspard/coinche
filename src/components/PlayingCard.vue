@@ -36,10 +36,9 @@ const pips = computed(() => pipLayout(rank.value))
 
 const s = computed(() => {
   const w = props.width
-  // Les pointes centrales doivent dominer nettement celles de l'index : à taille
-  // presque égale, les deux se confondaient. Le 9 et le 10 en portent davantage,
-  // on les réduit un peu pour qu'elles ne se touchent pas.
-  const pip = rank.value === '9' || rank.value === '10' ? 0.21 : 0.24
+  // Les pointes centrales dominent nettement celles de l'index, et gardent la même taille
+  // du 7 au 10, comme sur un vrai jeu : seul l'as porte un grand symbole. 0,18 est le plus
+  // grand qui tienne sur le 10, dont les pointes du milieu frôlent celles des côtés.
   return {
     width: `${w}px`,
     height: `${Math.round(w * 1.44)}px`,
@@ -51,7 +50,7 @@ const s = computed(() => {
     indexPip: `${Math.max(5, Math.round(w * 0.1))}px`,
     inset: `${Math.round(w * 0.22)}px`,
     bigPip: `${Math.round(w * 0.36)}px`,
-    smallPip: `${Math.round(w * pip * 0.78)}px`,
+    smallPip: `${Math.round(w * 0.18)}px`,
     band: `${Math.max(2, Math.round(w * 0.03))}px`,
     // Le halo du gagnant suit la taille de la carte : fixe, il débordait des vignettes.
     shadow: props.winner
