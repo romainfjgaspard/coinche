@@ -91,32 +91,34 @@ describe('ENC-8 / ENC-9 / ENC-10 — capot, générale, sans-atout', () => {
     const s = run(
       { kind: 'contract', player: 'viv', value: 160, suit: 'h' },
       { kind: 'capot', player: 'roux', declaration: 's' },
-      pass('romain'),
-      pass('benel'),
-      pass('viv'),
     )
     expect(outcome(s)).toMatchObject({ status: 'contract', taker: 'roux', value: 250, capot: true })
   })
 
-  it("plus aucun contrat chiffré au-dessus d'un capot", () => {
+  it('un capot clôt les enchères sur-le-champ : plus personne ne parle', () => {
     const s = run({ kind: 'capot', player: 'viv', declaration: 'h' })
+    expect(currentBidder(s)).toBeNull()
     expect(legalValues(s)).toEqual([])
+    expect(canBidGenerale(s)).toBe(false)
+    expect(() => apply(s, pass('roux'))).toThrow(IllegalBid)
   })
 
-  it("la générale domine le capot, mais pas l'inverse", () => {
+  it('pas de générale par-dessus un capot', () => {
     const s = run({ kind: 'capot', player: 'viv', declaration: 'h' })
-    const g = apply(s, { kind: 'generale', player: 'roux', declaration: 's' })
-    expect(taker(g)).toBe('roux')
-    expect(() => apply(g, { kind: 'capot', player: 'romain', declaration: 'd' })).toThrow(IllegalBid)
+    expect(() => apply(s, { kind: 'generale', player: 'roux', declaration: 's' })).toThrow(IllegalBid)
+  })
+
+  it('une générale clôt les enchères, elle aussi', () => {
+    const s = run(
+      { kind: 'contract', player: 'viv', value: 120, suit: 'c' },
+      { kind: 'generale', player: 'roux', declaration: 's' },
+    )
+    expect(outcome(s)).toMatchObject({ status: 'contract', taker: 'roux', generale: true, multiplier: 1 })
+    expect(() => apply(s, { kind: 'capot', player: 'romain', declaration: 'd' })).toThrow(IllegalBid)
   })
 
   it("sans-atout et tout-atout se jouent en capot, sans couleur d'atout", () => {
-    const s = run(
-      { kind: 'capot', player: 'viv', declaration: 'sa' },
-      pass('roux'),
-      pass('romain'),
-      pass('benel'),
-    )
+    const s = run({ kind: 'capot', player: 'viv', declaration: 'sa' })
     expect(outcome(s)).toMatchObject({ status: 'contract', declaration: 'sa', trump: null, capot: true })
   })
 })
@@ -129,6 +131,13 @@ describe('CO-1 à CO-3 — coinche', () => {
     expect(canCoinche(taken(), 'benel')).toBe(true) // adversaire
     expect(canCoinche(taken(), 'romain')).toBe(false) // partenaire de Viv
     expect(canCoinche(taken(), 'viv')).toBe(false) // preneur
+  })
+
+  it('CO-1 — un capot ou une générale ne se coinche pas', () => {
+    expect(canCoinche(run({ kind: 'capot', player: 'viv', declaration: 'h' }), 'roux')).toBe(false)
+    expect(canCoinche(run({ kind: 'generale', player: 'viv', declaration: 'h' }), 'roux')).toBe(false)
+    const s = run({ kind: 'capot', player: 'viv', declaration: 'h' })
+    expect(() => apply(s, { kind: 'coinche', player: 'roux' })).toThrow(IllegalBid)
   })
 
   it('CO-3 — la coinche se prend à la volée, hors de son tour', () => {
@@ -184,13 +193,7 @@ describe('JEU-1 / ENC-9 — qui entame', () => {
   })
 
   it('mais sur une générale, le preneur prend la main', () => {
-    const s = run(
-      pass('viv'),
-      { kind: 'generale', player: 'roux', declaration: 'h' },
-      pass('romain'),
-      pass('benel'),
-      pass('viv'),
-    )
+    const s = run(pass('viv'), { kind: 'generale', player: 'roux', declaration: 'h' })
     expect(firstLeader(s)).toBe('roux')
   })
 })

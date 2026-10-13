@@ -43,9 +43,20 @@ export function seatingOf(events: GameEvent[], fallback: Seating): Seating {
   return fallback
 }
 
+/**
+ * Le journal sans les enchères annulées : chaque `bid_undone` désigne, par son numéro,
+ * l'enchère qui ne compte plus. C'est ce journal que lisent le moteur et les statistiques.
+ * Le repasser une seconde fois ne change rien : on peut l'appliquer à chaque lecture.
+ */
+export function withoutUndoneBids(events: GameEvent[]): GameEvent[] {
+  const undone = new Set<number>()
+  for (const e of events) if (e.type === 'bid_undone') undone.add(e.bidSeq)
+  return undone.size === 0 ? events : events.filter((e) => !(e.type === 'bid' && undone.has(e.seq)))
+}
+
 export function biddingFromEvents(events: GameEvent[], dealer: PlayerId, seating: Seating): BiddingState {
   const entries: BiddingEntry[] = []
-  for (const e of currentDeal(events)) {
+  for (const e of withoutUndoneBids(currentDeal(events))) {
     if (e.type === 'bid') entries.push(e.entry)
     else if (e.type === 'coinche') entries.push({ kind: 'coinche', player: e.player })
     else if (e.type === 'surcoinche') entries.push({ kind: 'surcoinche', player: e.player })

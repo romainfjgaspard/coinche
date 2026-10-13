@@ -94,7 +94,7 @@ describe('parcours complet', () => {
     // dès qu'un réglage change.
     expect(created.rules.target).toBe(1000)
     expect(created.rules.capotValue).toBe(250)
-    expect(created.rules.sameDealerWhenAllPass).toBe(true)
+    expect(created.rules.sameDealerWhenAllPass).toBe(false)
   })
 })
 
@@ -197,6 +197,20 @@ describe('une donne complète, jouée à travers Firestore', () => {
     for (const p of PLAYER_IDS) {
       expect((await getDoc(handRef(code, p))).data()!.cards).toEqual(expected[p])
     }
+  })
+})
+
+describe('donne blanche', () => {
+  it('DIS-3 — quatre passes : la main passe au donneur suivant', async () => {
+    // La donne précédente a été distribuée par Viv : Roux parle en premier.
+    const before = (await getDoc(gameRef(code))).data() as GameDoc
+    expect(before.dealer).toBe('viv')
+    for (const p of ['roux', 'romain', 'benel', 'viv'] as const) {
+      await placeBid(code, { kind: 'pass', player: p })
+    }
+    const game = (await getDoc(gameRef(code))).data() as GameDoc
+    expect(game.phase).toBe('lobby')
+    expect(game.dealer).toBe('roux')
   })
 })
 

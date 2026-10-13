@@ -7,7 +7,8 @@
  */
 import { computed } from 'vue'
 import { type Card, rankOf, suitOf } from '../game/cards'
-import { RANK_LABEL, SUIT_GLYPH, cardLabel, courtCrop, courtImage, isRed, pipLayout } from '../game/display'
+import { RANK_LABEL, cardLabel, courtCrop, courtImage, isRed, pipLayout } from '../game/display'
+import SuitIcon from './SuitIcon.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -45,10 +46,12 @@ const s = computed(() => {
     radius: `${Math.max(3, Math.round(w * 0.08))}px`,
     pad: `${Math.max(2, Math.round(w * 0.04))}px`,
     rankSize: `${Math.max(8, Math.round(w * 0.18))}px`,
-    indexPip: `${Math.max(6, Math.round(w * 0.12))}px`,
+    // Les tracés remplissent leur cadre, là où un caractère de police laissait du vide
+    // autour : à encombrement égal, ils sont un peu plus petits.
+    indexPip: `${Math.max(5, Math.round(w * 0.1))}px`,
     inset: `${Math.round(w * 0.22)}px`,
-    bigPip: `${Math.round(w * 0.46)}px`,
-    smallPip: `${Math.round(w * pip)}px`,
+    bigPip: `${Math.round(w * 0.36)}px`,
+    smallPip: `${Math.round(w * pip * 0.78)}px`,
     band: `${Math.max(2, Math.round(w * 0.03))}px`,
     // Le halo du gagnant suit la taille de la carte : fixe, il débordait des vignettes.
     shadow: props.winner
@@ -110,24 +113,29 @@ const s = computed(() => {
         <span class="block font-bold tracking-tight" :style="{ fontSize: s.rankSize, color: ink }">
           {{ RANK_LABEL[rank] }}
         </span>
-        <span class="block" :style="{ fontSize: s.indexPip, color: ink }">{{ SUIT_GLYPH[suit] }}</span>
+        <SuitIcon
+          :suit="suit"
+          class="mt-[0.12em]"
+          :style="{ width: s.indexPip, height: s.indexPip, color: ink }"
+        />
       </span>
 
       <!-- Pointes -->
       <span class="absolute" :style="{ left: s.inset, right: s.inset, top: '9%', bottom: '9%' }">
-        <span
+        <SuitIcon
           v-for="(pip, i) in pips"
           :key="i"
-          class="absolute leading-none"
+          :suit="suit"
+          class="absolute"
           :style="{
             left: `${pip.x}%`,
             top: `${pip.y}%`,
-            fontSize: pip.wide ? s.bigPip : s.smallPip,
+            width: pip.wide ? s.bigPip : s.smallPip,
+            height: pip.wide ? s.bigPip : s.smallPip,
             color: ink,
             transform: `translate(-50%, -50%) rotate(${pip.flipped ? 180 : 0}deg)`,
           }"
-          >{{ SUIT_GLYPH[suit] }}</span
-        >
+        />
       </span>
     </template>
 

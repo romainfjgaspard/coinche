@@ -17,10 +17,12 @@ import { canDeclareBelote, currentPlayer, playableFor } from '../game/play'
 import { type BotLevel, type BotView, chooseBid, chooseCard, shouldCoinche } from '../game/bot'
 import { expertCard } from '../game/botExpertWorker'
 import { TRICK_VISIBLE_MS } from '../game/display'
+import { pendingUndo } from '../game/undo'
 import { type Client, makeClient } from './app'
 import {
   type GameDoc,
   allSeatsTaken,
+  answerUndo,
   deal,
   moveCount,
   placeBid,
@@ -136,7 +138,7 @@ export async function startBot(code: string, player: PlayerId, options: BotOptio
   let seenAt = Date.now()
   let alive = true
 
-  type Action = 'deal' | 'bid' | 'play'
+  type Action = 'deal' | 'bid' | 'play' | 'vote'
 
   /** Ce que le bot a à faire, et l'empreinte de l'état correspondant. */
   function nextAction(g: GameDoc): { what: Action; key: string } | null {
@@ -159,6 +161,9 @@ export async function startBot(code: string, player: PlayerId, options: BotOptio
         : null
     }
     if (g.phase === 'bidding') {
+      // Une demande d'annulation d'enchère : le bot accepte toujours, et ne parle pas pendant le vote.
+      const undo = pendingUndo(events)
+      if (undo) return undo.player !== player && !undo.answers.has(player) ? { what: 'vote', key } : null
       return currentBidder(biddingFromEvents(events, g.dealer, tableOf(g))) === player
         ? { what: 'bid', key }
         : null
@@ -204,7 +209,10 @@ export async function startBot(code: string, player: PlayerId, options: BotOptio
       console.warn('[p]', player, 'exécute', what, key)
 
       let acted: boolean
-      if (what === 'deal') {
+      if (what === 'vote') {
+        await answerUndo(code, player, true, c)
+        acted = true
+      } else if (what === 'deal') {
         const number = game.dealNumber
         await deal(code, null, c)
         // On note le succès, jamais l'intention : sinon un échec verrouillerait

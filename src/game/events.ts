@@ -35,6 +35,15 @@ export type GameEvent = Base &
       }
     | { type: 'deal_started'; dealNumber: number; dealer: PlayerId; cut: number }
     | { type: 'bid'; player: PlayerId; round: number; entry: BiddingEntry }
+    /** Un joueur demande à reprendre sa dernière enchère, sur fausse manipulation. */
+    | { type: 'undo_requested'; player: PlayerId; bidSeq: number }
+    /** Chacun des trois autres accepte ou refuse ; un refus suffit à faire tomber la demande. */
+    | { type: 'undo_answered'; player: PlayerId; accept: boolean }
+    /**
+     * Les trois ont accepté : l'enchère de `of` ne compte plus. Écrit par `by`, le dernier
+     * à accepter — d'où l'absence de champ `player`, que les règles réservent à soi-même.
+     */
+    | { type: 'bid_undone'; of: PlayerId; by: PlayerId; bidSeq: number }
     | { type: 'coinche'; player: PlayerId }
     | { type: 'surcoinche'; player: PlayerId }
     | {

@@ -42,6 +42,7 @@ import { nextPlayer, playerAtSeat, seatOf, teamOfPlayer } from '../game/players'
 import { beloteHeld, canDeclareBelote, isDealOver, play, trickFlags, tricksForScoring } from '../game/play'
 import { type Contract, type DealStatus, scoreDeal, unannouncedCapot } from '../game/scoring'
 import { type Archive, buildArchive } from '../game/archive'
+import { pendingUndo, undoAccepted, undoableBid, withoutUndoneBids } from '../game/undo'
 import { isGameOver, RULES } from '../game/rules'
 
 export type Phase = 'lobby' | 'bidding' | 'playing' | 'scoring' | 'finished' | 'cancelled'
@@ -150,7 +151,9 @@ export class GamePaused extends Error {}
  * conséquence : c'est le moteur qui les déduit, personne ne les « choisit ».
  * `playFromEvents` et `biddingFromEvents` ne lisent d'ailleurs que ceux-ci.
  */
-const DECISIONS = new Set(['bid', 'coinche', 'surcoinche', 'card_played'])
+// Demander l'annulation d'une enchère, et l'annuler, changent qui doit parler : ce sont
+// des décisions, qu'une enchère concurrente ne doit pas croiser. Les votes n'en sont pas.
+const DECISIONS = new Set(['bid', 'coinche', 'surcoinche', 'card_played', 'undo_requested', 'bid_undone'])
 
 export const isDecision = (type: string): boolean => DECISIONS.has(type)
 
@@ -490,15 +493,41 @@ async function previousDealTricks(code: string, c: Client): Promise<Card[][] | n
   return tricks.length === 8 ? tricks : null
 }
 
-export const watchGame = (code: string, cb: (game: GameDoc | null) => void, c: Client = mainClient) =>
-  onSnapshot(gameRef(code, c), (s) => cb(s.exists() ? (s.data() as GameDoc) : null))
+/**
+ * Écoute la partie. `onMissing` signale une partie que le serveur ne connaît pas, ou une
+ * écoute refusée : sans lui, l'écran restait sur « Connexion à la partie… » pour toujours.
+ */
+export const watchGame = (
+  code: string,
+  cb: (game: GameDoc | null) => void,
+  c: Client = mainClient,
+  onMissing?: (reason: 'absent' | 'error') => void,
+) =>
+  onSnapshot(
+    gameRef(code, c),
+    (s) => {
+      if (s.exists()) return cb(s.data() as GameDoc)
+      cb(null)
+      // Absente du cache ne veut pas dire absente du serveur : on attend sa réponse.
+      if (!s.metadata.fromCache) onMissing?.('absent')
+    },
+    (e) => {
+      console.warn('[partie]', code, e)
+      onMissing?.('error')
+    },
+  )
 
 export const watchHand = (
   code: string,
   player: PlayerId,
   cb: (cards: Card[]) => void,
   c: Client = mainClient,
-) => onSnapshot(handRef(code, player, c), (s) => cb((s.data()?.cards as Card[]) ?? []))
+) =>
+  onSnapshot(
+    handRef(code, player, c),
+    (s) => cb((s.data()?.cards as Card[]) ?? []),
+    (e) => console.warn('[main]', code, player, e),
+  )
 
 /** Journal complet de la partie, dans l'ordre. */
 export async function readEvents(code: string, c: Client = mainClient): Promise<GameEvent[]> {
@@ -570,6 +599,8 @@ export async function placeBid(
 
   const events = await readJournal(code, c)
   const seenMoves = moveCount(events)
+  // Pendant le vote d'une annulation, tout le monde attend : la parole peut revenir en arrière.
+  if (pendingUndo(events)) throw new Error("Une annulation d'enchère est en cours de vote")
   const before = biddingFromEvents(events, game.dealer, tableOf(game))
   const after = apply(before, entry) // lève IllegalBid si la règle l'interdit
 
@@ -630,7 +661,8 @@ export async function placeBid(
       )
     }
   } else if (result.status === 'passed_out') {
-    // ENC-7 + DIS-3 : personne ne prend, le même donneur redonne.
+    // ENC-7 + DIS-3 : personne ne prend, la main passe au donneur suivant, comme
+    // après une donne jouée.
     await appendWith(
       c,
       code,
@@ -640,8 +672,53 @@ export async function placeBid(
         reason: 'four_passes',
       },
       undefined,
-      { game: { phase: 'lobby' } },
+      { game: { phase: 'lobby', dealer: nextPlayer(game.dealer, tableOf(game)) } },
     )
+  }
+}
+
+/**
+ * Demande à reprendre sa dernière enchère, sur fausse manipulation. Possible tant que le
+ * joueur suivant n'a pas parlé ; les trois autres votent (`answerUndo`).
+ */
+export async function requestUndo(code: string, player: PlayerId, c: Client = mainClient): Promise<void> {
+  const game = (await getDoc(gameRef(code, c))).data() as GameDoc | undefined
+  if (game?.phase !== 'bidding') throw new Error('Les enchères sont closes')
+  const events = await readJournal(code, c)
+  const bidSeq = undoableBid(events, player)
+  if (bidSeq === null) throw new Error('Trop tard : la parole a déjà tourné')
+  await appendWith(c, code, { type: 'undo_requested', player, bidSeq }, moveCount(events))
+}
+
+/**
+ * Répond à une demande d'annulation. Le troisième « oui » retire l'enchère dans la foulée ;
+ * un seul « non » fait tomber la demande. Le demandeur, lui, peut retirer sa demande
+ * (`accept` faux) : un joueur qui ne répond pas ne doit pas bloquer la table.
+ */
+export async function answerUndo(
+  code: string,
+  player: PlayerId,
+  accept: boolean,
+  c: Client = mainClient,
+): Promise<void> {
+  const events = await readJournal(code, c)
+  const pending = pendingUndo(events)
+  if (!pending || pending.answers.has(player) || (pending.player === player && accept)) return
+  await appendWith(c, code, { type: 'undo_answered', player, accept })
+  if (!accept) return
+  const after = await readJournal(code, c)
+  const now = pendingUndo(after)
+  if (!now || !undoAccepted(now)) return
+  try {
+    await appendWith(
+      c,
+      code,
+      { type: 'bid_undone', of: now.player, by: player, bidSeq: now.bidSeq },
+      moveCount(after),
+    )
+  } catch (e) {
+    // Deux derniers « oui » simultanés : l'autre a déjà retiré l'enchère.
+    if (!(e instanceof ConcurrentWrite)) throw e
   }
 }
 
@@ -837,7 +914,11 @@ async function closeDeal(
 }
 
 export const watchEvents = (code: string, cb: (events: GameEvent[]) => void, c: Client = mainClient) =>
-  onSnapshot(query(eventsRef(code, c), orderBy('seq')), (s) => cb(s.docs.map((d) => d.data() as GameEvent)))
+  onSnapshot(
+    query(eventsRef(code, c), orderBy('seq')),
+    (s) => cb(s.docs.map((d) => d.data() as GameEvent)),
+    (e) => console.warn('[journal]', code, e),
+  )
 
 /**
  * Met la partie en pause, ou la reprend. N'importe quel joueur peut faire l'un ou
@@ -959,7 +1040,7 @@ export async function archiveGame(code: string, seating: Seating, c: Client = ma
     ? (Object.keys(game.seats) as PlayerId[]).filter((p) => game.seats[p]?.bot || game.seats[p]?.botAssisted)
     : []
   const archive: Archive = {
-    ...buildArchive(code, events, seating, hands, bots),
+    ...buildArchive(code, withoutUndoneBids(events), seating, hands, bots),
     // Une partie en 500 ou en blitz ne se compare pas tout à fait aux autres : on le garde.
     ...(game?.target && game.target !== RULES.target ? { target: game.target } : {}),
     ...(game?.blitz ? { blitz: true } : {}),

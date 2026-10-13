@@ -9,10 +9,10 @@ places libres se confient à des bots.
 | Domaine            | Contenu                                                                                                                        |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
 | Règles             | Nos règles maison (`docs/REGLES.md`) : coinche, surcoinche, capot, générale, belote à annoncer, blitz, objectif au choix       |
-| Partie             | Salon (équipes tirées au sort ou choisies), enchères, jeu de la carte, décompte, « Rejouer » (même soirée)                     |
+| Partie             | Salon (équipes tirées au sort ou choisies), enchères, jeu de la carte, décompte, « Rejouer » (même soirée) ; une enchère faite par erreur s'annule si les trois autres acceptent |
 | Robustesse         | Pause ; bots repris par un autre onglet si le leur se ferme ; joueur absent remplaçable par un bot, qui peut reprendre sa place |
 | Fin de donne       | Décompte détaillé pli par pli ; « Revoir la donne » : mains de départ, huit plis                                               |
-| Analyse            | À cartes ouvertes (le contrat était-il faisable ?) et carte par carte, avec l'information du joueur, comme aux échecs          |
+| Analyse            | À cartes ouvertes (le contrat était-il faisable ?) et carte par carte, avec l'information du joueur, comme aux échecs ; gardée en base pour les quatre une fois faite |
 | Bots               | « bot » : les réflexes d'un bon joueur (soutien, tirage d'atout, coinche) ; « bot ★ » : chaque carte réfléchie au solveur. Aucun ne voit le jeu des autres |
 | Statistiques       | Partie en cours (score, enchères, jeu, donnes) et toutes les parties (duos, joueurs, enchères, temps, soirées), avec ou sans les parties à bots |
 | Mise en page       | Téléphone (une colonne) et PC (table dédiée, à l'échelle de l'écran)                                                           |

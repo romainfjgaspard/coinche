@@ -31,8 +31,10 @@ const table = [benel, roux, viv, romain]
 
 /** Le premier joueur dont l'écran montre ce texte. */
 async function whoSees(text, attempts = 25) {
+  // Un sélecteur CSS (« [data-testid=…] ») ou un texte à l'écran.
+  const selector = text.startsWith('[') ? text : `text=${text}`
   for (let i = 0; i < attempts; i++) {
-    for (const j of table) if (await j.p.locator(`text=${text}`).count()) return j
+    for (const j of table) if (await j.p.locator(selector).count()) return j
     await benel.p.waitForTimeout(250)
   }
   return null
@@ -89,13 +91,17 @@ async function bid(value) {
   let passes = 0
   let announced = false
   for (let i = 0; i < 24; i++) {
-    const speaker = await whoSees('Ton enchère', 8)
+    // Sur téléphone, le panneau compact : la couleur d'une touche, le palier en « − 90 + ».
+    const speaker = await whoSees('[data-testid=ton-enchere]', 8)
     if (!speaker) break
     try {
       if (!announced && passes >= 2) {
-        await speaker.p.getByRole('button', { name: String(value), exact: true }).click({ timeout: 4000 })
-        await speaker.p.getByRole('button', { name: 'Atout ♥' }).click({ timeout: 4000 })
-        await speaker.p.getByRole('button', { name: /Annoncer/ }).click({ timeout: 4000 })
+        await speaker.p.getByRole('button', { name: 'Atout cœur' }).click({ timeout: 4000 })
+        for (let k = 0; k < 12; k++) {
+          if ((await speaker.p.getByTestId('palier').innerText()).trim() === String(value)) break
+          await speaker.p.getByRole('button', { name: 'Palier au-dessus' }).click({ timeout: 4000 })
+        }
+        await speaker.p.getByRole('button', { name: /^Annoncer/ }).click({ timeout: 4000 })
         announced = true
       } else {
         await speaker.p.getByRole('button', { name: 'Passe' }).click({ timeout: 4000 })

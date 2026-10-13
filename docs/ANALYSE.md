@@ -1,6 +1,6 @@
 # L'analyse des parties
 
-Trois outils, tous calculés dans le navigateur à partir du journal, sans rien écrire en base. Les mains distribuées ne sont lisibles qu'une fois la partie terminée (`deals/{n}`, voir `docs/MODELE-DONNEES.md`) ; pendant la partie, les mains d'une donne finie se reconstituent à partir des huit plis joués (`src/game/review.ts`).
+Trois outils, tous calculés dans le navigateur à partir du journal. Seule l'analyse carte par carte, la plus longue, est gardée en base une fois faite (voir plus bas). Les mains distribuées ne sont lisibles qu'une fois la partie terminée (`deals/{n}`, voir `docs/MODELE-DONNEES.md`) ; pendant la partie, les mains d'une donne finie se reconstituent à partir des huit plis joués (`src/game/review.ts`).
 
 ## Revoir une donne
 
@@ -42,6 +42,8 @@ Un tirage est déterministe (graine fixe) : la même donne donne toujours la mê
 
 - dans la revue d'une donne (`CardAnalysis.vue`) : un bilan par joueur, la courbe des chances du contrat au fil des cartes, puis le détail pli par pli, avec pour chaque carte la meilleure option ;
 - dans l'onglet Donnes des statistiques, « Analyser les N donnes » (`GameAnalysis.vue`) : toutes les donnes de la partie, puis pour chaque joueur le nombre de cartes de chaque qualité et sa **justesse** (part de cartes meilleures ou bonnes), et les cinq plus gros tournants de la partie.
+
+**Gardée pour les quatre.** Une donne analysée l'est une fois pour toutes : le résultat est écrit dans `games/{code}/analyses/{n}` (`src/firebase/analyses.ts`) et suivi en direct par les quatre joueurs. Rouvrir la donne, ou l'ouvrir depuis un autre téléphone, l'affiche aussitôt ; « Analyser la partie » ne calcule que les donnes qui manquent. Le résultat porte un numéro de version (`ANALYSIS_VERSION`) : si la méthode change, les anciennes analyses sont ignorées et se recalculent à la demande.
 
 **Le calcul** est réparti entre plusieurs fils (Web Workers, `useCardAnalysis`) : un par cœur du processeur moins un, au plus six. Une partie de dix donnes prend une à deux minutes.
 

@@ -1,6 +1,6 @@
 # Règles de la coinche
 
-Nos règles maison, tranchées le 23 septembre 2026. Chaque règle porte un identifiant (`ENC-5`, `JEU-2`…) que le code cite en commentaire.
+Nos règles maison, tranchées le 23 septembre 2026 et revues le 13 octobre 2026 (capot et générale closent les enchères et ne se coinchent pas ; le donneur tourne après une donne blanche). Chaque règle porte un identifiant (`ENC-5`, `JEU-2`…) que le code cite en commentaire.
 
 État : ✅ appliqué par le code.
 
@@ -17,7 +17,7 @@ Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/gam
 | MAT-3 | Le donneur tourne d'un joueur vers la gauche à chaque donne | ✅ |
 | DIS-1 | Distribution en 3-2-3 | ✅ |
 | DIS-2 | **On ne rebat pas** : on ramasse les plis dans l'ordre où ils ont été gagnés, et on coupe. Après une donne blanche ou une donne blitz, personne ne connaît les mains : on rebat | ✅ |
-| DIS-3 | Si les 4 passent : **le même donneur redonne**. Une donne blanche ne compte pas (son numéro est quand même consommé) | ✅ |
+| DIS-3 | Si les 4 passent : **la main passe au donneur suivant**, comme après une donne jouée. Une donne blanche ne compte pas (son numéro est quand même consommé) | ✅ |
 
 ## 2. Ordre et valeur des cartes
 
@@ -37,7 +37,7 @@ Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/gam
 | ENC-1 | Le joueur à gauche du donneur parle en premier | ✅ |
 | ENC-2 | Une enchère = un contrat (80 à 170) + une couleur d'atout | ✅ |
 | ENC-3 | Paliers de 10 : 80, 90, 100 … 170. Le 170 est un « 150 belotté » : il ne se tient qu'avec la belote (DEC-3) | ✅ |
-| ENC-4 | Toute enchère doit être strictement supérieure à la précédente. La générale domine le capot : au-dessus d'un capot, plus de contrat chiffré ; au-dessus d'une générale, plus rien | ✅ |
+| ENC-4 | Toute enchère doit être strictement supérieure à la précédente. Capot et générale sont au-dessus de tout contrat chiffré et **closent les enchères** sur-le-champ : plus rien par-dessus, pas même une générale sur un capot | ✅ |
 | ENC-5 | **Un joueur qui a passé peut reparler** à un tour suivant. Passer n'engage que pour le tour en cours | ✅ |
 | ENC-6 | Les enchères s'arrêtent après 3 passes consécutives suivant une enchère | ✅ |
 | ENC-7 | 4 passes d'emblée → on redonne (cf. DIS-3) | ✅ |
@@ -49,7 +49,7 @@ Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/gam
 
 | Id | Règle | État |
 |----|-------|------|
-| CO-1 | Un adversaire du preneur peut **coincher** : ×2. Aussi sur un capot ou une générale | ✅ |
+| CO-1 | Un adversaire du preneur peut **coincher** un contrat chiffré : ×2. **Un capot ou une générale ne se coinche pas** | ✅ |
 | CO-2 | Le camp du preneur (preneur ou partenaire) peut **surcoincher** : ×4 | ✅ |
 | CO-3 | **Coinche à la volée** : on peut coincher sans attendre son tour de parole — ou attendre son tour, au choix. Plus possible une fois le contrat fixé | ✅ |
 | CO-4 | Le multiplicateur porte sur **la valeur de l'enchère** (conséquence directe de DEC-1) | ✅ |

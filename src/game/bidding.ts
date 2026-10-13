@@ -36,7 +36,7 @@ export const newBidding = (dealer: PlayerId, seating: Seating): BiddingState => 
 
 /**
  * Rang d'une enchère, pour ENC-4 (toute enchère doit être strictement supérieure).
- * La générale domine le capot, même si les deux valent 250 au score.
+ * Capot et générale sont au-dessus de tout contrat chiffré, et closent les enchères.
  */
 export function rankOf(entry: ContractEntry): number {
   if (entry.kind === 'contract') return entry.value
@@ -89,12 +89,15 @@ export function outcome(state: BiddingState, rules: Rules = RULES): Outcome {
 
   if (!best) return trailingPasses(state) >= 4 ? { status: 'passed_out' } : { status: 'open' }
 
-  // La coinche ferme les enchères ; le camp du preneur peut encore surcoincher.
-  const closed = surcoinched(state)
-    ? true
-    : coinched(state)
-      ? state.entries.at(-1)!.kind === 'pass'
-      : trailingPasses(state) >= 3
+  // ENC-8, ENC-9 — un capot ou une générale clôt les enchères sur-le-champ : plus
+  // d'annonce par-dessus, ni de coinche (CO-1). La coinche ferme les enchères ; le camp
+  // du preneur peut encore surcoincher.
+  const closed =
+    best.kind !== 'contract' || surcoinched(state)
+      ? true
+      : coinched(state)
+        ? state.entries.at(-1)!.kind === 'pass'
+        : trailingPasses(state) >= 3
 
   if (!closed) return { status: 'open' }
 
@@ -147,17 +150,14 @@ export const canBidCapot = (state: BiddingState): boolean => {
   return !best || best.kind === 'contract'
 }
 
-export const canBidGenerale = (state: BiddingState): boolean => {
-  if (coinched(state)) return false
-  const best = highestBid(state)
-  return !best || best.kind !== 'generale'
-}
+/** ENC-4 — la générale ne se dit pas par-dessus un capot : le capot a clos les enchères. */
+export const canBidGenerale = canBidCapot
 
-/** CO-1, CO-3 — un adversaire du preneur peut coincher à tout moment. */
+/** CO-1, CO-3 — un adversaire du preneur peut coincher à tout moment un contrat chiffré. */
 export function canCoinche(state: BiddingState, player: PlayerId): boolean {
-  const t = taker(state)
-  if (!t || coinched(state)) return false
-  return teamOfPlayer(player, state.seating) !== teamOfPlayer(t, state.seating)
+  const best = highestBid(state)
+  if (!best || best.kind !== 'contract' || coinched(state)) return false
+  return teamOfPlayer(player, state.seating) !== teamOfPlayer(best.player, state.seating)
 }
 
 /** CO-2 — seul le camp du preneur peut surcoincher. */

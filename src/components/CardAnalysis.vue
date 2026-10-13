@@ -12,9 +12,23 @@ import type { Card } from '../game/cards'
 import CardText from './CardText.vue'
 import { nameOf } from '../stores/roster'
 import { SAMPLES, useCardAnalysis } from '../composables/useCardAnalysis'
+import { useSession } from '../stores/session'
 
 const props = defineProps<{ deal: ReviewedDeal; seating: Seating; me: PlayerId | null; us: 0 | 1 }>()
-const { judged, pendingAction, done, total, error, launch } = useCardAnalysis()
+const { judged: computedHere, pendingAction, done, total, error, launch } = useCardAnalysis()
+const session = useSession()
+
+/**
+ * L'analyse de cette donne : celle gardée en base si quelqu'un l'a déjà faite — moi ou
+ * un autre —, sinon celle qu'on vient de calculer ici.
+ */
+const judged = computed<JudgedCard[] | null>(
+  () => session.analyses.get(props.deal.number) ?? computedHere.value,
+)
+async function analyze(): Promise<void> {
+  const result = await launch(props.deal, props.seating)
+  if (result) await session.storeAnalysis(props.deal.number, result)
+}
 
 const QUALITIES: Record<Quality, { label: string; color: string; symbol: string }> = {
   best: { label: 'Meilleure', color: '#52a884', symbol: '!' },
@@ -94,7 +108,7 @@ const oddsOf = (j: JudgedCard, c: Card): number => Math.round(j.options.find((o)
       v-if="!judged && !pendingAction"
       type="button"
       class="mt-3 h-11 w-full cursor-pointer rounded-xl bg-gold text-sm font-bold text-felt transition hover:brightness-110"
-      @click="launch(deal, seating)"
+      @click="analyze"
     >
       Analyser chaque carte · une dizaine de secondes
     </button>
@@ -113,6 +127,9 @@ const oddsOf = (j: JudgedCard, c: Card): number => Math.round(j.options.find((o)
     <p v-if="error" class="mt-3 text-sm text-red-card">{{ error }}</p>
 
     <template v-if="judged">
+      <p v-if="session.analyses.has(deal.number)" class="mt-2 text-[11px] text-sage">
+        Analyse gardée pour les quatre joueurs : inutile de la relancer.
+      </p>
       <!-- Le bilan de chacun -->
       <table class="mt-3 w-full border-collapse text-[13px] tabular-nums">
         <thead>
