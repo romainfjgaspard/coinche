@@ -11,7 +11,6 @@ import PlayerChip from './PlayerChip.vue'
 import QuitGame from './QuitGame.vue'
 import BiddingHistory from './BiddingHistory.vue'
 import LastTrickCross from './LastTrickCross.vue'
-import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableState } from '../composables/useTableState'
 import { useTableLayout } from '../composables/useTableLayout'
 import { type Vector, useTrickMotion } from '../composables/useTrickMotion'
@@ -45,10 +44,9 @@ const {
   beloteOf,
 } = useTableState()
 
-/** Tailles de cartes : la table double de largeur sur un écran d'ordinateur. */
-const large = useLargeScreen()
-const backWidth = computed(() => (large.value ? 34 : 26))
-const trickWidth = computed(() => (large.value ? 44 : 50))
+/** Dos des cartes des autres joueurs : à moitié sortis de l'écran, comme tenus hors champ. */
+const BACK = 30
+const BACK_H = Math.round(BACK * 1.44)
 
 /**
  * Ma main, comme sur PC : de grandes cartes, coupées par le bas de l'écran comme
@@ -83,52 +81,53 @@ function beloteLift(card: Card): number {
   const withBelote = session.sortedHand.filter((x) => session.beloteCards.includes(x))
   return 30 * (withBelote.length - 1 - withBelote.indexOf(card))
 }
-/** Le bas du tapis : juste au-dessus de ma pastille, elle-même au-dessus de ma main. */
-const feltBottom = computed(() => visibleMain.value + 44)
 
 /**
- * Le tapis. Sur téléphone il déborde largement pour donner l'illusion d'une table
- * plus grande que l'écran.
+ * La table épurée, à la manière des applis de cartes : le tapis bord à bord, les mains
+ * des autres à moitié hors de l'écran, le dernier pli en vignette dans un coin. Toute la
+ * place va au pli en cours — le rebord de bois, les dos entiers et le dernier pli en grand
+ * en prenaient la moitié.
  */
-const felt = computed(() => `top: 11%; left: 2%; right: 2%; bottom: ${feltBottom.value}px;`)
-const rim = computed(() => `top: 14%; left: 5%; right: 5%; bottom: ${feltBottom.value + 24}px;`)
+/** Le haut de la zone du pli : sous la pastille de mon partenaire. */
+const TRICK_TOP = 122
+/** Le bas de la zone du pli : juste au-dessus de ma pastille. */
+const trickFloor = computed(() => visibleMain.value + 50)
 
-/**
- * Le pli en cours, remonté au-dessus du dernier pli : sur téléphone, le dernier pli
- * en grand prend le bas du tapis. Tant pis s'il n'est plus centré.
- */
-const tricksBottom = computed(() => feltBottom.value + 30)
-const lastTrickHeight = computed(() => 2 * Math.round(trickWidth.value * 1.44) + 5 + 44)
-const trickBottom = computed(() => tricksBottom.value + lastTrickHeight.value + 14)
-/** Le bas de mon partenaire (cartes retournées et nom, sous l'en-tête), plus une marge. */
-const TRICK_TOP = 200
-
-/**
- * Les cartes du pli en cours, sur téléphone : aussi grandes que le permet la place
- * entre mon partenaire et le dernier pli, et entre les deux adversaires. Elles se
- * chevauchent un peu, en croix, comme posées sur une vraie table : côte à côte sans se
- * toucher, elles restaient trop petites.
- */
 /** Les cartes de côté mordent à peine sur celles du haut et du bas : les index restent lisibles. */
 const SIDE_OVERLAP = 0.05
 /** Les cartes du haut et du bas, l'une au-dessus de l'autre, se chevauchent à peine. */
 const STACK = 1.92
+/** Aussi grandes que le permettent la largeur de l'écran et la hauteur libre. */
 const cardWidth = computed(() => {
-  if (large.value) return 78
-  const byHeight = (L.value.height - TRICK_TOP - trickBottom.value - 8) / (1.44 * STACK)
-  const byWidth = (width.value - 96) / (3 - 2 * SIDE_OVERLAP)
-  return Math.round(Math.max(54, Math.min(112, byHeight, byWidth)))
+  const byHeight = (L.value.height - TRICK_TOP - trickFloor.value) / (1.44 * STACK)
+  const byWidth = (width.value - 20) / (3 - 2 * SIDE_OVERLAP)
+  return Math.round(Math.max(54, Math.min(132, byHeight, byWidth)))
 })
 const cardHeight = computed(() => Math.round(cardWidth.value * 1.44))
-const trickBox = computed(() => ({
-  w: Math.round(cardWidth.value * (3 - 2 * SIDE_OVERLAP)),
-  h: Math.round(cardHeight.value * STACK),
-}))
+const trickBox = computed(() => {
+  const w = Math.round(cardWidth.value * (3 - 2 * SIDE_OVERLAP))
+  const h = Math.round(cardHeight.value * STACK)
+  // Centré dans la hauteur libre, entre mon partenaire et ma pastille.
+  const free = L.value.height - TRICK_TOP - trickFloor.value
+  const top = TRICK_TOP + Math.max(0, Math.round((free - h) / 2))
+  return { w, h, top, left: Math.round(width.value / 2 - w / 2) }
+})
 const currentTrick = computed(() => ({
   width: `${trickBox.value.w}px`,
   height: `${trickBox.value.h}px`,
-  bottom: `${trickBottom.value}px`,
+  top: `${trickBox.value.top}px`,
 }))
+/** Le milieu vertical du pli, où se tiennent les mains des adversaires. */
+const middle = computed(() => trickBox.value.top + trickBox.value.h / 2)
+/** Le nom des adversaires, au-dessus de leur main, sans mordre sur la carte de côté. */
+const sideChipTop = computed(() =>
+  Math.round(Math.min(middle.value - backsLength(8) / 2, middle.value - cardHeight.value / 2) - 40),
+)
+/** Hauteur d'une main de côté : les dos se recouvrent, on n'en voit qu'une bande. */
+function backsLength(n: number): number {
+  return BACK + Math.max(0, n - 1) * 12
+}
+
 /** Le centre de chaque carte du pli, dans le cadre du pli. */
 const trickCenters = computed<Record<Spot, Vector>>(() => {
   const { w, h } = trickBox.value
@@ -151,49 +150,38 @@ const trickStyle = (spot: Spot) => {
 }
 /** D'où vient chaque carte : la main de son joueur, dans le même repère que le pli. */
 const origins = computed<Record<Spot, Vector>>(() => {
-  const { w, h } = trickBox.value
+  const { left, top } = trickBox.value
   const c = trickCenters.value
-  // Le cadre du pli dans la colonne : centré, son bas à `trickBottom` du bas de l'écran.
-  const boxLeft = width.value / 2 - w / 2
-  const boxTop = L.value.height - trickBottom.value - h
   return {
-    me: { x: 0, y: L.value.height - visibleMain.value / 2 - (boxTop + c.me.y) },
-    top: { x: 0, y: 130 - (boxTop + c.top.y) },
-    left: { x: 24 - (boxLeft + c.left.x), y: 0 },
-    right: { x: width.value - 24 - (boxLeft + c.right.x), y: 0 },
+    me: { x: 0, y: L.value.height - visibleMain.value / 2 - (top + c.me.y) },
+    top: { x: 0, y: 40 - (top + c.top.y) },
+    left: { x: -10 - (left + c.left.x), y: 0 },
+    right: { x: width.value + 10 - (left + c.right.x), y: 0 },
   }
 })
 const motion = useTrickMotion(origins, trickCenters)
 const spots: Spot[] = ['top', 'left', 'right', 'me']
-/**
- * Les adversaires, nom juste au-dessus du dernier pli : à mi-écran ils tombaient
- * dessus, et à hauteur du pli en cours leur nom mordait sur la carte de côté.
- */
-const sidePanel = computed(() => ({ bottom: `${tricksBottom.value + lastTrickHeight.value + 2}px` }))
+
+/** Le dernier pli, en vignette ; une touche l'agrandit. */
+const lastTrickOpen = ref(false)
+const playing = computed(() => session.game?.phase !== 'bidding')
 </script>
 
 <template>
   <div class="relative h-full overflow-hidden bg-[#071d15] text-ivory">
-    <!-- Tapis : feutre tissé, rebord de bois, liseré cousu -->
+    <!-- Tapis : feutre tissé, bord à bord sous le bandeau -->
     <div
-      class="absolute rounded-[28px] border-[13px] border-[#33241a] shadow-[inset_0_0_0_3px_rgba(217,164,65,.22),inset_0_26px_64px_rgba(0,0,0,.3),0_22px_54px_rgba(0,0,0,.55)] lg:rounded-[40px] lg:border-[16px]"
-      :style="
-        felt +
-        `
+      class="absolute inset-x-0 top-14 bottom-0 shadow-[inset_0_26px_64px_rgba(0,0,0,.3)]"
+      style="
         background-color: #15583f;
         background-image:
-          repeating-linear-gradient(45deg, rgba(255,255,255,.028) 0 2px, transparent 2px 5px),
-          repeating-linear-gradient(-45deg, rgba(0,0,0,.055) 0 2px, transparent 2px 5px);
-      `
+          repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.028) 0 2px, transparent 2px 5px),
+          repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.055) 0 2px, transparent 2px 5px);
       "
-    ></div>
-    <div
-      class="absolute rounded-[18px] border border-dashed border-gold/30 lg:rounded-[26px]"
-      :style="rim"
     ></div>
 
     <!-- Bandeau : donne, scores -->
-    <header class="absolute inset-x-0 top-0 flex h-14 items-center gap-2 bg-felt-dark px-3 lg:h-16 lg:px-8">
+    <header class="absolute inset-x-0 top-0 z-30 flex h-14 items-center gap-2 bg-felt-dark px-3">
       <QuitGame />
       <!-- Le numéro de donne passe au-dessus des scores : à gauche, la place va à « Quitter » -->
       <div class="flex grow flex-col items-center">
@@ -249,37 +237,39 @@ const sidePanel = computed(() => ({ bottom: `${tricksBottom.value + lastTrickHei
       </button>
     </header>
 
-    <!-- Contrat en cours -->
-    <div v-if="contract" class="absolute inset-x-0 top-16 flex justify-center">
-      <button
-        type="button"
-        class="flex cursor-pointer items-center gap-2 rounded-full border border-gold/50 bg-gold/15 py-1 pl-1.5 pr-3.5"
-        aria-label="Voir l'historique des enchères"
-        @click="bidsVisible = true"
+    <!-- Contrat en cours, discret, en haut à droite : toucher rouvre l'historique des enchères -->
+    <button
+      v-if="contract"
+      type="button"
+      class="absolute top-[62px] right-2 z-20 flex max-w-[132px] cursor-pointer items-center gap-1.5 rounded-full border border-gold/50 bg-felt-dark/85 py-0.5 pr-2.5 pl-0.5"
+      aria-label="Voir l'historique des enchères"
+      @click="bidsVisible = true"
+    >
+      <SuitBadge :suit="contract.declaration" :size="24" />
+      <span class="text-sm font-bold text-gold">{{ contractLabel }}</span>
+      <span
+        v-if="contract.multiplier > 1"
+        class="rounded-full bg-red-card px-1.5 text-[10px] font-bold text-ivory"
+        >×{{ contract.multiplier }}</span
       >
-        <!-- Le symbole sur fond ivoire, comme sur une carte : noir sur le tapis, il disparaissait -->
-        <SuitBadge :suit="contract.declaration" :size="28" />
-        <span class="text-sm font-bold text-gold">{{ contractLabel }}</span>
-        <span class="text-xs text-mist">par {{ nameOf(contract.taker) }}</span>
-        <span
-          v-if="contract.multiplier > 1"
-          class="rounded-full bg-red-card px-2 py-0.5 text-[11px] font-bold tracking-wide text-ivory"
-          >{{ contract.multiplier === 4 ? 'SURCOINCHÉ ×4' : 'COINCHÉ ×2' }}</span
-        >
-        <span class="text-[11px] text-sage" aria-hidden="true">▾</span>
-      </button>
-    </div>
+      <span class="truncate text-[11px] text-mist">{{ nameOf(contract.taker) }}</span>
+    </button>
 
     <!-- L'historique des enchères, par-dessus la table, jusqu'à ce qu'on le ferme -->
     <ModalDialog v-if="bidsVisible && contract" @close="bidsVisible = false">
       <BiddingHistory />
     </ModalDialog>
 
-    <!-- Partenaire, en face -->
-    <div class="absolute inset-x-0 top-28 flex flex-col items-center gap-1.5 lg:top-36 lg:gap-3">
-      <div class="flex">
-        <CardBack v-for="i in remaining(around.top)" :key="i" :width="backWidth" class="-ml-2.5" />
-      </div>
+    <!-- Partenaire, en face : ses cartes dépassent à peine sous le bandeau -->
+    <div class="absolute inset-x-0 flex justify-center" :style="{ top: `${56 - Math.round(BACK_H / 2)}px` }">
+      <CardBack
+        v-for="i in remaining(around.top)"
+        :key="i"
+        :width="BACK"
+        :style="{ marginLeft: i === 1 ? '0' : '-16px' }"
+      />
+    </div>
+    <div class="absolute inset-x-0 top-[80px] z-10 flex justify-center">
       <PlayerChip
         :player="around.top"
         :dealer="session.game?.dealer === around.top"
@@ -290,39 +280,38 @@ const sidePanel = computed(() => ({ bottom: `${tricksBottom.value + lastTrickHei
       />
     </div>
 
-    <!-- Adversaires, sur les côtés -->
-    <div
-      :style="large ? undefined : sidePanel"
-      class="absolute left-2 flex flex-col items-center gap-1.5 lg:top-1/2 lg:-translate-y-1/2 lg:left-[5%] lg:gap-3"
-    >
-      <div class="flex flex-col max-lg:ml-3 max-lg:self-start">
-        <CardBack v-for="i in remaining(around.left)" :key="i" :width="backWidth" rotated class="-mt-2.5" />
+    <!-- Adversaires : leurs cartes à moitié hors de l'écran, leur nom juste au-dessus -->
+    <template v-for="side in ['left', 'right'] as const" :key="side">
+      <div
+        class="absolute flex flex-col"
+        :style="{
+          [side]: `${-Math.round(BACK_H / 2)}px`,
+          top: `${Math.round(middle - backsLength(remaining(around[side])) / 2)}px`,
+        }"
+      >
+        <CardBack
+          v-for="i in remaining(around[side])"
+          :key="i"
+          :width="BACK"
+          rotated
+          :style="{ marginTop: i === 1 ? '0' : `${12 - BACK}px` }"
+        />
       </div>
-      <PlayerChip
-        :player="around.left"
-        :dealer="session.game?.dealer === around.left"
-        :active="session.toPlay === around.left || session.toBid === around.left"
-        :stars="starsOf(around.left)"
-        :belote="beloteOf(around.left)"
-        :bid="lastBid.get(around.left)"
-      />
-    </div>
-    <div
-      :style="large ? undefined : sidePanel"
-      class="absolute right-2 flex flex-col items-center gap-1.5 lg:top-1/2 lg:-translate-y-1/2 lg:right-[5%] lg:gap-3"
-    >
-      <div class="flex flex-col max-lg:mr-3 max-lg:self-end">
-        <CardBack v-for="i in remaining(around.right)" :key="i" :width="backWidth" rotated class="-mt-2.5" />
+      <div
+        class="absolute z-10 flex flex-col gap-1"
+        :class="side === 'left' ? 'items-start' : 'items-end'"
+        :style="{ [side]: '6px', top: `${sideChipTop}px` }"
+      >
+        <PlayerChip
+          :player="around[side]"
+          :dealer="session.game?.dealer === around[side]"
+          :active="session.toPlay === around[side] || session.toBid === around[side]"
+          :stars="starsOf(around[side])"
+          :belote="beloteOf(around[side])"
+          :bid="lastBid.get(around[side])"
+        />
       </div>
-      <PlayerChip
-        :player="around.right"
-        :dealer="session.game?.dealer === around.right"
-        :active="session.toPlay === around.right || session.toBid === around.right"
-        :stars="starsOf(around.right)"
-        :belote="beloteOf(around.right)"
-        :bid="lastBid.get(around.right)"
-      />
-    </div>
+    </template>
 
     <!-- Le pli en cours : chaque carte arrive de son joueur, le pli part vers qui le remporte -->
     <div class="absolute left-1/2 -translate-x-1/2" :style="currentTrick">
@@ -350,39 +339,39 @@ const sidePanel = computed(() => ({ bottom: `${tricksBottom.value + lastTrickHei
       </template>
     </div>
 
-    <!-- Dernier pli et plis de la donne, dans le tapis en bas à droite : comme sur PC -->
-    <div
-      v-if="session.game?.phase !== 'bidding'"
-      class="absolute right-[7%] flex items-end gap-3.5"
-      :style="{ bottom: `${tricksBottom}px` }"
+    <!-- Le dernier pli en vignette, en bas à gauche : une touche l'agrandit -->
+    <button
+      v-if="playing && session.lastTrick"
+      type="button"
+      class="absolute left-2 z-20 flex cursor-pointer flex-col items-start gap-0.5 rounded-lg p-1 transition active:bg-white/10"
+      :style="{ bottom: `${visibleMain + 46}px` }"
+      aria-label="Voir le dernier pli"
+      @click="lastTrickOpen = true"
     >
-      <div class="flex flex-col gap-1">
-        <span class="text-[10px] tracking-widest text-sage">DERNIER PLI</span>
-        <!-- En croix : chaque carte à la place de celui qui l'a jouée -->
-        <LastTrickCross v-if="session.lastTrick" :trick="session.lastTrick" :width="trickWidth" />
-        <span v-else class="flex h-[149px] w-[160px] items-center text-[11px] text-sage">aucun pli joué</span>
-        <span class="h-4 text-[11px] text-mist">
-          <template v-if="session.lastTrick">
-            pris par <span class="font-semibold text-gold">{{ nameOf(session.lastTrick.winner) }}</span>
-          </template>
-        </span>
+      <span class="text-[9px] tracking-widest text-sage">DERNIER PLI</span>
+      <LastTrickCross :trick="session.lastTrick" :width="28" />
+    </button>
+    <ModalDialog v-if="lastTrickOpen && session.lastTrick" title="Dernier pli" @close="lastTrickOpen = false">
+      <div class="flex flex-col items-center gap-3">
+        <LastTrickCross :trick="session.lastTrick" :width="68" />
+        <p class="text-sm text-mist">
+          pris par <span class="font-semibold text-gold">{{ nameOf(session.lastTrick.winner) }}</span>
+        </p>
       </div>
-      <div class="flex flex-col gap-0.5 pb-4">
-        <span class="text-[10px] tracking-widest text-sage">PLIS</span>
-        <div
-          v-for="(row, i) in [
-            { team: 'Nous', count: session.trickCounts[session.myTeam], color: 'text-gold' },
-            { team: 'Eux', count: session.trickCounts[session.myTeam === 0 ? 1 : 0], color: 'text-them' },
-          ]"
-          :key="i"
-          class="flex items-center gap-2"
-        >
-          <span class="w-9 text-xs font-semibold" :class="row.color">{{ row.team }}</span>
-          <span class="w-4 text-right font-display text-xl leading-none tabular-nums" :class="row.color">{{
-            row.count
-          }}</span>
-        </div>
-      </div>
+    </ModalDialog>
+
+    <!-- Les plis de la donne, en bas à droite -->
+    <div
+      v-if="playing && session.play"
+      class="absolute right-3 z-20 flex flex-col items-end gap-0.5"
+      :style="{ bottom: `${visibleMain + 50}px` }"
+    >
+      <span class="text-[9px] tracking-widest text-sage">PLIS</span>
+      <span class="flex items-baseline gap-1.5 font-display text-lg leading-none tabular-nums">
+        <span class="text-gold" title="Nous">{{ session.trickCounts[session.myTeam] }}</span>
+        <span class="text-xs text-dusk">·</span>
+        <span class="text-them" title="Eux">{{ session.trickCounts[session.myTeam === 0 ? 1 : 0] }}</span>
+      </span>
     </div>
 
     <!-- Moi, entre le tapis et ma main -->
