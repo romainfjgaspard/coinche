@@ -11,6 +11,7 @@ import type { PlayerId } from '../game/players'
 import {
   ConcurrentWrite,
   type GameDoc,
+  type KnownState,
   allSeatsTaken,
   answerUndo as answerUndoInDb,
   cancelGame,
@@ -193,7 +194,9 @@ export const useSession = defineStore('session', () => {
     const r = game.value?.phase === 'bidding' ? lastRefusal(events.value) : null
     return r && r.player === playerId.value ? r.by : null
   })
-  const myBidTurn = computed(() => toBid.value !== null && toBid.value === playerId.value)
+  const myBidTurn = computed(
+    () => toBid.value !== null && toBid.value === playerId.value && !bidSending.value,
+  )
   const bidValues = computed(() => (bidding.value ? legalValues(bidding.value) : []))
   // Seulement pendant les enchères : l'historique des annonces reste lisible une fois le
   // contrat fixé, et le bouton « Coincher », sorti du panneau, restait affiché en plein jeu.
@@ -220,8 +223,23 @@ export const useSession = defineStore('session', () => {
   const play = computed(() =>
     game.value ? playFromEvents(events.value, game.value.dealer, seating.value) : null,
   )
+  /** Ma carte en route vers le serveur : déjà sur le tapis à l'écran, plus dans ma main. */
+  const sendingCard = ref<Card | null>(null)
+  // Dès que le journal la montre posée, ou que la donne change, l'affichage rejoint le réel.
+  watch([events, () => game.value?.dealNumber], () => {
+    const c = sendingCard.value
+    if (
+      c &&
+      (play.value?.current.some((x) => x.card === c) ||
+        play.value?.completed.some((t) => t.plays.some((x) => x.card === c)) ||
+        !play.value)
+    )
+      sendingCard.value = null
+  })
   const toPlay = computed(() => (play.value ? currentPlayer(play.value) : null))
-  const myPlayTurn = computed(() => toPlay.value !== null && toPlay.value === playerId.value)
+  const myPlayTurn = computed(
+    () => toPlay.value !== null && toPlay.value === playerId.value && !sendingCard.value,
+  )
   const playable = computed(() =>
     play.value && playerId.value ? playableFor(play.value, playerId.value, hand.value) : [],
   )
@@ -245,7 +263,12 @@ export const useSession = defineStore('session', () => {
   const trickClosed = computed(() => play.value?.completed.at(-1) ?? null)
 
   /** Ma main, triée pour l'affichage : atout en tête dès qu'il est connu. */
-  const sortedHand = computed(() => sortHand(hand.value, play.value?.trump ?? null))
+  const sortedHand = computed(() =>
+    sortHand(
+      hand.value.filter((c) => c !== sendingCard.value),
+      play.value?.trump ?? null,
+    ),
+  )
 
   /**
    * Le pli qui vient de se fermer, laissé sur le tapis `TRICK_VISIBLE_MS` : sans cette
@@ -271,7 +294,11 @@ export const useSession = defineStore('session', () => {
 
   /** Ce que le tapis montre : le pli en cours, sinon celui qu'on vient de ramasser. */
   const shownTrick = computed(() => {
-    const current = play.value?.current ?? []
+    const pending =
+      sendingCard.value && playerId.value && !play.value?.current.some((x) => x.card === sendingCard.value)
+        ? [{ player: playerId.value, card: sendingCard.value }]
+        : []
+    const current = [...(play.value?.current ?? []), ...pending]
     if (current.length > 0) return { plays: current, winner: null as PlayerId | null }
     if (heldTrick.value) return { plays: heldTrick.value.plays, winner: heldTrick.value.winner }
     return { plays: [], winner: null as PlayerId | null }
@@ -622,11 +649,23 @@ export const useSession = defineStore('session', () => {
     await run(() => setSeating(code.value!, next, playerId.value!))
   }
 
+  /** Ce que l'onglet sait déjà : l'écriture n'a pas à le relire (voir `KnownState`). */
+  const known = (): KnownState | undefined =>
+    game.value ? { game: game.value, events: events.value, hand: hand.value } : undefined
+
+  /** Mon annonce part : le panneau se ferme aussitôt, sans attendre la réponse du serveur. */
+  const bidSending = ref(false)
   async function bid(entry: BiddingEntry): Promise<void> {
     if (!code.value) return
     // La coinche se prend hors tour : pas de temps de réflexion qui ait un sens.
     const outOfTurn = entry.kind === 'coinche' || entry.kind === 'surcoinche'
-    await run(() => placeBid(code.value!, entry, undefined, outOfTurn ? undefined : thinkTimeNow()))
+    const think = outOfTurn ? undefined : thinkTimeNow()
+    bidSending.value = true
+    try {
+      await run(() => placeBid(code.value!, entry, undefined, think, known()))
+    } finally {
+      bidSending.value = false
+    }
   }
 
   /** Garde l'analyse d'une donne pour les quatre : personne n'aura à la relancer. */
@@ -659,8 +698,17 @@ export const useSession = defineStore('session', () => {
     const key = cardKey(card)
     if (inFlight.has(key)) return
     inFlight.add(key)
+    // La carte quitte ma main et file vers le tapis dès la touche : sur un téléphone, la
+    // réponse du serveur se faisait attendre et la carte restait sous le doigt.
+    sendingCard.value = card
     try {
-      await run(() => playCard(code.value!, playerId.value!, card, declareBelote, undefined, thinkMs))
+      const done = await run(async () => {
+        await playCard(code.value!, playerId.value!, card, declareBelote, undefined, thinkMs, known())
+        return true
+      })
+      // Refusée : elle revient dans la main. Acceptée : elle reste posée jusqu'à ce que le
+      // journal la montre, pour ne pas revenir en main un instant.
+      if (!done && sendingCard.value === card) sendingCard.value = null
     } finally {
       inFlight.delete(key)
     }

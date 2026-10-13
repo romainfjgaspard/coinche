@@ -590,15 +590,24 @@ export async function placeBid(
   entry: BiddingEntry,
   c: Client = mainClient,
   thinkMs?: number,
+  known?: KnownState,
 ): Promise<void> {
-  const snap = await getDoc(gameRef(code, c))
-  if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
-  const game = snap.data() as GameDoc
+  let game: GameDoc
+  let events: GameEvent[]
+  let seenMoves: number
+  if (usable(known)) {
+    ;({ game, events } = known)
+    seenMoves = game.moveSeq
+  } else {
+    const snap = await getDoc(gameRef(code, c))
+    if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
+    game = snap.data() as GameDoc
+    events = await readJournal(code, c)
+    seenMoves = moveCount(events)
+  }
   // Une enchère — coinche comprise — n'a de sens que pendant les enchères.
   if (game.phase !== 'bidding') throw new Error('Les enchères sont closes')
 
-  const events = await readJournal(code, c)
-  const seenMoves = moveCount(events)
   // Pendant le vote d'une annulation, tout le monde attend : la parole peut revenir en arrière.
   if (pendingUndo(events)) throw new Error("Une annulation d'enchère est en cours de vote")
   const before = biddingFromEvents(events, game.dealer, tableOf(game))
@@ -722,6 +731,34 @@ export async function answerUndo(
   }
 }
 
+/**
+ * Ce que l'onglet sait déjà, par ses écoutes en direct : la partie, le journal et la main.
+ * Le passer évite de tout relire avant d'écrire — trois allers-retours avec Firestore,
+ * qui se sentaient à chaque carte sur un téléphone en 4G.
+ */
+export interface KnownState {
+  game: GameDoc
+  /** Le journal tel que l'onglet le lit (enchères annulées déjà retirées) */
+  events: GameEvent[]
+  hand?: Card[]
+}
+
+/**
+ * L'état connu n'est utilisable que s'il est cohérent : le journal reçu va jusqu'au
+ * dernier événement de la partie, et la main ne contient aucune carte déjà posée. Sinon
+ * une écoute est en retard, et l'on relit comme avant. La transaction, elle, refuse de
+ * toute façon un coup fondé sur un compteur de coups dépassé.
+ */
+function usable(known: KnownState | undefined, player?: PlayerId): known is KnownState {
+  if (!known || known.events.at(-1)?.seq !== known.game.eventSeq) return false
+  if (!player) return true
+  const hand = known.hand ?? []
+  const deal = currentDeal(known.events)
+  const played = new Set(deal.flatMap((e) => (e.type === 'card_played' ? [e.card] : [])))
+  const mine = deal.filter((e) => e.type === 'card_played' && e.player === player).length
+  return hand.length === 8 - mine && !hand.some((h) => played.has(h))
+}
+
 /** Le contrat de la donne en cours, tel que le journal l'a fixé. */
 function contractFrom(events: GameEvent[], seating: Seating): Contract | null {
   const e = [...currentDeal(events)].reverse().find((x) => x.type === 'contract_set')
@@ -750,17 +787,29 @@ export async function playCard(
   declareBelote = false,
   c: Client = mainClient,
   thinkMs?: number,
+  known?: KnownState,
 ): Promise<void> {
-  const snap = await getDoc(gameRef(code, c))
-  if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
-  const game = snap.data() as GameDoc
-
-  const events = await readJournal(code, c)
+  let game: GameDoc
+  let events: GameEvent[]
+  let hand: Card[]
+  /** Le compteur de coups attendu par la transaction : c'est lui qui garde contre une course. */
+  let moves: number
+  if (usable(known, player)) {
+    ;({ game, events } = known)
+    hand = known.hand!
+    moves = game.moveSeq
+  } else {
+    const snap = await getDoc(gameRef(code, c))
+    if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
+    game = snap.data() as GameDoc
+    events = await readJournal(code, c)
+    hand = ((await getDoc(handRef(code, player, c))).data()?.cards ?? []) as Card[]
+    moves = moveCount(events)
+  }
   const before = playFromEvents(events, game.dealer, tableOf(game))
   const contract = contractFrom(events, tableOf(game))
   if (!before || !contract) throw new Error('Aucun contrat en cours')
 
-  const hand = ((await getDoc(handRef(code, player, c))).data()?.cards ?? []) as Card[]
   const after = play(before, player, card, hand) // lève IllegalPlay si le coup est interdit
   // BEL-2 — vérifiée avant toute écriture : refusée après coup, elle laissait la carte au
   // journal sans la retirer de la main, ni fermer le pli.
@@ -781,7 +830,7 @@ export async function playCard(
       position: before.current.length,
       ...thinkTime(thinkMs),
     },
-    moveCount(events),
+    moves,
     { extraWrites: (tx) => tx.set(handRef(code, player, c), { cards: hand.filter((h) => h !== card) }) },
   )
   // BEL-2 — l'annonce est un geste volontaire, au moment de poser la carte.
