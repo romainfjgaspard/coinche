@@ -25,12 +25,28 @@ async function open(name) {
   const p = await ctx.newPage()
   p.on('pageerror', (e) => errors.push(`${name}: ${e}`))
   p.on('response', (r) => {
-    if (r.status() >= 400)
-      errors.push(
-        `${name}: HTTP ${r.status()} ${r.request().method()} ${r.url().slice(0, 160)} @${new Date().toISOString().slice(11, 19)}`,
-      )
+    if (r.status() < 400) return
+    let what
+    try {
+      const body = JSON.parse(r.request().postData() ?? '{}')
+      what = (body.writes ?? [])
+        .map((w) => {
+          const doc = (w.update?.name ?? '').split('/documents/')[1] ?? ''
+          const f = w.update?.fields ?? {}
+          const type = f.type?.stringValue
+          const seq = f.seq?.integerValue
+          return `${doc.replace(/^games\/[A-Z]+\/?/, '')}${type ? ' ' + type : ''}${seq ? ' seq ' + seq : ''} [${Object.keys(f).slice(0, 7).join(',')}]`
+        })
+        .join(' + ')
+    } catch {
+      what = '(corps illisible)'
+    }
+    errors.push(`${name}: HTTP ${r.status()} ${new Date().toISOString().slice(11, 19)} ${what}`)
   })
-  p.on('console', (m) => m.type() === 'error' && errors.push(`${name}: ${m.text()}`))
+  p.on(
+    'console',
+    (m) => (m.type() === 'error' || m.text().startsWith('[refus]')) && errors.push(`${name}: ${m.text()}`),
+  )
   await p.goto(URL, { waitUntil: 'domcontentloaded' })
   return { name, p }
 }
