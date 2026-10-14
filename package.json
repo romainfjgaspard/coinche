@@ -13,6 +13,7 @@
     "test:rules": "firebase emulators:exec --only firestore,auth \"vitest run tests/ --no-file-parallelism\"",
     "test:e2e": "node tests/e2e.mjs",
     "test:apercu": "node tests/apercu.mjs",
+    "test:lectures": "node tests/lectures.mjs",
     "test:bot": "node tests/bot.mjs",
     "dev:emu": "vite --mode emu",
     "seed:stats": "vitest run -c scripts/vitest.config.ts history",

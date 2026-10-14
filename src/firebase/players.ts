@@ -4,7 +4,8 @@
  * Un joueur ajouté ne disparaît jamais : ses statistiques portent son identifiant.
  * Les règles Firestore l'imposent (création seule, jamais de modification).
  */
-import { type Timestamp, collection, doc, getDocs, runTransaction, serverTimestamp } from 'firebase/firestore'
+import { type Timestamp, collection, doc, serverTimestamp } from 'firebase/firestore'
+import { getDocs, runTransaction } from './meter'
 import { PLAYER_IDS, PLAYER_NAMES, type PlayerId, playerIdFrom } from '../game/players'
 import { type Client, mainClient } from './app'
 import { signIn } from './game'

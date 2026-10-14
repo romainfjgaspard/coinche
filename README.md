@@ -70,7 +70,7 @@ l'émulateur dès que le mode est `test`.
 
 Parcours dans de vrais navigateurs (Playwright), avec l'émulateur et `npm run dev:emu` déjà lancés :
 `npm run test:e2e` (partie complète à quatre), `npm run test:bot` (un humain, trois bots),
-`npm run test:apercu` (captures des stats), `node tests/audit.mjs` (revue d'affichage). Captures dans
+`npm run test:apercu` (captures des stats), `npm run test:lectures` (lectures Firestore d'une partie, voir `docs/MODELE-DONNEES.md`), `node tests/audit.mjs` (revue d'affichage). Captures dans
 `captures/` (ignoré par git), ou dans `$env:OUT_DIR`. Chromium s'installe avec
 `npx playwright install chromium`.
 

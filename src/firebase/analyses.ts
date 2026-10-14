@@ -6,7 +6,8 @@
  * Une analyse par donne, sous la partie : `games/{code}/analyses/{donne}`. La première
  * écrite fait foi ; les règles interdisent de la réécrire.
  */
-import { collection, doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
+import { collection, doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { onSnapshot } from './meter'
 import { type Client, mainClient } from './app'
 import type { JudgedCard } from '../game/cardAnalysis'
 import type { PlayerId } from '../game/players'
