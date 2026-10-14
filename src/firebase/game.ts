@@ -313,6 +313,31 @@ export async function createGame(
 }
 
 /** On ne saisit pas un pseudo : on choisit qui on est dans la liste des joueurs. */
+/**
+ * Reprendre son siège depuis un autre appareil : la session d'origine est perdue (autre
+ * téléphone, données du site effacées) et le siège lui reste attaché. Seulement pour un
+ * siège humain, une partie commencée et pas finie ; l'ancienne session perd l'accès à la main.
+ */
+export async function moveSeat(code: string, player: PlayerId, c: Client = mainClient): Promise<void> {
+  const uid = await signIn(c)
+  await runTransaction(c.db, async (tx) => {
+    const snap = await tx.get(gameRef(code, c))
+    if (!snap.exists()) throw new Error(`Partie ${code} introuvable`)
+    const game = snap.data() as GameDoc
+    const seat = game.seats[player]
+    if (!seat) throw new Error("Ce siège n'est pas occupé : rejoins simplement la partie")
+    if (seat.uid === uid) return
+    if (seat.bot) throw new Error('Un bot tient ce siège')
+    if (game.dealNumber === 0 || game.phase === 'finished' || game.phase === 'cancelled')
+      throw new Error('Ce siège est déjà pris')
+    tx.update(gameRef(code, c), {
+      [`seats.${player}`]: { uid, formerUid: seat.uid, ...(seat.botAssisted ? { botAssisted: true } : {}) },
+      seatedUids: arrayUnion(uid),
+      lastSeat: player,
+    })
+  })
+}
+
 export async function takeSeat(
   code: string,
   player: PlayerId,

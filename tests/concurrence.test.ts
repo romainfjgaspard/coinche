@@ -20,6 +20,7 @@ import {
   createGame,
   deal,
   gameRef,
+  moveSeat,
   placeBid,
   readEvents,
   readJournal,
@@ -356,5 +357,42 @@ describe('analyses gardées pour les quatre', () => {
         at: serverTimestamp(),
       }),
     ).rejects.toThrow()
+  }, 30_000)
+})
+
+describe('reprendre sa place depuis un autre appareil', () => {
+  it('une fois la partie commencée, sa main suit le nouvel appareil', async () => {
+    const clients = await fourClients()
+    const code = await newGame(clients)
+    for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
+    await deal(code, null, clients.benel)
+
+    const newPhone = await makeClient(`autre-appareil-${n}`)
+    await signIn(newPhone)
+    await moveSeat(code, 'viv', newPhone)
+
+    const game = (await getDoc(gameRef(code, newPhone))).data() as GameDoc
+    expect(game.seats.viv).toMatchObject({
+      uid: await signIn(newPhone),
+      formerUid: await signIn(clients.viv),
+    })
+    const hand = await getDoc(doc(newPhone.db, 'games', code, 'hands', 'viv'))
+    expect(hand.data()?.cards).toHaveLength(8)
+    // L'ancien appareil ne lit plus la main.
+    await expect(getDoc(doc(clients.viv.db, 'games', code, 'hands', 'viv'))).rejects.toThrow()
+  }, 30_000)
+
+  it("pas avant la première donne, ni sur le siège d'un bot", async () => {
+    const clients = await fourClients()
+    const code = await newGame(clients)
+    await takeSeat(code, 'viv', clients.viv)
+    const stranger = await makeClient(`intrus-${n}`)
+    await signIn(stranger)
+    await expect(moveSeat(code, 'viv', stranger)).rejects.toThrow()
+
+    await takeSeat(code, 'roux', clients.benel, true, 'basic')
+    await takeSeat(code, 'romain', clients.romain)
+    await deal(code, null, clients.benel)
+    await expect(moveSeat(code, 'roux', stranger)).rejects.toThrow()
   }, 30_000)
 })

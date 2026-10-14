@@ -86,6 +86,25 @@ onBeforeUnmount(() => {
             Le remplacer par un bot
           </button>
         </div>
+        <!-- Ma place, reprise depuis un autre appareil -->
+        <div
+          v-if="session.movedAway"
+          class="absolute inset-x-0 top-14 bottom-0 z-50 flex items-center justify-center bg-black/60 px-6 lg:top-16"
+        >
+          <div
+            class="w-full max-w-xs rounded-2xl border border-white/10 bg-felt-dark px-6 py-5 text-center shadow-2xl lg:max-w-sm lg:py-7"
+          >
+            <p class="font-display text-2xl lg:text-3xl">Partie reprise ailleurs</p>
+            <p class="mt-1.5 text-sm text-sage">Ta place joue maintenant depuis un autre appareil.</p>
+            <button
+              type="button"
+              class="mt-5 h-12 w-full cursor-pointer rounded-xl border border-white/20 text-[15px] font-semibold text-mist"
+              @click="session.leave()"
+            >
+              Revenir à l'accueil
+            </button>
+          </div>
+        </div>
         <!-- Ma place, prise par un bot pendant mon absence -->
         <div
           v-if="session.seatTaken"

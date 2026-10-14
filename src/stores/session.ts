@@ -18,6 +18,7 @@ import {
   createGame,
   deal,
   gameRef,
+  moveSeat,
   placeBid,
   playCard,
   readArchives,
@@ -157,13 +158,20 @@ export const useSession = defineStore('session', () => {
       (g) => (game.value = g),
       mainClient,
       (reason) => {
-        // La partie mémorisée n'est plus lisible : retour à l'accueil, avec un mot.
         if (code.value !== gameCode) return
-        leave()
-        opinion.value =
-          reason === 'absent'
-            ? `La partie ${gameCode} n'existe plus.`
-            : `Impossible de rejoindre la partie ${gameCode}.`
+        // La partie n'existe pas : retour à l'accueil, avec un mot.
+        if (reason === 'absent') {
+          leave()
+          opinion.value = `La partie ${gameCode} n'existe plus.`
+          return
+        }
+        // Écoute coupée (réseau, quota Firestore dépassé…) : on garde la partie et on
+        // réessaie. Renvoyer à l'accueil faisait oublier le code, et la partie en cours
+        // devenait introuvable — c'est arrivé le 13/10 au soir, quota épuisé.
+        error.value = 'Connexion à la partie perdue — nouvelle tentative…'
+        setTimeout(() => {
+          if (code.value === gameCode) subscribe(gameCode)
+        }, 5000)
       },
     )
     // Les enchères annulées sur vote sortent du journal dès la lecture : la table, les
@@ -394,7 +402,12 @@ export const useSession = defineStore('session', () => {
       uid.value = await signIn()
       const snap = await getDoc(gameRef(gameCode))
       if (!snap.exists()) throw new Error(`Aucune partie au code ${gameCode}`)
-      await takeSeat(gameCode, player)
+      const g = snap.data() as GameDoc
+      const seat = g.seats[player]
+      // Ma place, tenue par une session perdue (autre appareil, données effacées) : je la
+      // reprends ici. Sinon, la prise de siège habituelle.
+      if (seat && seat.uid !== uid.value && !seat.bot && g.dealNumber > 0) await moveSeat(gameCode, player)
+      else await takeSeat(gameCode, player)
       playerId.value = player
       code.value = gameCode
       persist({ playerId: player, code: gameCode })
@@ -579,6 +592,12 @@ export const useSession = defineStore('session', () => {
     if (!seat || seat.bot) return
     await addBot(p, 'basic', seat.uid, true)
   }
+
+  /** Ma place a été reprise depuis un autre appareil : cet onglet n'a plus la main. */
+  const movedAway = computed(() => {
+    const s = playerId.value ? game.value?.seats[playerId.value] : undefined
+    return Boolean(s && !s.bot && uid.value && s.uid !== uid.value && s.formerUid === uid.value)
+  })
 
   /** Ma place, prise par un bot pendant mon absence : je peux la reprendre. */
   const seatTaken = computed(() => {
@@ -867,9 +886,8 @@ export const useSession = defineStore('session', () => {
 
   /**
    * Reprise après rafraîchissement : on se rebranche sur la partie mémorisée. Si la
-   * connexion échoue, on revient à l'accueil plutôt que d'attendre une partie qui ne
-   * viendra pas — c'était le « Connexion à la partie… » qu'il fallait vider le cache
-   * pour quitter.
+   * connexion échoue (réseau coupé), on réessaie sans oublier la partie ; l'écran de
+   * connexion propose de lui-même, après quelques secondes, de revenir à l'accueil.
    */
   async function resume(): Promise<void> {
     if (!code.value || !playerId.value) return
@@ -879,10 +897,7 @@ export const useSession = defineStore('session', () => {
       subscribe(gameCode)
       return true
     })
-    if (!ok && code.value === gameCode && !game.value) {
-      leave()
-      opinion.value = `Impossible de rejoindre la partie ${gameCode}.`
-    }
+    if (!ok && code.value === gameCode && !game.value) setTimeout(() => void resume(), 5000)
   }
 
   return {
@@ -964,5 +979,6 @@ export const useSession = defineStore('session', () => {
     replaceWithBot,
     seatTaken,
     reclaimSeat,
+    movedAway,
   }
 })
