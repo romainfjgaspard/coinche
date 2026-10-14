@@ -6,19 +6,16 @@
 import {
   collection,
   doc,
-  getDoc,
   getDocFromServer,
-  getDocs,
-  onSnapshot,
   orderBy,
   query,
-  runTransaction,
   type Transaction,
   arrayUnion,
   serverTimestamp,
   updateDoc,
   where,
 } from 'firebase/firestore'
+import { getDoc, getDocs, onSnapshot, runTransaction } from './meter'
 import { signInAnonymously } from 'firebase/auth'
 import { type Client, mainClient } from './app'
 import { type Card, DECK, gatherAndCut, shuffle } from '../game/cards'
@@ -579,6 +576,22 @@ const logs = new Map<string, { seq: number; events: GameEvent[]; reading: Promis
  * clic, deux bots du même onglet) auraient sinon ajouté deux fois les mêmes événements
  * au cache, faussant le compteur de coups jusqu'au rechargement.
  */
+/**
+ * Nourrit le journal en cache de ce que l'écoute en direct a déjà reçu : après un
+ * rechargement, la première écriture relisait sinon tout le journal, à nouveau facturé.
+ * Le journal doit être brut (enchères annulées comprises) et sans trou depuis le début.
+ */
+export function primeJournal(code: string, events: GameEvent[], c: Client = mainClient): void {
+  const key = `${c.app.name}|${code}`
+  const known = logs.get(key) ?? { seq: 0, events: [], reading: Promise.resolve() }
+  const last = events.at(-1)?.seq ?? 0
+  // Seulement un journal complet, et plus récent que le cache : jamais de retour en arrière.
+  if (last <= known.seq || events.some((e, i) => e.seq !== i + 1)) return
+  known.events = [...events]
+  known.seq = last
+  logs.set(key, known)
+}
+
 export async function readJournal(code: string, c: Client = mainClient): Promise<GameEvent[]> {
   const key = `${c.app.name}|${code}`
   const known = logs.get(key) ?? { seq: 0, events: [], reading: Promise.resolve() }

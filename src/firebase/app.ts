@@ -7,7 +7,14 @@
  */
 import { type FirebaseApp, initializeApp } from 'firebase/app'
 import { type Auth, connectAuthEmulator, getAuth, inMemoryPersistence, setPersistence } from 'firebase/auth'
-import { type Firestore, connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
+import {
+  type Firestore,
+  connectFirestoreEmulator,
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore'
 
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID
 
@@ -41,7 +48,18 @@ const config = useEmulators
 
 export const app = initializeApp(config)
 export const auth = getAuth(app)
-export const db = getFirestore(app)
+/**
+ * Le cache local de Firestore, dans le navigateur : une page rechargée (un téléphone qui
+ * sort de veille) repart de ce qu'elle avait déjà, et le serveur n'envoie que ce qui a
+ * changé. Sans lui, chaque rechargement relisait le journal entier — c'est ce qui a épuisé
+ * le quota gratuit le 13/10/2026. En test (Node, sans IndexedDB), la mémoire suffit.
+ */
+export const db: Firestore =
+  typeof indexedDB === 'undefined'
+    ? getFirestore(app)
+    : initializeFirestore(app, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+      })
 
 if (useEmulators) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })

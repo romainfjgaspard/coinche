@@ -5,7 +5,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { getDoc } from 'firebase/firestore'
+import { getDoc } from '../firebase/meter'
 import { type Card, sortHand } from '../game/cards'
 import type { PlayerId } from '../game/players'
 import {
@@ -20,6 +20,7 @@ import {
   gameRef,
   moveSeat,
   placeBid,
+  primeJournal,
   playCard,
   readArchives,
   replay as replayGame,
@@ -176,7 +177,11 @@ export const useSession = defineStore('session', () => {
     )
     // Les enchères annulées sur vote sortent du journal dès la lecture : la table, les
     // statistiques et les bots ne les voient jamais.
-    stopEvents = watchEvents(gameCode, (e) => (events.value = withoutUndoneBids(e)))
+    stopEvents = watchEvents(gameCode, (e) => {
+      // Le journal brut nourrit aussi le cache des écritures : elles n'ont rien à relire.
+      primeJournal(gameCode, e)
+      events.value = withoutUndoneBids(e)
+    })
     if (playerId.value) stopHand = watchHand(gameCode, playerId.value, (c) => (hand.value = c))
   }
 

@@ -137,4 +137,18 @@ Ces clés restent en français, contrairement au reste du code : les renommer fe
 
 ## Coût
 
-Une partie fait environ 600 événements. Même à trois parties par soirée, deux fois par semaine, on reste loin du quota gratuit de Firestore : la conservation intégrale ne coûte rien.
+Une partie fait environ 600 événements. Les **écritures** restent modestes (≈ 5 400 pour la soirée du 13/10/2026, quota gratuit : 20 000 par jour). Ce sont les **lectures** qui coûtent : chaque document renvoyé par le serveur est facturé, et chaque appareil connecté reçoit chaque événement.
+
+Le 13/10/2026, le quota gratuit de lectures (50 000 par jour) a été épuisé en pleine partie : 85 000 lectures dans la soirée, deux longues parties, jusqu'à sept appareils connectés, et des téléphones qui rechargeaient la page en sortant de veille — chaque rechargement relisait le journal entier, deux fois. Le projet est depuis sur l'offre Blaze (paiement à l'usage, ≈ 0,03 € les 100 000 lectures).
+
+Mesuré sur l'émulateur avec `npm run test:lectures` (compteur `src/firebase/meter.ts`, actif par `?mesure`), une partie complète à quatre :
+
+| | Lectures | Par donne |
+|---|---|---|
+| Sans rechargement, avant | 8 565 (13 donnes) | ≈ 660 |
+| Une page rechargée toutes les deux donnes, avant | 16 467 (16 donnes) | ≈ 1 030 |
+| Idem, avec le cache local et le journal nourri par l'écoute | 7 231 (15 donnes) | ≈ 480 |
+
+Deux parades : le **cache local de Firestore** (`persistentLocalCache`, `src/firebase/app.ts`) — une page rechargée reprend ses écoutes là où elle les avait laissées, et le serveur n'envoie que ce qui a changé ; et le journal des écritures **nourri par l'écoute** (`primeJournal`) — après un rechargement, poser une carte ne relit plus le journal.
+
+Chaque appareil ou onglet de plus ouvert sur la partie ajoute environ 160 lectures par donne : fermer les onglets oubliés compte.
