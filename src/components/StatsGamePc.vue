@@ -60,7 +60,32 @@ const curve = computed(() => {
   const yT = end ? y(end.scores[themTeam.value]) : Y0
   const usOnTop = end ? end.scores[usTeam.value] >= end.scores[themTeam.value] : true
   const step = max / 4
+  // Le score au-dessus de chaque point, pour l'équipe qui a marqué sur la donne.
+  const teamsOf = [usTeam.value, themTeam.value] as const
+  const labels = points.flatMap((p, i) => {
+    if (i === 0 || i === last) return []
+    return teamsOf
+      .filter((t) => p.scores[t] !== points[i - 1].scores[t])
+      .map((t) => ({
+        key: `${i}-${t}`,
+        x: x(i),
+        y: y(p.scores[t]) - 8,
+        v: p.scores[t],
+        us: t === usTeam.value,
+      }))
+  })
+  // L'axe des donnes : un numéro par point, un sur deux au-delà de vingt.
+  const every = points.length > 21 ? 2 : 1
+  const axis = points.map((p, i) => ({ i, n: p.deal, x: x(i) })).filter((d) => d.i > 0 && d.i % every === 0)
+  const dots = points.flatMap((p, i) =>
+    i === 0 || i === last
+      ? []
+      : teamsOf.map((t) => ({ key: `d${i}-${t}`, x: x(i), y: y(p.scores[t]), us: t === usTeam.value })),
+  )
   return {
+    labels,
+    axis,
+    dots,
     grid: [0, 1, 2, 3, 4].map((k) => ({ v: k * step, y: y(k * step) })),
     us: row(usTeam.value),
     them: row(themTeam.value),
@@ -71,17 +96,20 @@ const curve = computed(() => {
 
 // --- Momentum en cascade : chaque barre part de la fin de la précédente
 const MOMENTUM_HEIGHT = 240
+/** La place des points au bout des barres, en haut et en bas : ils débordaient sur l'axe. */
+const LABEL_ROOM = 20
 const momentum = computed(() => {
   const c = cascade(session.momentumBars, usTeam.value)
   const hi = Math.max(0, ...c.map((b) => Math.max(b.before, b.after)))
   const lo = Math.min(0, ...c.map((b) => Math.min(b.before, b.after)))
-  const y = (v: number) => ((hi - v) / Math.max(1, hi - lo)) * MOMENTUM_HEIGHT
+  const span = MOMENTUM_HEIGHT - 2 * LABEL_ROOM
+  const y = (v: number) => LABEL_ROOM + ((hi - v) / Math.max(1, hi - lo)) * span
   return {
     zeroY: y(0),
     barItems: c.map((b) => {
       const top = y(Math.max(b.before, b.after))
       return {
-        n: `D${b.deal}`,
+        n: String(b.deal),
         us: b.us,
         points: b.points,
         top: top,
@@ -166,7 +194,12 @@ const playedTricks = computed(() => {
   return [
     {
       title: shameStars.length > 1 ? 'Étoiles de la honte' : 'Étoile de la honte',
-      value: shameStars.length ? shameStars.map((d) => name(d.shameStar!)).join(', ') : 'aucune',
+      // DEC-8 — l'étoile revient à l'équipe du preneur.
+      value: shameStars.length
+        ? shameStars
+            .map((d) => `${name(d.shameStar!)} & ${name(partnerOf(d.shameStar!, session.seating))}`)
+            .join(', ')
+        : 'aucune',
       color: shameStars.length ? RED_INK : LIGHT,
       detail: shameStars.map((d) => `capot à la donne ${d.dealNumber}, annoncé ${d.value}`).join(' · '),
     },
@@ -231,9 +264,9 @@ const gameTimes = computed(() => timesByPlayer(session.events))
         <p v-if="session.scoreCurve.length < 2" class="text-sm text-sage">Aucune donne terminée.</p>
         <svg
           v-else
-          viewBox="0 0 900 250"
+          viewBox="0 0 900 270"
           width="100%"
-          height="250"
+          height="270"
           role="img"
           :aria-label="`Évolution du score : Nous ${us}, Eux ${them} après ${dealsPlayedCount} donnes`"
         >
@@ -267,6 +300,31 @@ const gameTimes = computed(() => timesByPlayer(session.events))
             stroke-linejoin="round"
             stroke-linecap="round"
           />
+          <circle v-for="d in curve.dots" :key="d.key" :cx="d.x" :cy="d.y" r="3" :fill="d.us ? GOLD : BLUE" />
+          <text
+            v-for="l in curve.labels"
+            :key="l.key"
+            :x="l.x"
+            :y="l.y"
+            text-anchor="middle"
+            font-size="11"
+            font-weight="600"
+            :fill="l.us ? GOLD : BLUE"
+          >
+            {{ l.v }}
+          </text>
+          <text
+            v-for="d in curve.axis"
+            :key="`a${d.i}`"
+            :x="d.x"
+            y="250"
+            text-anchor="middle"
+            font-size="11"
+            fill="#6f8f82"
+          >
+            {{ d.n }}
+          </text>
+          <text x="463" y="266" text-anchor="middle" font-size="10" fill="#4f6f62">donne</text>
           <circle
             :cx="curve.endUs.x"
             :cy="curve.endUs.y"
@@ -298,7 +356,7 @@ const gameTimes = computed(() => timesByPlayer(session.events))
         </p>
         <p v-if="!momentum.barItems.length" class="text-sm text-sage">Aucune donne terminée.</p>
         <div v-else>
-          <div class="relative mt-5 mb-5" :style="{ height: `${MOMENTUM_HEIGHT}px` }">
+          <div class="relative mt-2" :style="{ height: `${MOMENTUM_HEIGHT}px` }">
             <!-- Le zéro : au-dessus, nous menons ; en dessous, eux -->
             <div class="absolute inset-x-0 h-px bg-white/18" :style="{ top: `${momentum.zeroY}px` }"></div>
             <div class="absolute inset-0 flex gap-1">
@@ -323,14 +381,15 @@ const gameTimes = computed(() => timesByPlayer(session.events))
               </div>
             </div>
           </div>
-          <div class="flex gap-1">
+          <div class="flex gap-1 border-t border-white/12 pt-1">
             <span
               v-for="b in momentum.barItems"
               :key="b.n"
-              class="max-w-[88px] grow text-center text-[11px] text-dusk"
+              class="max-w-[88px] grow text-center text-[11px] tabular-nums text-dusk"
               >{{ b.n }}</span
             >
           </div>
+          <p class="mt-0.5 text-center text-[10px] text-dusk">donne</p>
         </div>
       </section>
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * Reprendre une enchère faite par erreur (« 120 ♥ » au lieu de « 120 ♦ ») : tant que le
- * suivant n'a pas parlé, on demande ; les trois autres votent ; l'enchère tombe si tous
+ * Reprendre une enchère faite par erreur (« 120 ♥ » au lieu de « 120 ♦ ») : tant que
+ * seules des passes ont suivi, on demande ; les trois autres votent ; l'enchère tombe si tous
  * acceptent. Pendant le vote, la parole est suspendue. Les bots acceptent d'office.
  */
 import { computed } from 'vue'
@@ -94,7 +94,7 @@ const yes = computed(() => [...(session.undoPending?.answers.values() ?? [])].fi
       {{ nameOf(session.undoRefusedBy) }} a refusé l'annulation.
     </p>
 
-    <!-- Je viens d'enchérir, le suivant n'a pas encore parlé -->
+    <!-- Ma dernière enchère, suivie seulement de passes : je peux encore la reprendre -->
     <div v-else class="flex justify-center lg:justify-end">
       <button
         type="button"

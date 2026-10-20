@@ -252,11 +252,18 @@ describe('DEC-8 / DEC-9 — étoiles et honte complète', () => {
       at: 0,
     }) as GameEvent
 
-  it('compte les étoiles par joueur', () => {
+  it("compte les étoiles par équipe : les deux partenaires portent celles de l'équipe", () => {
+    // Placement par défaut : Romain et Viv contre Benel et Roux.
     const stars = starsInGame([dealWithStar('roux'), dealWithStar('viv'), dealWithStar('roux')])
     expect(stars.get('roux')).toBe(2)
+    expect(stars.get('benel')).toBe(2)
     expect(stars.get('viv')).toBe(1)
-    expect(stars.get('benel')).toBeUndefined()
+    expect(stars.get('romain')).toBe(1)
+  })
+
+  it("la honte complète se compte à l'équipe, pas au joueur", () => {
+    const mixed = [dealWithStar('roux'), dealWithStar('benel'), dealWithStar('roux')]
+    expect(starsInGame(mixed).get('benel')).toBe(SHAME_THRESHOLD)
   })
 
   it("les donnes sans étoile n'en donnent à personne", () => {

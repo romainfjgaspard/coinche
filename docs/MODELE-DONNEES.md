@@ -73,8 +73,9 @@ Chaque événement porte `seq` (ordre), `at` (horodatage) et, pour une décision
 | `seating_set` | `player`, `seating`, `dealer` : les équipes changées au salon, avant la première donne |
 | `deal_started` | `dealNumber`, `dealer`, `cut` |
 | `bid` | `player`, `round`, `entry` : `{ kind: 'pass' \| 'contract' \| 'capot' \| 'generale', player, value?, suit?, declaration? }` |
+| `deal_ack` | `player`, `dealNumber` : le joueur a vu le décompte ; la donne suivante part quand tous les humains l'ont dit (ou quand le donneur passe outre, après 30 s) |
 | `coinche`, `surcoinche` | `player` |
-| `undo_requested` | `player`, `bidSeq` : demande à reprendre sa dernière enchère, tant que le suivant n'a pas parlé |
+| `undo_requested` | `player`, `bidSeq` : demande à reprendre sa dernière enchère, tant que seules des passes l'ont suivie |
 | `undo_answered` | `player`, `accept` : le vote de chacun des trois autres ; un refus fait tomber la demande, et le demandeur la retire en répondant non |
 | `bid_undone` | `of`, `by`, `bidSeq` : l'enchère `bidSeq` ne compte plus (écrit par le dernier à accepter). Le moteur, les statistiques et l'archive la retirent à la lecture (`withoutUndoneBids`) |
 | `contract_set` | `taker`, `value`, `trump`, `declaration` (absent avant le 24/09), `multiplier` (1, 2, 4), `capot`, `generale` |

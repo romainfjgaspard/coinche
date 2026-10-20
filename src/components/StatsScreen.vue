@@ -144,7 +144,25 @@ const curve = computed(() => {
   }
   // Un numéro de donne sur deux au-delà de quinze, pour qu'ils restent lisibles.
   const step = points.length > 16 ? 2 : 1
+  /**
+   * Le score au-dessus de chaque point, pour l'équipe qui a marqué sur cette donne : l'autre
+   * ne bouge pas, son point garde l'étiquette précédente. Le dernier point a déjà la sienne.
+   */
+  const labels = points.flatMap((p, i) => {
+    if (i === 0 || i === points.length - 1) return []
+    const prev = points[i - 1]
+    return ([session.myTeam, them] as const)
+      .filter((t) => p.scores[t] !== prev.scores[t])
+      .map((t) => ({
+        key: `${i}-${t}`,
+        x: x(i),
+        y: y(p.scores[t]) - 6,
+        v: p.scores[t],
+        us: t === session.myTeam,
+      }))
+  })
   return {
+    labels,
     us: row(session.myTeam),
     them: row(them),
     pointsUs: seriesOf(session.myTeam),
@@ -166,17 +184,23 @@ const curve = computed(() => {
 
 /** Momentum en cascade, comme sur PC : chaque barre part de la fin de la précédente. */
 const MOMENTUM_HEIGHT = 170
+/** La place des points au bout des barres, en haut et en bas : ils débordaient sur l'axe. */
+const LABEL_ROOM = 18
 const momentum = computed(() => {
   const c = cascade(session.momentumBars, session.myTeam)
   const hi = Math.max(0, ...c.map((b) => Math.max(b.before, b.after)))
   const lo = Math.min(0, ...c.map((b) => Math.min(b.before, b.after)))
-  const y = (v: number) => ((hi - v) / Math.max(1, hi - lo)) * MOMENTUM_HEIGHT
+  const span = MOMENTUM_HEIGHT - 2 * LABEL_ROOM
+  const y = (v: number) => LABEL_ROOM + ((hi - v) / Math.max(1, hi - lo)) * span
+  // Au-delà de seize donnes, un numéro sur deux : sinon ils se chevauchent.
+  const every = c.length > 16 ? 2 : 1
   return {
     zeroY: y(0),
     barItems: c.map((b) => {
       const top = y(Math.max(b.before, b.after))
       return {
         deal: b.deal,
+        shown: (b.deal - 1) % every === 0,
         us: b.us,
         points: b.points,
         top: top,
@@ -252,6 +276,22 @@ function byPlayer(players: PlayerId[]): string {
   return [...n].map(([j, k]) => (k > 1 ? `${nameOf(j)} ×${k}` : nameOf(j))).join(', ')
 }
 
+/** « Benel & Viv ×2, Roux & Romain » : une étoile de la honte revient à l'équipe. */
+function byTeam(teams: (0 | 1)[]): string {
+  const n: [number, number] = [0, 0]
+  for (const t of teams) n[t] += 1
+  return ([0, 1] as const)
+    .filter((t) => n[t] > 0)
+    .map((t) => {
+      const names = session.seating
+        .filter((p) => teamOfPlayer(p, session.seating) === t)
+        .map(nameOf)
+        .join(' & ')
+      return n[t] > 1 ? `${names} ×${n[t]}` : names
+    })
+    .join(', ')
+}
+
 const playedTricks = computed(() => {
   const list = session.dealSummaries
   const shameStars = list.filter((d) => d.shameStar)
@@ -261,7 +301,11 @@ const playedTricks = computed(() => {
   return [
     {
       title: 'Étoiles de la honte',
-      value: shameStars.length === 0 ? 'aucune' : byPlayer(shameStars.map((d) => d.shameStar!)),
+      // DEC-8 — l'étoile revient à l'équipe du preneur : « Benel & Viv ×2 ».
+      value:
+        shameStars.length === 0
+          ? 'aucune'
+          : byTeam(shameStars.map((d) => teamOfPlayer(d.shameStar!, session.seating))),
       alert: shameStars.length > 0,
     },
     {
@@ -448,6 +492,18 @@ const playedTricks = computed(() => {
                   r="2.2"
                   :fill="BLUE"
                 />
+                <text
+                  v-for="l in curve.labels"
+                  :key="l.key"
+                  :x="l.x"
+                  :y="l.y"
+                  text-anchor="middle"
+                  font-size="10"
+                  font-weight="600"
+                  :fill="l.us ? GOLD : BLUE"
+                >
+                  {{ l.v }}
+                </text>
                 <template v-if="curve.end">
                   <text
                     :x="curve.end.x"
@@ -484,7 +540,7 @@ const playedTricks = computed(() => {
             </p>
             <!-- Chaque barre porte ses points : une barre sans valeur obligeait à deviner -->
             <div v-if="momentum.barItems.length">
-              <div class="relative mt-4 mb-4" :style="{ height: `${MOMENTUM_HEIGHT}px` }">
+              <div class="relative mt-2" :style="{ height: `${MOMENTUM_HEIGHT}px` }">
                 <div
                   class="absolute inset-x-0 h-px bg-white/20"
                   :style="{ top: `${momentum.zeroY}px` }"
@@ -510,14 +566,16 @@ const playedTricks = computed(() => {
                   </div>
                 </div>
               </div>
-              <div class="flex gap-1">
+              <!-- L'axe des donnes, sous un trait qui le sépare des points des barres -->
+              <div class="flex gap-1 border-t border-white/12 pt-1">
                 <span
                   v-for="b in momentum.barItems"
                   :key="b.deal"
-                  class="max-w-12 grow text-center text-[12px] text-sage"
-                  >D{{ b.deal }}</span
+                  class="max-w-12 grow text-center text-[12px] tabular-nums text-sage"
+                  >{{ b.shown ? b.deal : '' }}</span
                 >
               </div>
+              <p class="mt-0.5 text-center text-[11px] text-dusk">donne</p>
             </div>
             <p v-else class="text-[15px] text-sage">Aucune donne terminée.</p>
           </section>

@@ -12,6 +12,7 @@ import {
   ConcurrentWrite,
   type GameDoc,
   type KnownState,
+  ackDeal,
   allSeatsTaken,
   answerUndo as answerUndoInDb,
   cancelGame,
@@ -432,6 +433,50 @@ export const useSession = defineStore('session', () => {
   function continueToNextDeal(): void {
     if (game.value) dealAcknowledged.value = game.value.dealNumber
   }
+
+  // --- Entre deux donnes : on attend que tous les humains aient vu le décompte.
+
+  /** Entre deux donnes (décompte, ou donne blanche), avant la distribution suivante. */
+  const betweenDeals = computed(
+    () =>
+      game.value?.phase === 'scoring' || (game.value?.phase === 'lobby' && (game.value?.dealNumber ?? 0) > 0),
+  )
+  /** Qui a dit « prêt » pour la donne qui vient de finir. */
+  const readyPlayers = computed(() => {
+    const n = game.value?.dealNumber
+    return new Set(
+      events.value.flatMap((e) => (e.type === 'deal_ack' && e.dealNumber === n ? [e.player] : [])),
+    )
+  })
+  /** Les humains qu'on attend encore : les bots n'ont rien à lire. */
+  const awaitedPlayers = computed<PlayerId[]>(() => {
+    const g = game.value
+    if (!g || !betweenDeals.value) return []
+    return (Object.keys(g.seats) as PlayerId[]).filter((p) => !g.seats[p]?.bot && !readyPlayers.value.has(p))
+  })
+  const iAmReady = computed(() => Boolean(playerId.value && readyPlayers.value.has(playerId.value)))
+  /** Le donneur peut passer outre : quelqu'un est parti sans le dire. */
+  const forcedDeal = ref<number | null>(null)
+
+  async function readyForNext(): Promise<void> {
+    if (!code.value || !playerId.value || !game.value || iAmReady.value) return
+    continueToNextDeal()
+    const n = game.value.dealNumber
+    await run(() => ackDeal(code.value!, playerId.value!, n))
+  }
+  /** Distribuer sans attendre les retardataires : le donneur, ou l'onglet de son bot. */
+  function dealAnyway(): void {
+    if (!game.value) return
+    forcedDeal.value = game.value.dealNumber
+    if (game.value.dealer === playerId.value) void startDeal()
+  }
+  // Je suis le donneur : dès que tout le monde est prêt, la donne part d'elle-même.
+  watch(
+    () => (betweenDeals.value && game.value?.dealer === playerId.value ? awaitedPlayers.value.length : -1),
+    (left) => {
+      if (left === 0 && game.value?.phase !== 'finished') void startDeal()
+    },
+  )
   /**
    * Installe un bot sur un siège libre.
    *
@@ -463,7 +508,12 @@ export const useSession = defineStore('session', () => {
           delayMs,
           feed,
           client: mainClient,
-          mayDealNext: (n) => dealAcknowledged.value === n,
+          // La première donne part du salon ; les suivantes, quand tous les humains ont vu
+          // le décompte — ou quand le donneur a choisi de ne plus attendre.
+          mayDealNext: (n) =>
+            n === 0
+              ? dealAcknowledged.value === n
+              : game.value?.dealNumber === n && (awaitedPlayers.value.length === 0 || forcedDeal.value === n),
           takeOverFrom,
           replacesHuman,
           onDetache: () => {
@@ -980,6 +1030,10 @@ export const useSession = defineStore('session', () => {
     botDealerHere,
     dealAcknowledged,
     continueToNextDeal,
+    awaitedPlayers,
+    iAmReady,
+    readyForNext,
+    dealAnyway,
     absentHuman,
     replaceWithBot,
     seatTaken,

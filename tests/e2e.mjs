@@ -167,12 +167,21 @@ let finished = false
 const values = [90, 100, 110, 120, 130, 140, 150, 160]
 
 for (let d = 0; d < 20 && !finished; d++) {
-  const dealer = await whoSees('Distribuer', 25)
-  if (!dealer) {
-    await dumpLog('personne ne peut distribuer')
-    break
+  if (d === 0) {
+    // La première donne se lance depuis le salon.
+    const dealer = await whoSees('Distribuer', 25)
+    if (!dealer) {
+      await dumpLog('personne ne peut lancer la partie')
+      break
+    }
+    await dealer.p.getByRole('button', { name: /^Distribuer$|Lancer la partie/ }).click()
+  } else {
+    // Les suivantes : chacun dit « Donne suivante », le donneur distribue quand tous sont prêts.
+    for (const j of table) {
+      const ready = j.p.getByRole('button', { name: 'Donne suivante', exact: true })
+      if (await ready.count()) await ready.click({ timeout: 5000 }).catch(() => {})
+    }
   }
-  await dealer.p.getByRole('button', { name: /Distribuer|Lancer la partie/ }).click()
 
   if (!(await bid(values[d % values.length]))) {
     console.log('donne blanche, on redonne')
@@ -186,7 +195,7 @@ for (let d = 0; d < 20 && !finished; d++) {
   deals++
   // La fin de partie se voit au bouton « Voir le résultat de la partie » (puis « Quitter la partie »).
   finished =
-    Boolean(await whoSees('Voir le résultat de la partie', 8)) ||
+    Boolean(await whoSees('Voir le résultat de la partie', 20)) ||
     Boolean(await whoSees('Quitter la partie', 2))
 }
 console.log('donnes jouées :', deals, '· partie terminée :', finished)

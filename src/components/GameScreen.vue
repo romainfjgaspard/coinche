@@ -5,9 +5,11 @@ import GameTable from './GameTable.vue'
 import GameTablePc from './GameTablePc.vue'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useWakeLock } from '../composables/useWakeLock'
+import { GATHER_MS } from '../composables/useTrickMotion'
 import BiddingPanel from './BiddingPanel.vue'
 import BiddingPanelPhone from './BiddingPanelPhone.vue'
 import UndoBid from './UndoBid.vue'
+import TurnReminder from './TurnReminder.vue'
 import DealResult from './DealResult.vue'
 import StatsScreen from './StatsScreen.vue'
 import RulesScreen from './RulesScreen.vue'
@@ -18,6 +20,25 @@ const session = useSession()
 const phase = computed(() => session.game?.phase ?? 'lobby')
 const view = ref<'table' | 'stats' | 'rules'>('table')
 const large = useLargeScreen()
+
+/**
+ * Le dernier pli part vers celui qui le remporte avant que le décompte ne s'affiche : il
+ * recouvrait le tapis à l'instant où les cartes quittaient la table, et on ne voyait pas
+ * qui ramassait.
+ */
+const gathering = ref(false)
+let gatherTimer: ReturnType<typeof setTimeout> | undefined
+watch(
+  () => session.heldTrick,
+  (now, before) => {
+    clearTimeout(gatherTimer)
+    if (before && !now) {
+      gathering.value = true
+      gatherTimer = setTimeout(() => (gathering.value = false), GATHER_MS + 150)
+    }
+  },
+)
+onBeforeUnmount(() => clearTimeout(gatherTimer))
 
 /** L'écran reste allumé tant que la partie se joue ; une partie finie le laisse s'éteindre. */
 useWakeLock(computed(() => phase.value !== 'finished' && phase.value !== 'cancelled'))
@@ -62,14 +83,19 @@ onBeforeUnmount(() => {
       <template v-if="view === 'table'">
         <GameTablePc v-if="large" @stats="view = 'stats'" @rules="view = 'rules'" />
         <GameTable v-else @stats="view = 'stats'" @rules="view = 'rules'" />
+        <TurnReminder />
         <template v-if="phase === 'bidding'">
           <BiddingPanel v-if="large" />
           <BiddingPanelPhone v-else />
           <UndoBid />
         </template>
-        <!-- Le décompte attend que le dernier pli ait été vu sur le tapis -->
+        <!-- Le décompte attend que le dernier pli ait été vu sur le tapis, puis ramassé -->
         <DealResult
-          v-else-if="(phase === 'scoring' || phase === 'finished' || phase === 'lobby') && !session.heldTrick"
+          v-else-if="
+            (phase === 'scoring' || phase === 'finished' || phase === 'lobby') &&
+            !session.heldTrick &&
+            !gathering
+          "
           @stats="view = 'stats'"
         />
         <!-- Un joueur ne répond plus depuis une minute : on peut le faire remplacer par un bot -->

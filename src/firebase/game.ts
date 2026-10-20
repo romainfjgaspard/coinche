@@ -683,19 +683,20 @@ export async function placeBid(
       { game: { phase: 'playing' } },
     )
 
-    // Blitz : une donne non coinchée n'est pas jouée — le contrat est réputé réussi et le
-    // preneur marque sa valeur (250 pour un capot ou une générale). La belote n'est
-    // jamais marquée (BEL-5). Coinchée, la donne se joue normalement.
-    if (game.blitz && result.multiplier === 1) {
+    // FIN-4 — blitz : un contrat chiffré non coinché n'est pas joué — réputé réussi, le
+    // preneur marque sa valeur. La belote n'est jamais marquée (BEL-5). Coinchée, la donne
+    // se joue. Un capot ou une générale se joue toujours : ils ne peuvent pas être coinchés,
+    // et les marquer d'office les rendait gratuits (depuis le 20/10/2026).
+    if (game.blitz && result.multiplier === 1 && !result.capot && !result.generale) {
       const team = teamOfPlayer(result.taker, tableOf(game))
-      const value = result.generale ? RULES.generaleValue : result.capot ? RULES.capotValue : result.value
+      const value = result.value
       const scored: [number, number] = [0, 0]
       scored[team] = value
       await closeDeal(
         code,
         game,
         {
-          status: result.generale ? 'generale' : result.capot ? 'capot' : 'made',
+          status: 'made',
           cardPoints: [0, 0],
           compared: [0, 0],
           scores: scored,
@@ -725,8 +726,22 @@ export async function placeBid(
 }
 
 /**
- * Demande à reprendre sa dernière enchère, sur fausse manipulation. Possible tant que le
- * joueur suivant n'a pas parlé ; les trois autres votent (`answerUndo`).
+ * Fin de donne : « j'ai vu le décompte ». La donne suivante n'est distribuée qu'une fois
+ * tous les humains prêts — le donneur redistribuait aussitôt, et les autres n'avaient pas
+ * le temps de voir le score.
+ */
+export async function ackDeal(
+  code: string,
+  player: PlayerId,
+  dealNumber: number,
+  c: Client = mainClient,
+): Promise<void> {
+  await appendWith(c, code, { type: 'deal_ack', player, dealNumber })
+}
+
+/**
+ * Demande à reprendre sa dernière enchère, sur fausse manipulation. Possible tant que les
+ * enchères suivantes ne sont que des passes ; les trois autres votent (`answerUndo`).
  */
 export async function requestUndo(code: string, player: PlayerId, c: Client = mainClient): Promise<void> {
   const game = (await getDoc(gameRef(code, c))).data() as GameDoc | undefined
@@ -906,9 +921,11 @@ export async function playCard(
     declaredBy ? seatOf(declaredBy, tableOf(game)) : null,
   )
 
-  // Pour les statistiques : une belote détenue mais jamais annoncée est un oubli.
+  // Pour les statistiques : une belote détenue mais jamais annoncée est un oubli — seulement
+  // dans le camp du preneur : en défense, elle ne compte pas, l'annoncer ne sert à rien.
   const held = beloteHeld(after, after.trump)
-  const forgotten = held !== null && declaredBy === null
+  const takerTeam = teamOfPlayer(playerAtSeat(contract.takerSeat, tableOf(game)), tableOf(game))
+  const forgotten = held !== null && declaredBy === null && teamOfPlayer(held, tableOf(game)) === takerTeam
 
   // DEC-8 — capot réalisé sans l'avoir annoncé : une étoile pour le preneur.
   const shameStar = unannouncedCapot(result, contract)

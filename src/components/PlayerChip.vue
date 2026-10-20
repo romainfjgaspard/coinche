@@ -20,6 +20,8 @@ defineProps<{
   thinking?: boolean
   /** Sa belote annoncée : « Belote » après la première tête, « Rebelote » après la seconde */
   belote?: 'belote' | 'rebelote' | null
+  /** L'annonce à droite de la pastille plutôt que dessous : pour moi, ma main est dessous */
+  bidBeside?: boolean
 }>()
 </script>
 
@@ -27,7 +29,7 @@ defineProps<{
   <div class="relative">
     <!-- Celui qui doit agir est en or plein : un simple liseré ne se voyait pas de loin -->
     <div
-      class="flex items-center gap-1.5 rounded-full border px-3 py-1 whitespace-nowrap transition lg:px-2.5 lg:py-0.5"
+      class="flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 whitespace-nowrap transition lg:px-2.5 lg:py-0.5"
       :class="
         active
           ? 'border-gold bg-gold shadow-[0_0_14px_2px_rgba(217,164,65,.55)]'
@@ -38,7 +40,7 @@ defineProps<{
       <!-- Le texte suit la transition du fond : sinon, le temps qu'elle dure, le nom foncé
          se posait sur un fond encore sombre et disparaissait -->
       <span
-        class="text-[15px] font-semibold transition-colors lg:text-xs"
+        class="text-[17px] font-semibold transition-colors lg:text-xs"
         :class="active ? 'text-felt' : 'text-mist'"
       >
         {{ nameOf(player) }}<span v-if="me" :class="active ? 'text-felt/70' : 'text-sage'"> · toi</span>
@@ -62,18 +64,19 @@ defineProps<{
     l'élargissait et la faisait déborder de l'écran sur les côtés.
   -->
     <span
-      v-if="thinking"
+      v-if="thinking && !bidBeside"
       class="absolute top-full left-1/2 -translate-x-1/2 rounded-full bg-black/45 whitespace-nowrap text-mist italic"
       :class="large ? 'mt-1.5 px-2.5 py-0.5 text-base' : 'mt-1 px-2 py-px text-sm lg:text-xs'"
       >réfléchit…</span
     >
     <span
       v-else-if="bid"
-      class="absolute top-full left-1/2 flex -translate-x-1/2 items-center whitespace-nowrap"
+      class="absolute flex items-center whitespace-nowrap"
       :class="[
+        bidBeside ? 'top-1/2 left-full ml-2 -translate-y-1/2' : 'top-full left-1/2 -translate-x-1/2',
         large
-          ? 'mt-2 gap-[7.4px] font-display text-[26.7px] leading-none'
-          : 'mt-1 gap-1 rounded-full bg-black/45 py-px pr-0.5 pl-2 text-sm font-bold lg:text-xs',
+          ? `${bidBeside ? '' : 'mt-2'} gap-[7.4px] font-display text-[26.7px] leading-none`
+          : `${bidBeside ? '' : 'mt-1'} gap-1 rounded-full bg-black/45 py-0.5 pr-0.5 pl-2 text-[15px] font-bold lg:text-xs`,
         bid.coinche ? 'pr-2.5 text-[#f0a293]' : bid.pass ? 'pr-2.5 text-sage' : 'text-gold',
       ]"
     >
@@ -82,7 +85,7 @@ defineProps<{
       Le symbole sur fond ivoire, en rouge ou en noir. Sur PC, exactement le rappel du
       contrat : 36 et 24 px à l'échelle de la table, divisés par le 1,35 de la pastille.
     -->
-      <SuitBadge v-if="bid.suit" :suit="bid.suit" :size="large ? 27 : 20" />
+      <SuitBadge v-if="bid.suit" :suit="bid.suit" :size="large ? 27 : 22" />
     </span>
   </div>
 </template>

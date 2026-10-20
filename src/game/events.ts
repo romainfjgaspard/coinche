@@ -44,6 +44,8 @@ export type GameEvent = Base &
      * à accepter — d'où l'absence de champ `player`, que les règles réservent à soi-même.
      */
     | { type: 'bid_undone'; of: PlayerId; by: PlayerId; bidSeq: number }
+    /** Fin de donne : ce joueur a vu le décompte et attend la suivante. */
+    | { type: 'deal_ack'; player: PlayerId; dealNumber: number }
     | { type: 'coinche'; player: PlayerId }
     | { type: 'surcoinche'; player: PlayerId }
     | {

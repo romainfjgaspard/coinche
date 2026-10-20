@@ -85,7 +85,8 @@ const dealsDone = async () => (await log()).filter((f) => f.type.stringValue ===
 let cards = 0
 const deadline = Date.now() + 6 * 60 * 1000
 while (Date.now() < deadline && (await dealsDone()) < DEALS) {
-  const nextGame = p.getByRole('button', { name: 'Distribuer la donne suivante' })
+  // Entre deux donnes, chacun dit « Donne suivante » ; la donne part quand tous sont prêts.
+  const nextGame = p.getByRole('button', { name: 'Donne suivante', exact: true })
   if (await nextGame.count()) {
     await nextGame.click().catch(() => {})
     continue

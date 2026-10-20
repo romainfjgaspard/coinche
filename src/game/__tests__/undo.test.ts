@@ -26,12 +26,35 @@ const pass = (player: PlayerId): NewEvent => ({
 const answer = (player: PlayerId, accept: boolean): NewEvent => ({ type: 'undo_answered', player, accept })
 
 describe('annuler sa dernière enchère', () => {
-  it("se demande tant que le suivant n'a pas parlé, et seulement pour soi", () => {
+  it('se demande tant que seules des passes ont suivi, et seulement pour soi', () => {
     const j = journal(pass('viv'), bid('roux', 120, 'h'))
     expect(undoableBid(j, 'roux')).toBe(3)
     expect(undoableBid(j, 'viv')).toBeNull()
-    const later = journal(pass('viv'), bid('roux', 120, 'h'), pass('romain'))
-    expect(undoableBid(later, 'roux')).toBeNull()
+    // Romain et Benel ont passé après : encore possible.
+    expect(
+      undoableBid(journal(pass('viv'), bid('roux', 120, 'h'), pass('romain'), pass('benel')), 'roux'),
+    ).toBe(3)
+    // Romain a surenchéri : trop tard.
+    expect(
+      undoableBid(journal(pass('viv'), bid('roux', 120, 'h'), bid('romain', 130, 's')), 'roux'),
+    ).toBeNull()
+  })
+
+  it("accordée, l'annulation retire l'enchère et les passes qui la suivent", () => {
+    const j = journal(
+      pass('viv'),
+      bid('roux', 120, 'h'),
+      pass('romain'),
+      pass('benel'),
+      { type: 'undo_requested', player: 'roux', bidSeq: 3 },
+      answer('romain', true),
+      answer('benel', true),
+      answer('viv', true),
+      { type: 'bid_undone', of: 'roux', by: 'viv', bidSeq: 3 },
+    )
+    const state = biddingFromEvents(j, 'benel', DEFAULT_SEATING)
+    expect(state.entries).toEqual([{ kind: 'pass', player: 'viv' }])
+    expect(currentBidder(state)).toBe('roux')
   })
 
   it('plus possible après une coinche, ni deux fois pour la même enchère', () => {

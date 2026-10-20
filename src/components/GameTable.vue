@@ -61,7 +61,7 @@ const L = useTableLayout()
  * cartes, placées sur toute la fenêtre, sortaient de l'écran.
  */
 const width = computed(() => Math.min(L.value.width, 448))
-const handCardWidth = computed(() => Math.min(120, Math.round(width.value * 0.3)))
+const handCardWidth = computed(() => Math.min(132, Math.round(width.value * 0.33)))
 const visibleMain = computed(() => Math.round(handCardWidth.value * 1.44 * 0.58))
 const hand = computed(() => {
   const n = session.sortedHand.length
@@ -241,18 +241,18 @@ const playing = computed(() => session.game?.phase !== 'bidding')
     <button
       v-if="contract"
       type="button"
-      class="absolute top-[62px] right-2 z-20 flex max-w-[132px] cursor-pointer items-center gap-1.5 rounded-full border border-gold/50 bg-felt-dark/85 py-0.5 pr-2.5 pl-0.5"
+      class="absolute top-[62px] right-2 z-20 flex max-w-[156px] cursor-pointer items-center gap-1.5 rounded-full border border-gold/50 bg-felt-dark/85 py-0.5 pr-3 pl-0.5"
       aria-label="Voir l'historique des enchères"
       @click="bidsVisible = true"
     >
-      <SuitBadge :suit="contract.declaration" :size="24" />
-      <span class="text-sm font-bold text-gold">{{ contractLabel }}</span>
+      <SuitBadge :suit="contract.declaration" :size="30" />
+      <span class="text-[17px] font-bold text-gold">{{ contractLabel }}</span>
       <span
         v-if="contract.multiplier > 1"
         class="rounded-full bg-red-card px-1.5 text-[10px] font-bold text-ivory"
         >×{{ contract.multiplier }}</span
       >
-      <span class="truncate text-[11px] text-mist">{{ nameOf(contract.taker) }}</span>
+      <span class="truncate text-[13px] text-mist">{{ nameOf(contract.taker) }}</span>
     </button>
 
     <!-- L'historique des enchères, par-dessus la table, jusqu'à ce qu'on le ferme -->
@@ -348,8 +348,8 @@ const playing = computed(() => session.game?.phase !== 'bidding')
       aria-label="Voir le dernier pli"
       @click="lastTrickOpen = true"
     >
-      <span class="text-[9px] tracking-widest text-sage">DERNIER PLI</span>
-      <LastTrickCross :trick="session.lastTrick" :width="28" />
+      <span class="text-[11px] tracking-widest text-sage">DERNIER PLI</span>
+      <LastTrickCross :trick="session.lastTrick" :width="34" />
     </button>
     <ModalDialog v-if="lastTrickOpen && session.lastTrick" title="Dernier pli" @close="lastTrickOpen = false">
       <div class="flex flex-col items-center gap-3">
@@ -366,8 +366,8 @@ const playing = computed(() => session.game?.phase !== 'bidding')
       class="absolute right-3 z-20 flex flex-col items-end gap-0.5"
       :style="{ bottom: `${visibleMain + 50}px` }"
     >
-      <span class="text-[9px] tracking-widest text-sage">PLIS</span>
-      <span class="flex items-baseline gap-1.5 font-display text-lg leading-none tabular-nums">
+      <span class="text-[11px] tracking-widest text-sage">PLIS</span>
+      <span class="flex items-baseline gap-1.5 font-display text-[26px] leading-none tabular-nums">
         <span class="text-gold" title="Nous">{{ session.trickCounts[session.myTeam] }}</span>
         <span class="text-xs text-dusk">·</span>
         <span class="text-them" title="Eux">{{ session.trickCounts[session.myTeam === 0 ? 1 : 0] }}</span>
@@ -385,9 +385,11 @@ const playing = computed(() => session.game?.phase !== 'bidding')
         :active="session.myPlayTurn"
         :stars="starsOf(me)"
         :belote="beloteOf(me)"
+        :bid="lastBid.get(me)"
+        bid-beside
         me
       />
-      <span v-if="session.myPlayTurn" class="text-[13px] font-semibold text-gold">à toi de jouer</span>
+      <span v-if="session.myPlayTurn" class="text-[15px] font-semibold text-gold">à toi de jouer</span>
     </div>
 
     <!-- Ma main, tenue en main : coupée par le bas de l'écran -->

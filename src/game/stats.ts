@@ -6,7 +6,8 @@
  */
 import type { Suit } from './cards'
 import type { GameEvent } from './events'
-import { type PlayerId, type Seating, teamOfPlayer } from './players'
+import { DEFAULT_SEATING, type PlayerId, type Seating, partnerOf, teamOfPlayer } from './players'
+import { seatingOf } from './replay'
 import type { DealStatus } from './scoring'
 
 export type Team = 0 | 1
@@ -51,6 +52,7 @@ const empty = (dealNumber: number, dealer: PlayerId | null): DealSummary => ({
 export function deals(events: GameEvent[]): DealSummary[] {
   const out: DealSummary[] = []
   let currentOne: DealSummary | null = null
+  const seating = seatingOf(events, DEFAULT_SEATING)
 
   for (const e of events) {
     switch (e.type) {
@@ -77,7 +79,14 @@ export function deals(events: GameEvent[]): DealSummary[] {
           currentOne.scores = e.scores
           currentOne.cardPoints = e.cardPoints
           currentOne.beloteDeclaredBy = e.beloteDeclaredBy
-          currentOne.beloteForgottenBy = e.beloteForgottenBy
+          // Une belote en défense ne compte pas : ne pas l'annoncer n'est pas un oubli. Les
+          // parties d'avant le 20/10/2026 la relevaient quand même : on la retire ici.
+          currentOne.beloteForgottenBy =
+            e.beloteForgottenBy &&
+            currentOne.taker &&
+            teamOfPlayer(e.beloteForgottenBy, seating) === teamOfPlayer(currentOne.taker, seating)
+              ? e.beloteForgottenBy
+              : null
           currentOne.shameStar = e.shameStar
         }
         break
@@ -241,7 +250,11 @@ export function tallies(list: DealSummary[], seating: Seating): Map<PlayerId, Ta
     for (const c of d.coinchers) tallyFor(c).coinches += 1
     if (d.beloteDeclaredBy) tallyFor(d.beloteDeclaredBy).belotesDeclared += 1
     if (d.beloteForgottenBy) tallyFor(d.beloteForgottenBy).belotesForgotten += 1
-    if (d.shameStar) tallyFor(d.shameStar).shameStars += 1
+    // DEC-8 — l'étoile revient à l'équipe du preneur : ses deux joueurs la portent.
+    if (d.shameStar) {
+      tallyFor(d.shameStar).shameStars += 1
+      tallyFor(partnerOf(d.shameStar, seating)).shameStars += 1
+    }
   }
   return out
 }

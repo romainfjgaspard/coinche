@@ -209,7 +209,7 @@ describe('coinche hors enchères', () => {
 })
 
 describe('partie en 500, en blitz, puis « Rejouer »', () => {
-  it('trois capots non joués finissent la partie, archivée avec ses règles ; la suivante reprend les équipes', async () => {
+  it('trois contrats non joués finissent la partie, archivée avec ses règles ; la suivante reprend les équipes', async () => {
     const clients = await fourClients()
     const code = await createGame('benel', DEFAULT_SEATING, 'benel', clients.benel, {
       target: 500,
@@ -222,16 +222,20 @@ describe('partie en 500, en blitz, puis « Rejouer »', () => {
       await deal(code, null, clients[before.dealer as PlayerId])
       const evts = await readEvents(code, clients.benel)
       const first = currentBidder(biddingFromEvents(evts, before.dealer, before.seating!))!
-      // Toujours la même équipe (Romain et Viv) : on passe jusqu'à elle, elle annonce le capot.
+      // Toujours la même équipe (Romain et Viv) : on passe jusqu'à elle, elle annonce 170.
       let who = first
       while (teamOfPlayer(who, before.seating!) !== 0) {
         await placeBid(code, { kind: 'pass', player: who }, clients[who])
         who = nextPlayer(who, before.seating!)
       }
-      // ENC-4 — le capot clôt les enchères : personne ne parle après lui.
-      await placeBid(code, { kind: 'capot', player: who, declaration: 's' }, clients[who])
+      await placeBid(code, { kind: 'contract', player: who, value: 170, suit: 's' }, clients[who])
+      for (let i = 0; i < 3; i++) {
+        who = nextPlayer(who, before.seating!)
+        await placeBid(code, { kind: 'pass', player: who }, clients[who])
+      }
+      // FIN-4 — non coinché, il n'est pas joué : marqué d'office.
       const end = (await readEvents(code, clients.benel)).filter((e) => e.type === 'deal_done').at(-1)
-      expect(end).toMatchObject({ blitz: true, status: 'capot' })
+      expect(end).toMatchObject({ blitz: true, status: 'made' })
     }
 
     const finished = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
@@ -249,6 +253,21 @@ describe('partie en 500, en blitz, puis « Rejouer »', () => {
     expect(fresh).toMatchObject({ target: 500, blitz: true, phase: 'lobby', evening: code })
     expect(((await getDoc(gameRef(code, clients.viv))).data() as GameDoc).nextGame).toBe(nextGame)
   }, 60_000)
+})
+
+describe('blitz', () => {
+  it('FIN-4 — un capot se joue toujours, même non coinché', async () => {
+    const clients = await fourClients()
+    const code = await createGame('benel', DEFAULT_SEATING, 'benel', clients.benel, { blitz: true })
+    for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
+    await deal(code, null, clients.benel)
+    // Donneur Benel : Viv parle en premier et annonce un capot, qui clôt les enchères.
+    await placeBid(code, { kind: 'capot', player: 'viv', declaration: 'h' }, clients.viv)
+    const game = (await getDoc(gameRef(code, clients.benel))).data() as GameDoc
+    expect(game.phase).toBe('playing')
+    const events = await readEvents(code, clients.benel)
+    expect(events.some((e) => e.type === 'deal_done')).toBe(false)
+  }, 30_000)
 })
 
 describe('annuler une enchère faite par erreur', () => {
@@ -297,10 +316,20 @@ describe('annuler une enchère faite par erreur', () => {
     expect(state.entries).toHaveLength(2)
   }, 30_000)
 
-  it('trop tard une fois que le suivant a parlé', async () => {
+  it("encore possible après des passes, trop tard une fois qu'un autre a surenchéri", async () => {
     const { clients, code } = await bidding()
     await placeBid(code, { kind: 'contract', player: 'viv', value: 90, suit: 's' }, clients.viv)
     await placeBid(code, { kind: 'pass', player: 'roux' }, clients.roux)
+    await placeBid(code, { kind: 'pass', player: 'romain' }, clients.romain)
+    // Deux passes après : l'annulation retire l'enchère et les passes, la parole revient à Viv.
+    await requestUndo(code, 'viv', clients.viv)
+    for (const p of ['roux', 'romain', 'benel'] as const) await answerUndo(code, p, true, clients[p])
+    const state = biddingFromEvents(await readEvents(code, clients.benel), 'benel', DEFAULT_SEATING)
+    expect(state.entries).toEqual([])
+    expect(currentBidder(state)).toBe('viv')
+
+    await placeBid(code, { kind: 'contract', player: 'viv', value: 90, suit: 'd' }, clients.viv)
+    await placeBid(code, { kind: 'contract', player: 'roux', value: 100, suit: 's' }, clients.roux)
     await expect(requestUndo(code, 'viv', clients.viv)).rejects.toThrow()
   }, 30_000)
 })

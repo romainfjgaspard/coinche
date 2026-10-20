@@ -33,6 +33,12 @@ const ink = computed(() => (isRed(suit.value) ? '#c0392b' : '#1f2937'))
 const image = computed(() => courtImage(props.card))
 const crop = computed(() => courtCrop(props.card))
 const pips = computed(() => pipLayout(rank.value))
+/**
+ * En vignette (le dernier pli sur téléphone), les quatre index et les pointes ne tiennent
+ * plus : leurs tailles minimales débordaient et la carte devenait illisible. Une mini-carte
+ * suffit, comme dans les applis : le rang en grand, un seul symbole.
+ */
+const mini = computed(() => props.width < 44)
 
 const s = computed(() => {
   const w = props.width
@@ -91,6 +97,23 @@ const s = computed(() => {
       :style="crop ?? undefined"
       draggable="false"
     />
+
+    <template v-else-if="mini">
+      <span
+        class="absolute top-[4%] left-[8%] font-bold leading-none tracking-tighter"
+        :style="{ fontSize: `${Math.round(width * 0.42)}px`, color: ink }"
+        >{{ RANK_LABEL[rank] }}</span
+      >
+      <SuitIcon
+        :suit="suit"
+        class="absolute right-[10%] bottom-[8%]"
+        :style="{
+          width: `${Math.round(width * 0.55)}px`,
+          height: `${Math.round(width * 0.55)}px`,
+          color: ink,
+        }"
+      />
+    </template>
 
     <template v-else>
       <!-- Index aux quatre coins : droits en haut, retournés en bas -->

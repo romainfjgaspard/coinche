@@ -7,7 +7,7 @@
  */
 import { type BiddingEntry, type BiddingState, newBidding, outcome } from './bidding'
 import type { GameEvent } from './events'
-import { type PlayerId, type Seating, nextPlayer } from './players'
+import { type PlayerId, type Seating, nextPlayer, DEFAULT_SEATING, teamOfPlayer } from './players'
 import { type PlayState, applyPlayed, newPlay } from './play'
 
 /**
@@ -44,14 +44,16 @@ export function seatingOf(events: GameEvent[], fallback: Seating): Seating {
 }
 
 /**
- * Le journal sans les enchères annulées : chaque `bid_undone` désigne, par son numéro,
- * l'enchère qui ne compte plus. C'est ce journal que lisent le moteur et les statistiques.
- * Le repasser une seconde fois ne change rien : on peut l'appliquer à chaque lecture.
+ * Le journal sans les enchères annulées : chaque `bid_undone` retire l'enchère qu'il
+ * désigne par son numéro, et les passes qui l'ont suivie jusqu'à l'annulation. C'est ce
+ * journal que lisent le moteur et les statistiques. Le repasser une seconde fois ne change
+ * rien : on peut l'appliquer à chaque lecture.
  */
 export function withoutUndoneBids(events: GameEvent[]): GameEvent[] {
-  const undone = new Set<number>()
-  for (const e of events) if (e.type === 'bid_undone') undone.add(e.bidSeq)
-  return undone.size === 0 ? events : events.filter((e) => !(e.type === 'bid' && undone.has(e.seq)))
+  const ranges: [number, number][] = []
+  for (const e of events) if (e.type === 'bid_undone') ranges.push([e.bidSeq, e.seq])
+  if (ranges.length === 0) return events
+  return events.filter((e) => !(e.type === 'bid' && ranges.some(([from, to]) => e.seq >= from && e.seq < to)))
 }
 
 export function biddingFromEvents(events: GameEvent[], dealer: PlayerId, seating: Seating): BiddingState {
@@ -122,13 +124,19 @@ export function beloteDeclarations(events: GameEvent[]): Map<PlayerId, number> {
   return counts
 }
 
-/** DEC-8 — étoiles accumulées dans la partie, par joueur. */
-export function starsInGame(events: GameEvent[]): Map<PlayerId, number> {
-  const stars = new Map<PlayerId, number>()
+/**
+ * DEC-8 — étoiles accumulées dans la partie. Elles reviennent à l'équipe du preneur, pas à
+ * lui seul : chaque joueur porte le compte de son équipe.
+ */
+export function starsInGame(events: GameEvent[], seating?: Seating): Map<PlayerId, number> {
+  const table = seating ?? seatingOf(events, DEFAULT_SEATING)
+  const byTeam: [number, number] = [0, 0]
   for (const e of events) {
     if (e.type !== 'deal_done' || !e.shameStar) continue
-    stars.set(e.shameStar, (stars.get(e.shameStar) ?? 0) + 1)
+    byTeam[teamOfPlayer(e.shameStar, table)] += 1
   }
+  const stars = new Map<PlayerId, number>()
+  for (const p of table) if (byTeam[teamOfPlayer(p, table)]) stars.set(p, byTeam[teamOfPlayer(p, table)])
   return stars
 }
 

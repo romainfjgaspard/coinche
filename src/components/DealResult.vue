@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** Fin de donne : le décompte, l'étoile éventuelle, et la donne suivante. */
-import { computed, ref } from 'vue'
-import { type PlayerId, teamOfPlayer } from '../game/players'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { type PlayerId, partnerOf, teamOfPlayer } from '../game/players'
 import { nameOf } from '../stores/roster'
 import { SUIT_GLYPH } from '../game/display'
 import { SHAME_THRESHOLD } from '../game/replay'
@@ -52,6 +52,18 @@ const STATUS: Record<string, string> = {
 }
 
 const iAmDealer = computed(() => session.playerId === session.game?.dealer)
+/** FIN-4 — en blitz, un contrat non joué n'est pas « réussi » : il est marqué. */
+const statusLabel = computed(() =>
+  result.value?.blitz ? 'Contrat marqué' : (STATUS[result.value?.status ?? ''] ?? result.value?.status ?? ''),
+)
+/** La belote oubliée, seulement dans le camp du preneur : en défense, elle ne compte pas. */
+const beloteForgotten = computed(() => {
+  const who = result.value?.beloteForgottenBy
+  const taker = contract.value?.taker
+  return who && taker && teamOfPlayer(who, session.seating) === teamOfPlayer(taker, session.seating)
+    ? who
+    : null
+})
 const stars = (p: PlayerId): number => session.stars.get(p) ?? 0
 
 /** Le contrat de la donne qui s'achève, pour rappeler ce qui était en jeu. */
@@ -75,10 +87,29 @@ const defenseBelote = computed(() => {
   if (!r?.beloteDeclaredBy || !c) return false
   return teamOfPlayer(r.beloteDeclaredBy, session.seating) !== teamOfPlayer(c.taker, session.seating)
 })
-/** Un bot distribue : il attend qu'on ait lu le décompte. */
-const waitingForBot = computed(
-  () => session.botDealerHere && session.dealAcknowledged === session.game?.dealNumber,
+/** Ceux qu'on attend encore, en toutes lettres : « Roux et Viv ». */
+const awaitedText = computed(() => {
+  const names = session.awaitedPlayers.map(nameOf)
+  return names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} et ${names.at(-1)}`
+})
+/**
+ * Le donneur (ou l'onglet qui fait tourner son bot) peut passer outre après 30 s : un
+ * joueur parti sans prévenir ne doit pas bloquer la table.
+ */
+const FORCE_AFTER_MS = 30000
+const canForce = ref(false)
+let forceTimer: ReturnType<typeof setTimeout> | undefined
+watch(
+  () => `${session.game?.dealNumber}|${session.game?.phase}`,
+  () => {
+    clearTimeout(forceTimer)
+    canForce.value = false
+    forceTimer = setTimeout(() => (canForce.value = true), FORCE_AFTER_MS)
+  },
+  { immediate: true },
 )
+onBeforeUnmount(() => clearTimeout(forceTimer))
+const dealerHere = computed(() => iAmDealer.value || session.botDealerHere)
 /** La donne qui s'achève, relue dans le journal : les points pli par pli. */
 const deal = computed(() =>
   result.value ? reviewDeal(session.events, result.value.dealNumber, session.seating) : null,
@@ -99,11 +130,6 @@ const fullDetail = computed(() => {
   return a === r.cardPoints[0] && b === r.cardPoints[1]
 })
 const review = ref(false)
-
-function next(): void {
-  if (iAmDealer.value) void session.startDeal()
-  else session.continueToNextDeal()
-}
 </script>
 
 <template>
@@ -128,7 +154,8 @@ function next(): void {
         <div class="text-6xl leading-none text-gold">★</div>
         <h2 class="mt-4 font-display text-4xl leading-none text-red-card">Shame shame</h2>
         <p class="mt-3.5 text-[17px] font-semibold">
-          {{ nameOf(result.shameStar) }} a fait capot sans l'annoncer
+          {{ nameOf(result.shameStar) }} et {{ nameOf(partnerOf(result.shameStar, session.seating)) }} ont
+          fait capot sans l'annoncer
         </p>
         <p class="mt-2 text-sm text-sage">
           Huit plis sur huit. Le score ne bouge pas — on ne compte que les enchères — mais l'étoile reste.
@@ -138,7 +165,7 @@ function next(): void {
         </p>
         <p v-else class="mt-3 text-[13px] text-mist">
           {{ stars(result.shameStar) }}<sup v-if="stars(result.shameStar) === 1">re</sup><sup v-else>e</sup>
-          étoile de la partie
+          étoile de l'équipe dans la partie
         </p>
       </template>
 
@@ -153,13 +180,13 @@ function next(): void {
         <!-- La donne qui vient de clore la partie : sans elle, on ne savait pas comment elle s'était finie -->
         <p v-if="result && contract" class="mt-4 text-[13px] text-sage">
           {{
-            `Dernière donne : ${nameOf(contract.taker)} · ${contractText}${contract.trump ? ' ' + SUIT_GLYPH[contract.trump] : ''} — ${(STATUS[result.status] ?? result.status).toLowerCase()}`
+            `Dernière donne : ${nameOf(contract.taker)} · ${contractText}${contract.trump ? ' ' + SUIT_GLYPH[contract.trump] : ''} — ${statusLabel.toLowerCase()}`
           }}
         </p>
       </template>
 
       <template v-else-if="result">
-        <h2 class="font-display text-3xl leading-none">{{ STATUS[result.status] ?? result.status }}</h2>
+        <h2 class="font-display text-3xl leading-none">{{ statusLabel }}</h2>
         <!-- Ce qui était en jeu : qui a pris, quoi, et à quel multiplicateur -->
         <p v-if="contract" class="mt-3 flex items-center justify-center gap-2 text-[15px]">
           <span class="font-semibold">{{ nameOf(contract.taker) }}</span>
@@ -252,15 +279,15 @@ function next(): void {
           </tbody>
         </table>
         <p v-if="result.blitz" class="mt-4 text-[13px] text-mist">
-          Blitz : donne non jouée, contrat réputé réussi.
+          Blitz : donne non jouée, contrat marqué d'office.
         </p>
         <p v-if="result.beloteDeclaredBy" class="mt-1.5 text-[13px] text-sage">
           {{
             `Belote annoncée par ${nameOf(result.beloteDeclaredBy)}${defenseBelote ? ' — en défense, elle ne compte pas' : ''}`
           }}
         </p>
-        <p v-else-if="result.beloteForgottenBy" class="mt-1.5 text-[13px] text-red-card">
-          {{ nameOf(result.beloteForgottenBy) }} avait la belote et ne l'a pas annoncée
+        <p v-else-if="beloteForgotten" class="mt-1.5 text-[13px] text-red-card">
+          {{ nameOf(beloteForgotten) }} avait la belote et ne l'a pas annoncée
         </p>
       </template>
 
@@ -292,21 +319,30 @@ function next(): void {
       >
         Voir le résultat de la partie
       </button>
-      <p v-else-if="!over && waitingForBot" class="mt-3 text-sm text-mist">
-        {{ session.game ? nameOf(session.game.dealer) : '' }} distribue…
-      </p>
+      <!-- Chacun dit qu'il a vu le décompte ; la donne part quand tout le monde est prêt -->
       <button
-        v-else-if="!over && (iAmDealer || session.botDealerHere)"
+        v-else-if="!over && !session.iAmReady"
         type="button"
         :disabled="session.busy"
         class="mt-2.5 h-13 w-full cursor-pointer rounded-xl bg-gold py-3.5 text-base font-bold text-felt transition hover:brightness-110 disabled:opacity-40"
-        @click="next"
+        @click="session.readyForNext()"
       >
-        Distribuer la donne suivante
+        Donne suivante
       </button>
-      <p v-else-if="!over" class="mt-3 text-sm text-mist">
-        {{ session.game ? nameOf(session.game.dealer) : '' }} distribue.
-      </p>
+      <template v-else-if="!over">
+        <p class="mt-3 text-sm text-mist">
+          <template v-if="session.awaitedPlayers.length">En attente de {{ awaitedText }}…</template>
+          <template v-else>{{ session.game ? nameOf(session.game.dealer) : '' }} distribue…</template>
+        </p>
+        <button
+          v-if="dealerHere && canForce && session.awaitedPlayers.length"
+          type="button"
+          class="mt-2 h-10 w-full cursor-pointer rounded-xl border border-white/20 text-sm font-semibold text-mist transition hover:border-white/40"
+          @click="session.dealAnyway()"
+        >
+          Distribuer sans attendre
+        </button>
+      </template>
       <!-- L'organisateur relance une partie : mêmes équipes, donneur suivant ; les autres suivent -->
       <template v-else-if="isOrganizer">
         <button
