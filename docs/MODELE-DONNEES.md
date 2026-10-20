@@ -33,6 +33,9 @@ parties/{code}                l'état courant (GameDoc)
                               donne, calculée une fois par un joueur, lue par les quatre
 
 archives/{code}               le condensé de fin de partie, écrit une fois, jamais retouché
+
+tables/{nom}                  { current, updatedAt } : une table nommée (lien fixe « ?table=potes »)
+                              et sa partie en cours ; pointée sur chaque nouvelle partie
 ```
 
 ### Le document de partie (`GameDoc`, `src/firebase/game.ts`)

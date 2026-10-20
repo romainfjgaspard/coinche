@@ -230,6 +230,21 @@ service cloud.firestore {
       }
     }
 
+    // Les tables nommées : un lien fixe (« ?table=potes ») qui mène à la partie en cours.
+    // N'importe qui à la table peut la faire pointer sur une partie neuve qu'il vient de créer.
+    match /tables/{name} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+                    && name.matches('^[a-z0-9-]{2,30}$')
+                    && request.resource.data.keys().hasOnly(['current', 'updatedAt'])
+                    && request.resource.data.updatedAt == request.time
+                    && request.resource.data.current is string
+                    && exists(/databases/$(database)/documents/games/$(request.resource.data.current))
+                    && game(request.resource.data.current).phase == 'lobby'
+                    && game(request.resource.data.current).seats[game(request.resource.data.current).creatorId].uid == request.auth.uid;
+      allow delete: if false;
+    }
+
     // Le condensé de fin de partie, écrit une fois, par un joueur, une fois la partie finie.
     match /archives/{code} {
       allow read:   if request.auth != null;

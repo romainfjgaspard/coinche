@@ -25,6 +25,13 @@ const zoom = useFitZoom(
 )
 const chosen = ref<PlayerId | null>(session.playerId)
 const code = ref(initialCode())
+// Le lien d'une table se lit après l'ouverture de l'accueil : son code arrive en retard.
+watch(
+  () => session.linkedCode,
+  (c) => {
+    if (c && !code.value) code.value = c
+  },
+)
 
 /**
  * Le code à pré-remplir : celui du lien ouvert (`?code=`, gardé par la session, qui gère
@@ -152,6 +159,19 @@ async function add(): Promise<void> {
       <div class="flex flex-col items-center">
         <SuitRow />
         <h1 class="mt-4 font-display text-4xl leading-none">Coinche</h1>
+        <!-- Le lien d'une table nommée : le même chaque semaine -->
+        <p v-if="session.tableName" class="mt-3 text-center text-sm text-mist">
+          Table <span class="font-semibold text-gold">« {{ session.tableName }} »</span>
+          <span v-if="!session.tableChecked" class="block text-[13px] text-sage">
+            Recherche de la partie de la table…
+          </span>
+          <span v-else-if="session.tableIdle" class="block text-[13px] text-sage">
+            Pas de partie en cours : choisis ton nom, puis lance-la.
+          </span>
+          <span v-else-if="session.linkedCode" class="block text-[13px] text-sage">
+            Partie en cours : choisis ton nom, puis rejoins-la.
+          </span>
+        </p>
       </div>
 
       <p
@@ -298,7 +318,18 @@ async function add(): Promise<void> {
         crée-en une nouvelle.
       </p>
 
+      <!-- La table n'a pas de partie en cours : la lancer est le geste principal -->
       <button
+        v-if="session.tableName && session.tableIdle"
+        type="button"
+        :disabled="!chosen || session.busy"
+        class="mt-3 h-[50px] cursor-pointer rounded-xl bg-gold text-[15px] font-bold text-felt transition enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40"
+        @click="create"
+      >
+        {{ pendingAction === 'create' ? 'Création de la partie…' : 'Lancer la partie de la table' }}
+      </button>
+      <button
+        v-else
         type="button"
         :disabled="!chosen || session.busy"
         class="mt-3 h-[46px] cursor-pointer rounded-xl border border-white/15 text-sm font-medium text-mist transition enabled:hover:border-white/35 enabled:hover:bg-white/5 disabled:cursor-default disabled:opacity-40"

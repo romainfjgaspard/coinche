@@ -13,6 +13,7 @@ Chaque joueur se connecte avec un **compte anonyme** Firebase, créé à la prem
 - **La partie ne se réécrit pas librement.** Un joueur assis ne peut changer que ce qu'une action de jeu change : le numéro du journal, la phase, le donneur, la pause, et des scores qui ne font que monter, d'au plus une donne à la fois. Le placement et les options ne changent qu'au salon, avant la première donne. Une partie ne se termine que sur un objectif dépassé.
 - **Rien ne se détruit.** Aucune partie, aucun événement, aucune archive, aucun joueur ne peut être supprimé ni réécrit. Une partie existante n'est jamais écrasée par une nouvelle. L'archive ne s'écrit qu'une fois, par un joueur de la partie, une fois celle-ci terminée.
 - **Les analyses** (`games/{code}/analyses/{n}`) ne se lisent qu'entre joueurs de la partie, s'écrivent une fois au nom de celui qui les a calculées, et ne se réécrivent jamais.
+- **Les tables nommées** (`tables/{nom}`) ne pointent que sur une partie encore au salon, et seulement par son créateur : on ne détourne pas le lien d'une table vers une partie en cours.
 - **Les joueurs ajoutés** ne se créent qu'une fois (nom unique), jamais modifiés ; le préfixe `bot` est réservé.
 
 ## Les limites connues

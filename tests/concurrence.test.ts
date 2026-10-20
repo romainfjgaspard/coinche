@@ -34,6 +34,7 @@ import { biddingFromEvents } from '../src/game/replay'
 import { currentBidder } from '../src/game/bidding'
 import { addPlayer, readRoster } from '../src/firebase/players'
 import { ANALYSIS_VERSION, analysesRef, saveAnalysis } from '../src/firebase/analyses'
+import { pointTable, readTable } from '../src/firebase/tables'
 import type { JudgedCard } from '../src/game/cardAnalysis'
 
 let n = 0
@@ -423,5 +424,24 @@ describe('reprendre sa place depuis un autre appareil', () => {
     await takeSeat(code, 'romain', clients.romain)
     await deal(code, null, clients.benel)
     await expect(moveSeat(code, 'roux', stranger)).rejects.toThrow()
+  }, 30_000)
+})
+
+describe('tables nommées', () => {
+  it('le créateur fait pointer la table sur sa partie neuve, pas un autre, pas une partie commencée', async () => {
+    const clients = await fourClients()
+    const code = await newGame(clients)
+    const name = `potes-${n}`
+    // Un autre joueur ne détourne pas la table vers la partie de Benel.
+    await takeSeat(code, 'viv', clients.viv)
+    await expect(pointTable(name, code, clients.viv)).rejects.toThrow()
+    // Benel, qui l'a créée, le peut tant qu'elle est au salon.
+    await pointTable(name, code, clients.benel)
+    expect(await readTable(name, clients.roux)).toBe(code)
+
+    // Une partie déjà distribuée ne peut plus devenir celle de la table.
+    for (const p of ['roux', 'romain'] as const) await takeSeat(code, p, clients[p])
+    await deal(code, null, clients.benel)
+    await expect(pointTable(`autre-${n}`, code, clients.benel)).rejects.toThrow()
   }, 30_000)
 })

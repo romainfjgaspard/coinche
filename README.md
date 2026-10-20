@@ -2,7 +2,8 @@
 
 Coinche en ligne à quatre, jouable sur téléphone et sur PC : <https://romainfjgaspard.github.io/coinche/>.
 Chacun choisit son nom (ou en ajoute un), crée une partie ou la rejoint avec un code ou un lien ; les
-places libres se confient à des bots.
+places libres se confient à des bots. Une **table nommée** donne un lien fixe, le même chaque semaine :
+`…/coinche/?table=potes` mène toujours à la partie en cours de la table.
 
 ## Ce que fait l'application
 
