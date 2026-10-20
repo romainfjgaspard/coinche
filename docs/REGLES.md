@@ -98,8 +98,8 @@ Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/gam
 | DEC-4 | Coinche : la valeur de l'enchère est doublée (×2), quadruplée si surcoinche (×4) | ✅ |
 | DEC-5 | **Capot** : 250. **Générale** : 250 | ✅ |
 | DEC-6 | Les points de cartes réellement faits ne sont **jamais** marqués — ils ne servent qu'à déterminer si le contrat passe | ✅ |
-| DEC-8 | **Capot réalisé sans l'avoir annoncé** (même coinché) : le score ne change pas, mais le preneur récolte **une étoile de la honte** | ✅ |
-| DEC-9 | **Trois étoiles dans la même partie** : la honte complète. Enregistrée dans l'historique | ✅ |
+| DEC-8 | **Capot réalisé sans l'avoir annoncé** (même coinché) : le score ne change pas, mais **l'équipe du preneur** récolte **une étoile de la honte** | ✅ |
+| DEC-9 | **Trois étoiles pour une même équipe dans la partie** : la honte complète. Enregistrée dans l'historique | ✅ |
 | DEC-7 | **Égalité 81 – 81 : le preneur chute.** Être à égalité ne suffit pas, il faut être devant | ✅ |
 
 ## 9. Fin de partie
@@ -109,7 +109,7 @@ Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/gam
 | FIN-1 | La partie s'arrête dès qu'une équipe **dépasse l'objectif** — 1000 par défaut (il faut donc 1010), ou 500, 1500, 2000 choisis au salon. Le nombre de donnes varie | ✅ |
 | FIN-2 | ~~Deux équipes dépassant l'objectif sur la même donne~~ — **impossible** : une seule équipe marque par donne | ✅ sans objet |
 | FIN-3 | ~~Égalité parfaite en fin de partie~~ — **impossible**, pour la même raison | ✅ sans objet |
-| FIN-4 | **Blitz** (option du salon) : une donne non coinchée n'est pas jouée ; le contrat est réputé réussi, le preneur marque sa valeur (250 en capot ou générale). Une donne coinchée ou surcoinchée se joue. La belote n'est pas marquée (BEL-5) et il n'y a pas d'étoile de la honte | ✅ |
+| FIN-4 | **Blitz** (option du salon) : un contrat chiffré non coinché n'est pas joué ; il est marqué d'office, le preneur marque sa valeur. Une donne coinchée ou surcoinchée se joue. **Un capot ou une générale se joue toujours** (ils ne se coinchent pas). La belote n'est pas marquée (BEL-5) et il n'y a pas d'étoile de la honte | ✅ |
 
 ---
 

@@ -1,7 +1,7 @@
 /**
  * Annuler sa dernière enchère, sur fausse manipulation (« 120 ♥ » au lieu de « 120 ♦ »).
  *
- * Le joueur la demande tant que le suivant n'a pas parlé ; les trois autres votent, et
+ * Le joueur la demande tant que seules des passes ont suivi ; les trois autres votent, et
  * l'enchère tombe si tous acceptent. Tout passe par le journal, qui reste append-only :
  * l'enchère n'est jamais effacée, un événement `bid_undone` dit qu'elle ne compte plus.
  * Pur : aucune dépendance à Firestore.
@@ -64,16 +64,22 @@ export function lastRefusal(events: GameEvent[]): { player: PlayerId; by: Player
 
 /**
  * L'enchère que ce joueur peut demander à reprendre, par son numéro — ou null. Seulement
- * la sienne, seulement si c'est la toute dernière parole de la donne (le suivant n'a pas
- * parlé, personne n'a coinché), et une seule demande par enchère.
+ * la sienne, seulement si après elle il n'y a eu que des passes (ni enchère plus haute, ni
+ * coinche), tant que les enchères sont ouvertes, et une seule demande par enchère.
+ * Accordée, l'annulation retire l'enchère et les passes qui la suivent.
  */
 export function undoableBid(events: GameEvent[], player: PlayerId): number | null {
   const deal = currentDeal(events)
+  const asked = new Set<number>()
   for (let i = deal.length - 1; i >= 0; i--) {
     const e = deal[i]
-    if (e.type === 'undo_requested' || e.type === 'bid_undone' || e.type === 'contract_set') return null
-    if (e.type === 'coinche' || e.type === 'surcoinche' || e.type === 'deal_cancelled') return null
-    if (e.type === 'bid') return e.player === player ? e.seq : null
+    if (e.type === 'bid_undone' || e.type === 'contract_set' || e.type === 'deal_cancelled') return null
+    if (e.type === 'coinche' || e.type === 'surcoinche') return null
+    if (e.type === 'undo_requested') asked.add(e.bidSeq)
+    if (e.type !== 'bid') continue
+    if (e.player === player) return asked.has(e.seq) ? null : e.seq
+    // Un autre a parlé après moi : seule une passe laisse l'annulation possible.
+    if (e.entry.kind !== 'pass') return null
   }
   return null
 }

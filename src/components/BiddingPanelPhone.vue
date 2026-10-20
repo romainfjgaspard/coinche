@@ -20,7 +20,7 @@ const session = useSession()
 const L = useTableLayout()
 /** Le haut de ma main et de ma pastille, comme sur la table (`GameTable`). */
 const bottom = computed(() => {
-  const card = Math.min(120, Math.round(Math.min(L.value.width, 448) * 0.3))
+  const card = Math.min(132, Math.round(Math.min(L.value.width, 448) * 0.33))
   return Math.round(card * 1.44 * 0.58) + 48
 })
 
@@ -214,7 +214,7 @@ const best = computed(() => {
             />
             <template v-else>{{ declaration === 'sa' ? 'SA' : 'TA' }}</template>
           </template>
-          <template v-else>Choisis une couleur</template>
+          <template v-else>Annoncer</template>
         </button>
         <button
           v-if="session.mayCoinche"

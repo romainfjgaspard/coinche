@@ -33,4 +33,21 @@ body {
   color: var(--color-ivory);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
+  /*
+   * Comme dans une appli : rien ne se sélectionne ni ne se glisse (cartes, symboles,
+   * noms), et un appui long n'ouvre pas le menu « copier / enregistrer l'image ».
+   */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Les champs de saisie restent sélectionnables : le code de partie, un nom de joueur */
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+img,
+svg {
+  -webkit-user-drag: none;
 }

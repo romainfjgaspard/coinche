@@ -10,7 +10,7 @@ import type { Card } from './cards'
 import type { GameEvent } from './events'
 import { handStrength } from './strength'
 import { finesseTallies, finessesOfGame } from './finesses'
-import { type PlayerId, type Seating, teamOfPlayer } from './players'
+import { type PlayerId, type Seating, partnerOf, teamOfPlayer } from './players'
 import { type ThinkTime, deals, thinkTimes } from './stats'
 import {
   type Gaps,
@@ -143,7 +143,12 @@ export function buildArchive(
     }
     if (d.beloteDeclaredBy) players[d.beloteDeclaredBy].belotesDeclared += 1
     if (d.beloteForgottenBy) players[d.beloteForgottenBy].belotesForgotten += 1
-    if (d.shameStar) players[d.shameStar].shameStars += 1
+    // DEC-8 — l'étoile revient à l'équipe : ses deux joueurs la portent (depuis le 20/10/2026).
+    if (d.shameStar) {
+      players[d.shameStar].shameStars += 1
+      const partner = partnerOf(d.shameStar, seating)
+      if (players[partner]) players[partner].shameStars += 1
+    }
   }
 
   for (const [p, r] of thinkTimes(events)) if (players[p]) players[p].thinkTime = r

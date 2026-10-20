@@ -358,6 +358,9 @@ const teams = computed(() => [
           :active="isActive(me)"
           :stars="starsOf(me)"
           :belote="beloteOf(me)"
+          :bid="session.myBidTurn ? undefined : lastBid.get(me)"
+          bid-beside
+          large
           me
         />
         <span v-if="session.myPlayTurn" class="text-sm font-semibold text-gold">à toi de jouer</span>

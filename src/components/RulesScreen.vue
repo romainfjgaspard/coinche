@@ -62,14 +62,14 @@ const SECTIONS: { title: string; points: string[]; examples?: boolean }[] = [
   {
     title: 'Les étoiles de la honte',
     points: [
-      "Un capot fait sans l'avoir annoncé ne rapporte rien de plus, mais vaut une étoile de la honte. Trois étoiles dans une partie : la honte complète.",
+      "Un capot fait sans l'avoir annoncé ne rapporte rien de plus, mais vaut une étoile de la honte à l'équipe du preneur. Trois étoiles pour une équipe dans une partie : la honte complète.",
     ],
   },
   {
     title: 'Fin de partie',
     points: [
       "La partie s'arrête dès qu'une équipe dépasse l'objectif fixé au salon (1000 sauf choix contraire) : il faut le dépasser, l'atteindre ne suffit pas.",
-      "En blitz, une donne non coinchée n'est pas jouée : le contrat est réputé réussi.",
+      "En blitz, un contrat chiffré non coinché n'est pas joué : il est marqué d'office. Un capot ou une générale se joue toujours.",
     ],
   },
 ]
