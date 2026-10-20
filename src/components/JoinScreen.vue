@@ -27,18 +27,11 @@ const chosen = ref<PlayerId | null>(session.playerId)
 const code = ref(initialCode())
 
 /**
- * Le code à pré-remplir : celui d'un lien partagé depuis le salon (`?code=`), sinon
- * le dernier code utilisé sur ce navigateur. Le paramètre est retiré de l'adresse : un
- * rechargement ne doit pas y ramener une fois la partie quittée.
+ * Le code à pré-remplir : celui du lien ouvert (`?code=`, gardé par la session, qui gère
+ * l'adresse), sinon le dernier code utilisé sur ce navigateur.
  */
 function initialCode(): string {
-  const link = new URLSearchParams(location.search).get('code')?.trim().toUpperCase() ?? ''
-  if (/^[A-Z]{4}$/.test(link)) {
-    const url = new URL(location.href)
-    url.searchParams.delete('code')
-    history.replaceState(null, '', url)
-    return link
-  }
+  if (session.linkedCode) return session.linkedCode
   try {
     return localStorage.getItem(LAST_CODE_KEY) ?? ''
   } catch {
