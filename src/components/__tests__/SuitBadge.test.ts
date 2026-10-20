@@ -30,6 +30,13 @@ describe('SuitBadge', () => {
     for (const s of ['s', 'd', 'c'] as const) expect(style(s)).not.toContain('translateY')
   })
 
+  it('agrandit le carreau, plus étroit que les autres', () => {
+    const style = mount(SuitBadge, { props: { suit: 'd', size: 28 } })
+      .find('svg')
+      .attributes('style')
+    expect(style).toMatch(/scale\(1\.1\d*\)/)
+  })
+
   it('écrit SA et TA en lettres', () => {
     expect(mount(SuitBadge, { props: { suit: 'sa', size: 24 } }).text()).toBe('SA')
   })

@@ -26,6 +26,19 @@ const iconSize = computed(() => {
 })
 /** Le décalage optique, vers le bas, en part de la taille du symbole. */
 const OPTICAL_DROP: Record<Suit, number> = { h: 0.054, s: 0, d: 0, c: 0 }
+/**
+ * Le carreau est étroit (51 % du rond en largeur, contre 60 à 69 % pour les autres) : à
+ * hauteur égale, il paraissait plus petit. Il grandit d'un cran.
+ */
+const OPTICAL_SCALE: Record<Suit, number> = { h: 1, s: 1, d: 1.12, c: 1 }
+const transform = computed(() => {
+  if (!color.value) return undefined
+  const parts = [
+    drop.value ? `translateY(${drop.value}px)` : '',
+    OPTICAL_SCALE[color.value] !== 1 ? `scale(${OPTICAL_SCALE[color.value]})` : '',
+  ].filter(Boolean)
+  return parts.length ? parts.join(' ') : undefined
+})
 const drop = computed(() =>
   color.value ? Math.round(iconSize.value * OPTICAL_DROP[color.value] * 10) / 10 : 0,
 )
@@ -59,7 +72,7 @@ const label = computed(() =>
       :style="{
         width: `${iconSize}px`,
         height: `${iconSize}px`,
-        transform: drop ? `translateY(${drop}px)` : undefined,
+        transform,
       }"
     />
   </span>
