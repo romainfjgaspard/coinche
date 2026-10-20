@@ -73,6 +73,7 @@ import { mainClient } from '../firebase/app'
 import { nameOf } from './roster'
 import { lastRefusal, pendingUndo, undoableBid, withoutUndoneBids } from '../game/undo'
 import { saveAnalysis, watchAnalyses } from '../firebase/analyses'
+import { pointTable, readTable, tableFromAddress } from '../firebase/tables'
 import type { JudgedCard } from '../game/cardAnalysis'
 
 const STORE_KEY = 'coinche.session'
@@ -130,7 +131,13 @@ function showCodeInAddress(c: string | null): void {
 export const useSession = defineStore('session', () => {
   const saved = restore()
   /** Le lien ouvert, à comparer à la partie mémorisée : c'est lui qui décide. */
-  const opened = linkCode()
+  let opened = linkCode()
+  /** La table nommée de l'adresse (`?table=potes`) : son lien mène à sa partie en cours. */
+  const tableName = ref<string | null>(tableFromAddress())
+  /** La table n'a pas de partie en cours : l'accueil propose d'en lancer une. */
+  const tableIdle = ref(false)
+  /** La table a été lue : avant, l'accueil ne sait pas encore quoi proposer. */
+  const tableChecked = ref(false)
   /**
    * Le code du lien tant qu'on n'est dans aucune partie : l'accueil le pré-remplit, et il
    * reste dans l'adresse. Oublié dès qu'on rejoint une partie ou qu'on la quitte.
@@ -433,6 +440,11 @@ export const useSession = defineStore('session', () => {
     await run(async () => {
       uid.value = await signIn()
       const newCode = await createGame(player)
+      // Créée depuis le lien d'une table : la table pointe désormais sur elle.
+      if (tableName.value) {
+        await pointTable(tableName.value, newCode)
+        tableIdle.value = false
+      }
       playerId.value = player
       code.value = newCode
       persist({ playerId: player, code: newCode })
@@ -966,6 +978,8 @@ export const useSession = defineStore('session', () => {
   async function replay(): Promise<void> {
     if (!code.value || !playerId.value) return
     const nextGame = await run(() => replayGame(code.value!, playerId.value!))
+    // « Rejouer » depuis une table : elle suit la nouvelle partie.
+    if (nextGame && tableName.value) await run(() => pointTable(tableName.value!, nextGame))
     if (nextGame) await switchTo(nextGame)
   }
 
@@ -983,19 +997,40 @@ export const useSession = defineStore('session', () => {
    * connexion propose de lui-même, après quelques secondes, de revenir à l'accueil.
    */
   async function resume(): Promise<void> {
+    // Le lien d'une table : on cherche sa partie en cours, et c'est elle qu'on ouvre.
+    if (tableName.value) {
+      const name = tableName.value
+      await run(async () => {
+        uid.value = await signIn()
+        const current = await readTable(name)
+        const g = current ? ((await getDoc(gameRef(current))).data() as GameDoc | undefined) : undefined
+        const live = g && g.phase !== 'finished' && g.phase !== 'cancelled'
+        tableIdle.value = !live
+        tableChecked.value = true
+        if (live) {
+          opened = current
+          linkedCode.value = current
+        } else if (code.value) {
+          // La partie mémorisée n'est plus celle de la table : l'accueil propose la suivante.
+          code.value = null
+          persist({ playerId: playerId.value, code: null })
+        }
+      })
+    }
     // Un lien vers une autre partie que celle en mémoire : il l'emporte. Si cet appareil y a
     // déjà une place, on s'y remet ; sinon l'accueil s'ouvre, le code du lien pré-rempli.
-    if (opened && opened !== code.value) {
+    const link = opened
+    if (link && link !== code.value) {
       const ok = await run(async () => {
         uid.value = await signIn()
-        const g = (await getDoc(gameRef(opened))).data() as GameDoc | undefined
+        const g = (await getDoc(gameRef(link))).data() as GameDoc | undefined
         const mine = g
           ? (Object.keys(g.seats) as PlayerId[]).find((p) => g.seats[p]?.uid === uid.value)
           : undefined
         if (g && mine && g.phase !== 'cancelled') {
           playerId.value = mine
-          code.value = opened
-          persist({ playerId: mine, code: opened })
+          code.value = link
+          persist({ playerId: mine, code: link })
         } else {
           code.value = null
           persist({ playerId: playerId.value, code: null })
@@ -1100,5 +1135,8 @@ export const useSession = defineStore('session', () => {
     reclaimSeat,
     movedAway,
     linkedCode,
+    tableName,
+    tableIdle,
+    tableChecked,
   }
 })

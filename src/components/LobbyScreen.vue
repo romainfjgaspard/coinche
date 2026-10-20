@@ -79,7 +79,12 @@ function addBotHere(level: BotLevelName): void {
 }
 
 /** Le lien de la partie : l'ouvrir remplit le code sur l'accueil. */
-const link = computed(() => `${location.origin}${import.meta.env.BASE_URL}?code=${session.code ?? ''}`)
+// Depuis une table nommée, c'est son lien qu'on partage : le même chaque semaine.
+const link = computed(() =>
+  session.tableName
+    ? `${location.origin}${import.meta.env.BASE_URL}?table=${session.tableName}`
+    : `${location.origin}${import.meta.env.BASE_URL}?code=${session.code ?? ''}`,
+)
 /** Copié : oui, non (on affiche alors le lien à copier à la main), ou rien à dire. */
 const linkCopied = ref<boolean | null>(null)
 /** La bulle d'aide du blitz, ouverte au toucher sur téléphone. */
