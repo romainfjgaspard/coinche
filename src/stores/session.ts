@@ -102,13 +102,50 @@ function persist(value: Persisted): void {
   }
 }
 
+/** Le code de partie de l'adresse (`?code=ABCD`), s'il y en a un, lu au chargement. */
+function linkCode(): string | null {
+  try {
+    const c = new URLSearchParams(location.search).get('code')?.trim().toUpperCase() ?? ''
+    return /^[A-Z]{4}$/.test(c) ? c : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Le code de la partie en cours reste dans l'adresse : on peut la copier pour la partager,
+ * la mettre en favori, ou la rouvrir pour revenir à sa place. Il disparaît en quittant.
+ */
+function showCodeInAddress(c: string | null): void {
+  try {
+    const url = new URL(location.href)
+    if (c) url.searchParams.set('code', c)
+    else url.searchParams.delete('code')
+    if (url.href !== location.href) history.replaceState(history.state, '', url)
+  } catch {
+    // Adresse non modifiable (aperçu, test) : sans gravité.
+  }
+}
+
 export const useSession = defineStore('session', () => {
   const saved = restore()
+  /** Le lien ouvert, à comparer à la partie mémorisée : c'est lui qui décide. */
+  const opened = linkCode()
+  /**
+   * Le code du lien tant qu'on n'est dans aucune partie : l'accueil le pré-remplit, et il
+   * reste dans l'adresse. Oublié dès qu'on rejoint une partie ou qu'on la quitte.
+   */
+  const linkedCode = ref<string | null>(opened)
 
   const uid = ref<string | null>(null)
   const playerId = ref<PlayerId | null>(saved.playerId)
   const code = ref<string | null>(saved.code)
   const game = ref<GameDoc | null>(null)
+  // Le code dans l'adresse suit la partie ; hors partie, celui du lien ouvert.
+  watch(code, (c) => {
+    if (c) linkedCode.value = null
+    showCodeInAddress(c ?? linkedCode.value)
+  })
   watch(
     code,
     (c) => {
@@ -823,6 +860,7 @@ export const useSession = defineStore('session', () => {
   )
 
   function leave(): void {
+    linkedCode.value = null
     stopBots()
     stopGame?.()
     stopHand?.()
@@ -945,8 +983,30 @@ export const useSession = defineStore('session', () => {
    * connexion propose de lui-même, après quelques secondes, de revenir à l'accueil.
    */
   async function resume(): Promise<void> {
+    // Un lien vers une autre partie que celle en mémoire : il l'emporte. Si cet appareil y a
+    // déjà une place, on s'y remet ; sinon l'accueil s'ouvre, le code du lien pré-rempli.
+    if (opened && opened !== code.value) {
+      const ok = await run(async () => {
+        uid.value = await signIn()
+        const g = (await getDoc(gameRef(opened))).data() as GameDoc | undefined
+        const mine = g
+          ? (Object.keys(g.seats) as PlayerId[]).find((p) => g.seats[p]?.uid === uid.value)
+          : undefined
+        if (g && mine && g.phase !== 'cancelled') {
+          playerId.value = mine
+          code.value = opened
+          persist({ playerId: mine, code: opened })
+        } else {
+          code.value = null
+          persist({ playerId: playerId.value, code: null })
+        }
+        return true
+      })
+      if (!ok) code.value = null
+    }
     if (!code.value || !playerId.value) return
     const gameCode = code.value
+    showCodeInAddress(gameCode)
     const ok = await run(async () => {
       uid.value = await signIn()
       subscribe(gameCode)
@@ -1039,5 +1099,6 @@ export const useSession = defineStore('session', () => {
     seatTaken,
     reclaimSeat,
     movedAway,
+    linkedCode,
   }
 })
