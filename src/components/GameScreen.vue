@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import GameTable from './GameTable.vue'
 import GameTablePc from './GameTablePc.vue'
 import { useLargeScreen } from '../composables/useLargeScreen'
+import { useWakeLock } from '../composables/useWakeLock'
 import BiddingPanel from './BiddingPanel.vue'
 import BiddingPanelPhone from './BiddingPanelPhone.vue'
 import UndoBid from './UndoBid.vue'
@@ -17,6 +18,9 @@ const session = useSession()
 const phase = computed(() => session.game?.phase ?? 'lobby')
 const view = ref<'table' | 'stats' | 'rules'>('table')
 const large = useLargeScreen()
+
+/** L'écran reste allumé tant que la partie se joue ; une partie finie le laisse s'éteindre. */
+useWakeLock(computed(() => phase.value !== 'finished' && phase.value !== 'cancelled'))
 
 /**
  * C'est à moi d'agir. Hors de la table (stats, règles) ou l'onglet en arrière-plan, on
