@@ -25,10 +25,10 @@ export const SUIT_GLYPH: Record<Suit, string> = { s: '♠', h: '♥', d: '♦', 
  */
 export const TRICK_VISIBLE_MS = 1100
 
-/** Le rappel « à toi de jouer » au milieu de la table (`TurnReminder`) : après 10 s sur une carte… */
-export const REMINDER_CARD_MS = 10_000
-/** … et 20 s sur une annonce, naturellement plus longue. */
-export const REMINDER_BID_MS = 20_000
+/** Le rappel « à toi de jouer » au milieu de la table (`TurnReminder`) : après 20 s sur une carte… */
+export const REMINDER_CARD_MS = 20_000
+/** … et 40 s sur une annonce (doublés le 21/10 à la demande de la table). */
+export const REMINDER_BID_MS = 40_000
 
 /** Une durée lisible : « < 1 s », « 4 s », « 4,5 s » sous 10 s, « 1 min 05 ». */
 export function duration(ms: number): string {

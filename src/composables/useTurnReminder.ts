@@ -4,7 +4,7 @@
  * Seuils tirés des parties du 13/10/2026 (temps de réflexion relevés dans le journal) :
  * une carte se joue en 2 à 4 s en médiane, et rarement au-delà de 10 s (6 à 12 % des
  * cartes, 22 % pour le plus lent) ; une annonce prend 7 à 15 s en médiane, d'où un seuil
- * plus long, 20 s, pour ne pas rappeler à l'ordre une annonce sur deux.
+ * plus long. Le 21/10, la table a demandé de doubler les deux : 20 s et 40 s.
  */
 import { type ComputedRef, type Ref, computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useSession } from '../stores/session'
