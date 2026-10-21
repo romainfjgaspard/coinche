@@ -6,6 +6,7 @@ import { useSession } from '../stores/session'
 import { nameOf, useRoster } from '../stores/roster'
 import { LAST_CODE_KEY } from '../stores/session'
 import { NAME_MAX } from '../firebase/players'
+import { type LiveGame, readLiveGames } from '../firebase/game'
 import { useLargeScreen } from '../composables/useLargeScreen'
 import { useTableLayout } from '../composables/useTableLayout'
 import { useFitZoom } from '../composables/useFitZoom'
@@ -13,6 +14,18 @@ import { useFitZoom } from '../composables/useFitZoom'
 const session = useSession()
 const roster = useRoster()
 onMounted(() => void roster.load())
+/** Les parties en cours : un appui remplit le code, plus besoin de se le dicter. */
+const live = ref<LiveGame[]>([])
+onMounted(async () => {
+  try {
+    live.value = await readLiveGames()
+  } catch {
+    // Sans la liste, le code se tape comme avant.
+  }
+})
+const liveScore = (g: LiveGame): string =>
+  g.deals === 0 ? 'au salon' : `donne ${g.deals} · ${g.scores[0]} – ${g.scores[1]}`
+const liveMode = (g: LiveGame): string => `${g.target}${g.blitz ? ' · blitz' : ''}`
 const emit = defineEmits<{ stats: []; rules: [] }>()
 const large = useLargeScreen()
 const L = useTableLayout()
@@ -307,6 +320,29 @@ async function add(): Promise<void> {
           @click="joinGame"
         >
           {{ pendingAction === 'join' ? '…' : resuming ? 'Reprendre' : 'Rejoindre' }}
+        </button>
+      </div>
+      <!-- Les parties en cours : un appui remplit le code -->
+      <div v-if="live.length" class="mt-2.5 flex flex-col gap-1.5">
+        <button
+          v-for="g in live"
+          :key="g.code"
+          type="button"
+          class="flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-left transition"
+          :class="
+            cleanCode === g.code
+              ? 'border-gold bg-gold/15'
+              : 'border-white/12 bg-white/5 hover:border-white/30'
+          "
+          @click="code = g.code"
+        >
+          <span class="font-display text-lg tracking-[0.15em] text-gold">{{ g.code }}</span>
+          <span class="flex min-w-0 grow flex-col">
+            <span class="truncate text-[13px] font-semibold text-ivory">{{
+              g.players.map(nameOf).join(', ') || 'personne'
+            }}</span>
+            <span class="text-xs text-sage">{{ liveScore(g) }} · {{ liveMode(g) }}</span>
+          </span>
         </button>
       </div>
       <p v-if="resuming" class="mt-1.5 text-xs text-sage">

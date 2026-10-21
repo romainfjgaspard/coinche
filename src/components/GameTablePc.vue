@@ -112,8 +112,13 @@ const teams = computed(() => [
     <!-- Bandeau : donne, scores -->
     <header class="absolute inset-x-0 top-0 bg-felt-dark" :style="{ height: px(L.header) }">
       <div class="flex h-16 items-center gap-3 px-8" :style="{ zoom: L.t }">
-        <span class="w-40 text-sm font-medium tracking-wider text-sage">
-          DONNE {{ session.game?.dealNumber ?? 0 }}
+        <!-- La donne, et la partie jouée : en combien de points, en blitz ou non -->
+        <span class="flex w-40 flex-col text-sm font-medium tracking-wider text-sage">
+          <span>DONNE {{ session.game?.dealNumber ?? 0 }}</span>
+          <span class="text-xs"
+            >EN {{ session.game?.target ?? 1000
+            }}<span v-if="session.game?.blitz" class="text-gold"> · BLITZ</span></span
+          >
         </span>
         <div class="flex grow items-baseline justify-center gap-3">
           <span class="text-base font-semibold text-gold">Nous</span>

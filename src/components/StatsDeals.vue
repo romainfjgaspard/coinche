@@ -173,7 +173,7 @@ const color = (p: PlayerId): string =>
                   ? 'font-semibold text-[#f0a293]'
                   : pa.text === 'Passe'
                     ? 'text-sage'
-                    : 'font-semibold'
+                    : ['font-semibold', color(pa.player)]
               "
               >{{ pa.text }}
               <span v-if="pa.suitGlyph" :class="pa.red ? 'text-[#e8786a]' : ''">{{
