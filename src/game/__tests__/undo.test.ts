@@ -57,11 +57,46 @@ describe('annuler sa dernière enchère', () => {
     expect(currentBidder(state)).toBe('roux')
   })
 
-  it('plus possible après une coinche, ni deux fois pour la même enchère', () => {
+  it("plus possible après la coinche d'un autre, ni deux fois pour la même enchère", () => {
     expect(undoableBid(journal(bid('viv', 100, 's'), { type: 'coinche', player: 'roux' }), 'viv')).toBeNull()
     expect(
       undoableBid(journal(bid('viv', 100, 's'), { type: 'undo_requested', player: 'viv', bidSeq: 2 }), 'viv'),
     ).toBeNull()
+  })
+
+  it('une coinche par erreur se reprend, tant que le preneur n’a pas répondu', () => {
+    // La donne 14 de DXZV : Benel 120 ♦, Viv coinche par erreur.
+    const j = journal(bid('viv', 110, 's'), bid('roux', 120, 'd'), { type: 'coinche', player: 'viv' })
+    expect(undoableBid(j, 'viv')).toBe(4)
+    expect(undoableBid(j, 'roux')).toBeNull()
+    // Une seule demande par coinche.
+    expect(
+      undoableBid(
+        [
+          ...j,
+          ...journal({ type: 'undo_requested', player: 'viv', bidSeq: 4 })
+            .slice(1)
+            .map((e) => ({ ...e, seq: 5 })),
+        ],
+        'viv',
+      ),
+    ).toBeNull()
+
+    const undone = journal(
+      bid('viv', 110, 's'),
+      bid('roux', 120, 'd'),
+      { type: 'coinche', player: 'viv' },
+      { type: 'undo_requested', player: 'viv', bidSeq: 4 },
+      answer('roux', true),
+      answer('romain', true),
+      answer('benel', true),
+      { type: 'bid_undone', of: 'viv', by: 'benel', bidSeq: 4 },
+    )
+    const state = biddingFromEvents(undone, 'benel', DEFAULT_SEATING)
+    // La coinche a disparu, l'enchère de Roux tient ; la parole va au suivant, Romain.
+    expect(state.entries.map((e) => e.kind)).toEqual(['contract', 'contract'])
+    expect(currentBidder(state)).toBe('romain')
+    expect(withoutUndoneBids(undone).some((e) => e.type === 'coinche')).toBe(false)
   })
 
   it('les trois autres acceptent : la demande est complète', () => {
