@@ -5,7 +5,15 @@
  * Chez nous, « annonce » = enchère.
  */
 import type { Suit } from './cards'
-import { type PlayerId, type Seating, nextPlayer, playerAtSeat, seatOf, teamOfPlayer } from './players'
+import {
+  type PlayerId,
+  type Seating,
+  nextPlayer,
+  partnerOf,
+  playerAtSeat,
+  seatOf,
+  teamOfPlayer,
+} from './players'
 import { RULES, type Rules } from './rules'
 
 /** ENC-10 — sans-atout et tout-atout n'existent qu'en capot et en générale. */
@@ -69,6 +77,20 @@ function trailingPasses(state: BiddingState): number {
   return n
 }
 
+/**
+ * CO-6 — après une coinche, ceux du camp preneur qui n'ont pas encore répondu. Chacun,
+ * preneur et partenaire, laisse jouer (une passe) ou surcoinche, dans n'importe quel
+ * ordre : quand le preneur répondait seul, son « laisser jouer » fermait les enchères en
+ * quelques secondes et le partenaire n'avait jamais le temps de surcoincher.
+ */
+export function coincheAnswers(state: BiddingState): PlayerId[] {
+  const t = taker(state)
+  const at = state.entries.findIndex((e) => e.kind === 'coinche')
+  if (!t || at < 0 || surcoinched(state)) return []
+  const answered = new Set(state.entries.slice(at + 1).flatMap((e) => (e.kind === 'pass' ? [e.player] : [])))
+  return [t, partnerOf(t, state.seating)].filter((p) => !answered.has(p))
+}
+
 export type Outcome =
   | { status: 'open' }
   /** ENC-7 — quatre passes d'emblée : personne ne prend, on redonne (DIS-3). */
@@ -91,12 +113,13 @@ export function outcome(state: BiddingState, rules: Rules = RULES): Outcome {
 
   // ENC-8, ENC-9 — un capot ou une générale clôt les enchères sur-le-champ : plus
   // d'annonce par-dessus, ni de coinche (CO-1). La coinche ferme les enchères ; le camp
-  // du preneur peut encore surcoincher.
+  // du preneur peut encore surcoincher : les enchères ferment quand ses deux joueurs ont
+  // laissé jouer (CO-6).
   const closed =
     best.kind !== 'contract' || surcoinched(state)
       ? true
       : coinched(state)
-        ? state.entries.at(-1)!.kind === 'pass'
+        ? coincheAnswers(state).length === 0
         : trailingPasses(state) >= 3
 
   if (!closed) return { status: 'open' }
@@ -126,9 +149,9 @@ export function currentBidder(state: BiddingState): PlayerId | null {
 
   const spoken = state.entries.filter((e) => e.kind !== 'coinche' && e.kind !== 'surcoinche')
   if (coinched(state)) {
-    // Seul le camp du preneur peut répondre à la coinche : surcoincher ou laisser passer.
-    const t = taker(state)
-    return t ? t : null
+    // Seul le camp du preneur répond à la coinche, le preneur d'abord ; son partenaire
+    // peut aussi répondre avant lui (CO-6, `apply`).
+    return coincheAnswers(state)[0] ?? null
   }
   return playerAtSeat(seatOf(state.dealer, state.seating) + 1 + spoken.length, state.seating)
 }
@@ -160,11 +183,12 @@ export function canCoinche(state: BiddingState, player: PlayerId): boolean {
   return teamOfPlayer(player, state.seating) !== teamOfPlayer(best.player, state.seating)
 }
 
-/** CO-2 — seul le camp du preneur peut surcoincher. */
+/** CO-2 — seul le camp du preneur peut surcoincher, tant qu'il n'a pas laissé jouer (CO-6). */
 export function canSurcoinche(state: BiddingState, player: PlayerId): boolean {
   const t = taker(state)
   if (!t || !coinched(state) || surcoinched(state)) return false
-  return teamOfPlayer(player, state.seating) === teamOfPlayer(t, state.seating)
+  // CO-6 — qui a déjà laissé jouer ne revient pas dessus.
+  return coincheAnswers(state).includes(player)
 }
 
 export class IllegalBid extends Error {}
@@ -182,7 +206,10 @@ export function apply(state: BiddingState, entry: BiddingEntry, rules: Rules = R
     return { ...state, entries: [...state.entries, entry] }
   }
 
-  if (entry.player !== currentBidder(state)) throw new IllegalBid(`Ce n'est pas à ${entry.player} de parler`)
+  // CO-6 — après une coinche, le preneur et son partenaire répondent chacun, dans l'ordre qu'ils veulent.
+  const answersCoinche = coinched(state) && coincheAnswers(state).includes(entry.player)
+  if (entry.player !== currentBidder(state) && !answersCoinche)
+    throw new IllegalBid(`Ce n'est pas à ${entry.player} de parler`)
 
   // CO-5 — après une coinche, le preneur ne peut plus que passer (ou surcoincher, plus haut).
   if (coinched(state) && entry.kind !== 'pass') throw new IllegalBid('La coinche ferme les enchères')

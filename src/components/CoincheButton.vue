@@ -12,7 +12,11 @@ const session = useSession()
 </script>
 
 <template>
-  <div v-if="session.mayCoinche || session.maySurcoinche" class="flex flex-col items-center gap-1">
+  <!-- Coinché, je réponds dans le panneau d'enchères : la surcoinche y est aussi -->
+  <div
+    v-if="session.mayCoinche || (session.maySurcoinche && !session.answersCoinche)"
+    class="flex flex-col items-center gap-1"
+  >
     <button
       type="button"
       class="h-11 cursor-pointer rounded-xl bg-red-card px-6 text-[15px] font-bold text-ivory shadow-[0_6px_18px_rgba(0,0,0,.45)] transition hover:brightness-110"

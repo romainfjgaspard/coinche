@@ -107,7 +107,9 @@ describe('enchères à travers le journal', () => {
     await placeBid(code, { kind: 'pass', player: 'viv' })
     await placeBid(code, { kind: 'contract', player: 'roux', value: 100, suit: 'h' })
     await placeBid(code, { kind: 'coinche', player: 'romain' })
+    // CO-6 — le preneur et son partenaire laissent jouer chacun.
     await placeBid(code, { kind: 'pass', player: 'roux' })
+    await placeBid(code, { kind: 'pass', player: 'benel' })
 
     const events = await readEvents(code)
     const state = biddingFromEvents(events, 'benel')

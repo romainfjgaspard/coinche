@@ -48,6 +48,11 @@ const best = computed(() => {
 })
 
 const coinched = computed(() => (session.bidding?.entries ?? []).some((e) => e.kind === 'coinche'))
+/** Le preneur est « coinché » ; son partenaire l'est avec lui. */
+const coinchedTitle = computed(() => {
+  const t = session.biddingTaker
+  return !t || t === session.playerId ? 'Tu es coinché' : `${nameOf(t)} est coinché`
+})
 const capotOpen = computed(() => Boolean(session.bidding && canBidCapot(session.bidding)))
 const generaleOpen = computed(() => Boolean(session.bidding && canBidGenerale(session.bidding)))
 
@@ -136,7 +141,7 @@ const bestText = computed(() => {
     à côté du joueur concerné, et l'historique a sa colonne à gauche du tapis.
   -->
   <div
-    v-if="session.myBidTurn"
+    v-if="session.myBidTurn || session.answersCoinche"
     class="absolute z-40 -translate-x-1/2"
     :style="{ left: '50%', top: `${L.felt.y + L.rim + Math.round(22 * L.u)}px` }"
   >
@@ -152,22 +157,32 @@ const bestText = computed(() => {
       >
         {{ reminder.text.value }}
       </p>
-      <template v-if="session.myBidTurn && coinched">
-        <!-- CO-5 : coinché, le preneur ne peut plus que laisser jouer ou surcoincher -->
-        <h2 class="text-[17px] font-semibold">Tu es coinché</h2>
+      <template v-if="session.answersCoinche">
+        <!-- CO-5 / CO-6 : coinché, le preneur et son partenaire laissent jouer ou surcoinchent -->
+        <h2 class="text-[17px] font-semibold">{{ coinchedTitle }}</h2>
         <p class="mb-4 text-[13px] text-sage">
-          Plus personne ne surenchérit : laisse jouer à ×2, ou surcoinche à ×4.
+          Plus personne ne surenchérit : laisse jouer à ×2, ou surcoinche à ×4. Ton partenaire répond aussi.
         </p>
-        <button
-          type="button"
-          class="h-12 w-full cursor-pointer rounded-[10px] border border-white/20 text-[15px] font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
-          @click="session.playerId && session.bid({ kind: 'pass', player: session.playerId })"
-        >
-          Passe
-        </button>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="h-12 grow cursor-pointer rounded-[10px] border border-white/20 text-[15px] font-semibold text-mist transition hover:border-white/40 hover:bg-white/5"
+            @click="session.playerId && session.bid({ kind: 'pass', player: session.playerId })"
+          >
+            Laisser jouer ×2
+          </button>
+          <button
+            v-if="session.maySurcoinche"
+            type="button"
+            class="h-12 grow cursor-pointer rounded-[10px] bg-red-card text-[15px] font-bold text-ivory transition hover:brightness-110"
+            @click="session.playerId && session.bid({ kind: 'surcoinche', player: session.playerId })"
+          >
+            Surcoincher ×4
+          </button>
+        </div>
       </template>
 
-      <template v-else-if="session.myBidTurn">
+      <template v-else-if="session.myBidTurn && !coinched">
         <h2 class="text-[17px] font-semibold">Ton enchère</h2>
         <p class="mb-4 text-[13px] text-sage">
           <span v-if="bestText">{{ bestText }} — il faut faire mieux</span>

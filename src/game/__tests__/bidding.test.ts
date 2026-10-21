@@ -172,11 +172,25 @@ describe('CO-1 à CO-3 — coinche', () => {
     expect(() => apply(s, { kind: 'generale', player: 'viv', declaration: 'ta' })).toThrow(IllegalBid)
   })
 
-  it("le preneur peut laisser passer la coinche : l'enjeu reste doublé", () => {
+  it("CO-6 — le preneur et son partenaire laissent jouer chacun : l'enjeu reste doublé", () => {
     const s = apply(taken(), { kind: 'coinche', player: 'roux' })
     expect(currentBidder(s)).toBe('viv')
-    const closed = apply(s, pass('viv'))
-    expect(outcome(closed)).toMatchObject({ status: 'contract', multiplier: 2 })
+    // Le preneur laisse jouer : son partenaire a encore la parole, et peut surcoincher.
+    const one = apply(s, pass('viv'))
+    expect(outcome(one).status).toBe('open')
+    expect(currentBidder(one)).toBe('romain')
+    expect(canSurcoinche(one, 'romain')).toBe(true)
+    expect(outcome(apply(one, pass('romain')))).toMatchObject({ status: 'contract', multiplier: 2 })
+    expect(outcome(apply(one, { kind: 'surcoinche', player: 'romain' }))).toMatchObject({ multiplier: 4 })
+  })
+
+  it('CO-6 — le partenaire peut répondre avant le preneur, et un adversaire jamais', () => {
+    const s = apply(taken(), { kind: 'coinche', player: 'roux' })
+    const one = apply(s, pass('romain'))
+    expect(currentBidder(one)).toBe('viv')
+    expect(() => apply(one, pass('romain'))).toThrow(IllegalBid)
+    expect(() => apply(s, pass('benel'))).toThrow(IllegalBid)
+    expect(outcome(apply(one, pass('viv')))).toMatchObject({ status: 'contract', multiplier: 2 })
   })
 })
 

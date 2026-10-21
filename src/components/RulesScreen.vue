@@ -31,7 +31,7 @@ const SECTIONS: { title: string; points: string[]; examples?: boolean }[] = [
     title: 'Coinche et surcoinche',
     points: [
       'Un adversaire du preneur peut coincher un contrat chiffré (×2), à tout moment des enchères, sans attendre son tour.',
-      'Une coinche ferme les enchères : seul le camp du preneur peut encore surcoincher (×4).',
+      'Une coinche ferme les enchères : seul le camp du preneur peut encore surcoincher (×4). Le preneur et son partenaire répondent chacun : on joue quand les deux ont laissé jouer.',
     ],
   },
   {

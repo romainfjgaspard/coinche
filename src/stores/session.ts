@@ -43,6 +43,8 @@ import {
   type BiddingEntry,
   canCoinche,
   canSurcoinche,
+  coincheAnswers,
+  taker as takerOf,
   currentBidder,
   legalValues,
   outcome,
@@ -266,6 +268,22 @@ export const useSession = defineStore('session', () => {
   })
   const myBidTurn = computed(
     () => toBid.value !== null && toBid.value === playerId.value && !bidSending.value,
+  )
+  /**
+   * CO-6 — coinché : le preneur et son partenaire répondent chacun (laisser jouer ou
+   * surcoincher), sans attendre leur tour.
+   */
+  /** Qui tient l'enchère la plus haute. */
+  const biddingTaker = computed(() => (bidding.value ? takerOf(bidding.value) : null))
+  const answersCoinche = computed(() =>
+    Boolean(
+      game.value?.phase === 'bidding' &&
+      bidding.value &&
+      playerId.value &&
+      !undoPending.value &&
+      !bidSending.value &&
+      coincheAnswers(bidding.value).includes(playerId.value),
+    ),
   )
   const bidValues = computed(() => (bidding.value ? legalValues(bidding.value) : []))
   // Seulement pendant les enchères : l'historique des annonces reste lisible une fois le
@@ -1121,6 +1139,8 @@ export const useSession = defineStore('session', () => {
     bidValues,
     mayCoinche,
     maySurcoinche,
+    answersCoinche,
+    biddingTaker,
     play,
     toPlay,
     myPlayTurn,

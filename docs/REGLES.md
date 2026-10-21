@@ -54,6 +54,7 @@ Les réglages vivent dans `src/game/rules.ts` ; le reste est codé dans `src/gam
 | CO-3 | **Coinche à la volée** : on peut coincher sans attendre son tour de parole — ou attendre son tour, au choix. Plus possible une fois le contrat fixé | ✅ |
 | CO-4 | Le multiplicateur porte sur **la valeur de l'enchère** (conséquence directe de DEC-1) | ✅ |
 | CO-5 | **Une coinche ferme les enchères** : plus personne ne surenchérit. La parole revient au preneur : s'il passe, on joue ; la surcoinche, elle, clôt aussitôt | ✅ |
+| CO-6 | Après une coinche, **le preneur et son partenaire répondent chacun**, dans l'ordre qu'ils veulent : laisser jouer ou surcoincher. On joue quand les deux ont laissé jouer ; une surcoinche de l'un ou l'autre clôt aussitôt (depuis le 22/10/2026 : le « laisser jouer » du preneur fermait tout en quelques secondes) | ✅ |
 
 ## 5. Jeu de la carte
 
