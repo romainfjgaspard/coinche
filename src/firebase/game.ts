@@ -900,7 +900,7 @@ export async function playCard(
 
   const trick = after.completed[after.completed.length - 1]
   const flags = trickFlags(trick, after.trump)
-  await appendWith(c, code, {
+  const trickSeq = await appendWith(c, code, {
     type: 'trick_done',
     trickNumber: after.completed.length,
     winner: trick.winner,
@@ -910,10 +910,29 @@ export async function playCard(
   })
 
   if (!isDealOver(after)) return
+  await finishDeal(code, game, await readJournal(code, c), trickSeq, c)
+}
+
+/**
+ * Le décompte d'une donne dont les huit plis sont joués.
+ *
+ * `expectedSeq` est le dernier numéro du journal tel qu'on l'a lu : le décompte n'est
+ * écrit que si rien n'est passé depuis. Deux clients qui finalisent la même donne (le
+ * dernier joueur, et un autre qui la reprend) n'écrivent ainsi qu'un seul décompte.
+ */
+async function finishDeal(
+  code: string,
+  game: GameDoc,
+  events: GameEvent[],
+  expectedSeq: number,
+  c: Client,
+): Promise<boolean> {
+  const after = playFromEvents(events, game.dealer, tableOf(game))
+  const contract = contractFrom(events, tableOf(game))
+  if (!after || !contract || !isDealOver(after)) return false
 
   // BEL-2 / BEL-6 — la belote ne compte qu'annoncée aux deux cartes, Roi et Dame.
-  const dealEvents = await readJournal(code, c)
-  const declaredBy = declaredBelote(dealEvents)
+  const declaredBy = declaredBelote(events)
   const result = scoreDeal(
     tricksForScoring(after),
     contract,
@@ -944,7 +963,34 @@ export async function playCard(
       shameStar,
     },
     c,
+    expectedSeq,
   )
+  return true
+}
+
+/**
+ * Une donne jouée jusqu'au bout mais jamais décomptée : le dernier joueur a posé sa
+ * carte, puis son téléphone a perdu la base (quota épuisé, réseau coupé, onglet fermé)
+ * avant d'écrire le décompte. La table restait figée sur un tapis vide, sans main ni
+ * bouton — la partie DXZV du 13/10. N'importe quel joueur assis la débloque.
+ *
+ * Renvoie `true` si le décompte a été écrit ici.
+ */
+export async function recoverDeal(code: string, c: Client = mainClient): Promise<boolean> {
+  const snap = await getDoc(gameRef(code, c))
+  if (!snap.exists()) return false
+  const game = snap.data() as GameDoc
+  if (game.phase !== 'playing') return false
+  const events = await readJournal(code, c)
+  if (currentDeal(events).some((e) => e.type === 'deal_done')) return false
+  const last = events.reduce((m, e) => Math.max(m, e.seq), 0)
+  try {
+    return await finishDeal(code, game, events, last, c)
+  } catch (e) {
+    // Quelqu'un d'autre l'a débloquée entre-temps : c'est réglé.
+    if (e instanceof ConcurrentWrite) return false
+    throw e
+  }
 }
 
 /**
@@ -965,6 +1011,8 @@ async function closeDeal(
     blitz?: boolean
   },
   c: Client,
+  /** Le décompte n'est écrit que si le journal en est toujours à ce numéro. */
+  expectedSeq?: number,
 ): Promise<void> {
   const { shameStar } = dealOutcome
   const scores: [number, number] = [
@@ -987,7 +1035,14 @@ async function closeDeal(
       ...(blitz ? { blitz: true } : {}),
     },
     undefined,
-    over ? undefined : { game: { scores, phase: 'scoring', dealer: nextPlayer(game.dealer, tableOf(game)) } },
+    {
+      ...(over ? {} : { game: { scores, phase: 'scoring', dealer: nextPlayer(game.dealer, tableOf(game)) } }),
+      verify: (g) => {
+        if (expectedSeq !== undefined && g.eventSeq !== expectedSeq) {
+          throw new ConcurrentWrite('Donne déjà décomptée')
+        }
+      },
+    },
   )
 
   // DEC-9 — trois étoiles dans la même partie : la honte complète.

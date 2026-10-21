@@ -24,6 +24,7 @@ import {
   primeJournal,
   playCard,
   readArchives,
+  recoverDeal,
   replay as replayGame,
   reclaimSeat as reclaimSeatInDb,
   requestUndo as requestUndoInDb,
@@ -46,7 +47,7 @@ import {
   legalValues,
   outcome,
 } from '../game/bidding'
-import { type CompletedTrick, canDeclareBelote, currentPlayer, playableFor } from '../game/play'
+import { type CompletedTrick, canDeclareBelote, currentPlayer, isDealOver, playableFor } from '../game/play'
 import { TRICK_VISIBLE_MS } from '../game/display'
 import {
   beloteDeclarations,
@@ -77,6 +78,8 @@ import { pointTable, readTable, tableFromAddress } from '../firebase/tables'
 import type { JudgedCard } from '../game/cardAnalysis'
 
 const STORE_KEY = 'coinche.session'
+/** Le dernier pli posé, le décompte suit en une seconde au plus : au-delà, il s'est perdu. */
+const UNDECIDED_DEAL_MS = 4000
 /** Le dernier code de partie utilisé : l'accueil le pré-remplit. */
 export const LAST_CODE_KEY = 'coinche.dernierCode'
 
@@ -280,6 +283,34 @@ export const useSession = defineStore('session', () => {
 
   const play = computed(() =>
     game.value ? playFromEvents(events.value, game.value.dealer, seating.value) : null,
+  )
+  /**
+   * Une donne jouée jusqu'au bout mais jamais décomptée : le dernier joueur a perdu la
+   * base entre son pli et le décompte. Sans rien faire, la table restait figée sur un
+   * tapis vide. Passé quelques secondes, chaque joueur assis tente de la décompter ; un
+   * seul y parvient (`recoverDeal` ne l'écrit que si le journal n'a pas bougé).
+   */
+  let undecidedTimer: ReturnType<typeof setTimeout> | undefined
+  watch(
+    () =>
+      game.value?.phase === 'playing' &&
+      seated.value &&
+      play.value &&
+      isDealOver(play.value) &&
+      !currentDeal(events.value).some((e) => e.type === 'deal_done')
+        ? `${code.value}|${game.value.dealNumber}|${events.value.length}`
+        : '',
+    (key) => {
+      clearTimeout(undecidedTimer)
+      if (!key) return
+      const gameCode = code.value!
+      // Un peu d'aléa : les quatre téléphones ne se présentent pas au même instant.
+      undecidedTimer = setTimeout(
+        () => void recoverDeal(gameCode).catch((e) => console.warn('[décompte]', gameCode, e)),
+        UNDECIDED_DEAL_MS + Math.random() * 1500,
+      )
+    },
+    { immediate: true },
   )
   /** Ma carte en route vers le serveur : déjà sur le tapis à l'écran, plus dans ma main. */
   const sendingCard = ref<Card | null>(null)
