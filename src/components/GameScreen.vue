@@ -83,7 +83,7 @@ onBeforeUnmount(() => {
       <template v-if="view === 'table'">
         <GameTablePc v-if="large" @stats="view = 'stats'" @rules="view = 'rules'" />
         <GameTable v-else @stats="view = 'stats'" @rules="view = 'rules'" />
-        <TurnReminder />
+        <TurnReminder :beside-panel="large" />
         <template v-if="phase === 'bidding'">
           <BiddingPanel v-if="large" />
           <BiddingPanelPhone v-else />
