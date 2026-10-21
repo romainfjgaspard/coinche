@@ -12,8 +12,11 @@ import { type Declaration, canBidCapot, canBidGenerale } from '../game/bidding'
 import { useSession } from '../stores/session'
 import { useTableLayout } from '../composables/useTableLayout'
 import { useFitZoom } from '../composables/useFitZoom'
+import { useTurnReminder } from '../composables/useTurnReminder'
 
 const session = useSession()
+// Le panneau couvre le milieu du tapis, où clignote le rappel : il le porte lui-même.
+const reminder = useTurnReminder()
 const L = useTableLayout()
 
 /**
@@ -142,6 +145,13 @@ const bestText = computed(() => {
       class="w-[480px] rounded-2xl border border-white/10 bg-felt-dark px-5 pt-5 pb-5 shadow-[0_-8px_32px_rgba(0,0,0,.45)]"
       :style="{ zoom }"
     >
+      <p
+        v-if="reminder.shown.value && reminder.mine.value"
+        role="status"
+        class="turn-reminder mb-4 rounded-xl bg-gold px-4 py-2 text-center font-display text-[26px] leading-tight text-felt"
+      >
+        {{ reminder.text.value }}
+      </p>
       <template v-if="session.myBidTurn && coinched">
         <!-- CO-5 : coinché, le preneur ne peut plus que laisser jouer ou surcoincher -->
         <h2 class="text-[17px] font-semibold">Tu es coinché</h2>
