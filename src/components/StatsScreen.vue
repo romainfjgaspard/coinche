@@ -3,7 +3,8 @@
  * Statistiques de la partie en cours, calculées depuis le journal — donc vivantes :
  * un événement arrive, les chiffres bougent.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { readStatsAddress, writeStatsAddress } from '../composables/statsAddress'
 import { type PlayerId, teamOfPlayer } from '../game/players'
 import { nameOf } from '../stores/roster'
 import { type Timing, balance, cascade, averageBid, average } from '../game/stats'
@@ -32,7 +33,9 @@ const L = useTableLayout()
 /** Ouvert depuis l'accueil : pas de partie en cours, seulement l'historique. */
 const props = defineProps<{ globalOnly?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
-const tab = ref<'game' | 'global'>(props.globalOnly ? 'global' : 'game')
+/** La page demandée par l'adresse (lien partagé), sinon la première. */
+const asked = readStatsAddress()
+const tab = ref<'game' | 'global'>(props.globalOnly ? 'global' : (asked?.tab ?? 'game'))
 
 /*
  * Sur PC, les archives sont lues ici : l'en-tête résume toutes les parties, et le
@@ -50,7 +53,7 @@ const SUB_TABS_GAME = [
   { id: 'playing', label: 'Jeu' },
   { id: 'deals', label: 'Donnes' },
 ] as const
-const gameView = ref<string>('score')
+const gameView = ref<string>(asked?.tab === 'game' ? asked.view : 'score')
 const SUB_TABS_GLOBAL = [
   { id: 'duos', label: 'Duos' },
   { id: 'players', label: 'Joueurs' },
@@ -58,7 +61,14 @@ const SUB_TABS_GLOBAL = [
   { id: 'times', label: 'Temps' },
   { id: 'games', label: 'Parties' },
 ] as const
-const globalView = ref<string>('duos')
+const globalView = ref<string>(asked?.tab === 'global' ? asked.view : 'duos')
+// La page ouverte suit dans l'adresse, pour copier le lien ; elle en sort avec les stats.
+watch(
+  [tab, gameView, globalView],
+  () => writeStatsAddress({ tab: tab.value, view: tab.value === 'game' ? gameView.value : globalView.value }),
+  { immediate: true },
+)
+onBeforeUnmount(() => writeStatsAddress(null))
 
 /** Moi, mon partenaire, puis les deux autres : l'ordre et les couleurs des courbes. */
 const gamePlayers = computed<PlayerId[]>(() => {
@@ -397,7 +407,7 @@ const playedTricks = computed(() => {
         </button>
       </div>
 
-      <StatsGlobalView v-if="tab === 'global'" />
+      <StatsGlobalView v-if="tab === 'global'" v-model:view="globalView" />
 
       <template v-else>
         <div class="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-12">

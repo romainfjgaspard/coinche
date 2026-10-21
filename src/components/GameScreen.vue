@@ -14,11 +14,13 @@ import DealResult from './DealResult.vue'
 import StatsScreen from './StatsScreen.vue'
 import RulesScreen from './RulesScreen.vue'
 import { useSession } from '../stores/session'
+import { readStatsAddress } from '../composables/statsAddress'
 import { nameOf } from '../stores/roster'
 
 const session = useSession()
 const phase = computed(() => session.game?.phase ?? 'lobby')
-const view = ref<'table' | 'stats' | 'rules'>('table')
+// Un lien vers une page des stats de la partie (`?stats=partie/score`) l'ouvre à table.
+const view = ref<'table' | 'stats' | 'rules'>(readStatsAddress() ? 'stats' : 'table')
 const large = useLargeScreen()
 
 /**
