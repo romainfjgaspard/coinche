@@ -43,6 +43,8 @@ import {
   type BiddingEntry,
   canCoinche,
   canSurcoinche,
+  coincheAnswers,
+  taker as takerOf,
   currentBidder,
   legalValues,
   outcome,
@@ -191,9 +193,18 @@ export const useSession = defineStore('session', () => {
     Object.fromEntries(Object.keys(game.value?.seats ?? {}).map((p) => [p, true])),
   )
   /** Les joueurs assis, dans l'ordre du placement quand la table est complète. */
-  const present = computed<PlayerId[]>(() =>
-    game.value?.seating ? [...game.value.seating] : Object.keys(game.value?.seats ?? {}),
-  )
+  // Seulement ceux qui sont assis : après « Rejouer », le placement liste déjà les quatre,
+  // et le salon affichait « En attente de 0 joueur » sans bouton pour lancer.
+  const present = computed<PlayerId[]>(() => {
+    const g = game.value
+    if (!g) return []
+    return g.seating ? g.seating.filter((p) => g.seats[p]) : Object.keys(g.seats)
+  })
+  /** Ceux que le placement attend encore : prévus, pas encore assis. */
+  const missing = computed<PlayerId[]>(() => {
+    const g = game.value
+    return g?.seating ? g.seating.filter((p) => !g.seats[p]) : []
+  })
 
   function subscribe(gameCode: string): void {
     stopGame?.()
@@ -257,6 +268,22 @@ export const useSession = defineStore('session', () => {
   })
   const myBidTurn = computed(
     () => toBid.value !== null && toBid.value === playerId.value && !bidSending.value,
+  )
+  /**
+   * CO-6 — coinché : le preneur et son partenaire répondent chacun (laisser jouer ou
+   * surcoincher), sans attendre leur tour.
+   */
+  /** Qui tient l'enchère la plus haute. */
+  const biddingTaker = computed(() => (bidding.value ? takerOf(bidding.value) : null))
+  const answersCoinche = computed(() =>
+    Boolean(
+      game.value?.phase === 'bidding' &&
+      bidding.value &&
+      playerId.value &&
+      !undoPending.value &&
+      !bidSending.value &&
+      coincheAnswers(bidding.value).includes(playerId.value),
+    ),
   )
   const bidValues = computed(() => (bidding.value ? legalValues(bidding.value) : []))
   // Seulement pendant les enchères : l'historique des annonces reste lisible une fois le
@@ -1095,6 +1122,7 @@ export const useSession = defineStore('session', () => {
     ready,
     takenBy,
     present,
+    missing,
     myTeam,
     seating,
     bidding,
@@ -1111,6 +1139,8 @@ export const useSession = defineStore('session', () => {
     bidValues,
     mayCoinche,
     maySurcoinche,
+    answersCoinche,
+    biddingTaker,
     play,
     toPlay,
     myPlayTurn,

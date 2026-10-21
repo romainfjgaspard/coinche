@@ -28,6 +28,11 @@ type Level = number | 'capot' | 'generale'
 const SUITS: Suit[] = ['s', 'h', 'd', 'c']
 
 const coinched = computed(() => (session.bidding?.entries ?? []).some((e) => e.kind === 'coinche'))
+/** Le preneur est « coinché » ; son partenaire l'est avec lui. */
+const coinchedTitle = computed(() => {
+  const t = session.biddingTaker
+  return !t || t === session.playerId ? 'Tu es coinché' : `${nameOf(t)} est coinché — à toi aussi de répondre`
+})
 
 /** Les paliers encore ouverts, du plus bas au plus haut, capot et générale en dernier. */
 const levels = computed<Level[]>(() => {
@@ -107,9 +112,9 @@ const best = computed(() => {
       <span v-else>Personne n'a encore annoncé</span>
     </p>
 
-    <!-- CO-5 : coinché, le preneur ne peut plus que laisser jouer ou surcoincher -->
-    <template v-if="session.myBidTurn && coinched">
-      <p class="mt-1 px-1 text-[15px] font-semibold">Tu es coinché</p>
+    <!-- CO-5 / CO-6 : coinché, le preneur et son partenaire laissent jouer ou surcoinchent -->
+    <template v-if="session.answersCoinche">
+      <p class="mt-1 px-1 text-[15px] font-semibold">{{ coinchedTitle }}</p>
       <div class="mt-2.5 flex gap-2">
         <button
           type="button"
@@ -129,7 +134,7 @@ const best = computed(() => {
       </div>
     </template>
 
-    <template v-else-if="session.myBidTurn">
+    <template v-else-if="session.myBidTurn && !coinched">
       <span data-testid="ton-enchere" class="sr-only">Ton enchère</span>
       <!-- La couleur -->
       <div class="mt-1.5 grid grid-cols-6 gap-1.5">

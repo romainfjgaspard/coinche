@@ -97,19 +97,30 @@ const trickFloor = computed(() => visibleMain.value + 50)
 const SIDE_OVERLAP = 0.05
 /** Les cartes du haut et du bas, l'une au-dessus de l'autre, se chevauchent à peine. */
 const STACK = 1.92
+/** La vignette du dernier pli (libellé et croix de cartes de 34 px), posée au-dessus de ma pastille. */
+const LAST_TRICK_H = 128
+const LAST_TRICK_GAP = 46
 /** Aussi grandes que le permettent la largeur de l'écran et la hauteur libre. */
 const cardWidth = computed(() => {
-  const byHeight = (L.value.height - TRICK_TOP - trickFloor.value) / (1.44 * STACK)
+  const free = L.value.height - TRICK_TOP - trickFloor.value
+  const byHeight = free / (1.44 * STACK)
   const byWidth = (width.value - 20) / (3 - 2 * SIDE_OVERLAP)
-  return Math.round(Math.max(54, Math.min(132, byHeight, byWidth)))
+  // La carte de gauche s'arrête au-dessus de la vignette du dernier pli, le pli remonté
+  // au plus haut (`trickBox`) : sur un petit écran (iPhone SE), elle la recouvrait.
+  const byLastTrick = (lastTrickTop.value - 4 - TRICK_TOP) / ((1.44 * (STACK + 1)) / 2)
+  return Math.round(Math.max(54, Math.min(132, byHeight, byWidth, byLastTrick)))
 })
+/** Le haut de la vignette du dernier pli. */
+const lastTrickTop = computed(() => L.value.height - visibleMain.value - LAST_TRICK_GAP - LAST_TRICK_H)
 const cardHeight = computed(() => Math.round(cardWidth.value * 1.44))
 const trickBox = computed(() => {
   const w = Math.round(cardWidth.value * (3 - 2 * SIDE_OVERLAP))
   const h = Math.round(cardHeight.value * STACK)
   // Centré dans la hauteur libre, entre mon partenaire et ma pastille.
   const free = L.value.height - TRICK_TOP - trickFloor.value
-  const top = TRICK_TOP + Math.max(0, Math.round((free - h) / 2))
+  // … mais remonté s'il le faut, pour que la carte de gauche ne couvre pas le dernier pli.
+  const highest = lastTrickTop.value - 4 - h / 2 - cardHeight.value / 2 - TRICK_TOP
+  const top = TRICK_TOP + Math.max(0, Math.round(Math.min((free - h) / 2, highest)))
   return { w, h, top, left: Math.round(width.value / 2 - w / 2) }
 })
 const currentTrick = computed(() => ({
@@ -185,8 +196,11 @@ const playing = computed(() => session.game?.phase !== 'bidding')
       <QuitGame />
       <!-- Le numéro de donne passe au-dessus des scores : à gauche, la place va à « Quitter » -->
       <div class="flex grow flex-col items-center">
-        <span class="text-[10px] font-medium tracking-wider text-sage">
-          DONNE {{ session.game?.dealNumber ?? 0 }}
+        <!-- La donne, et la partie jouée : en combien de points, en blitz ou non. Sur une ligne. -->
+        <span class="text-[10px] font-medium whitespace-nowrap text-sage">
+          <span class="max-[359px]:hidden">DONNE </span><span class="min-[360px]:hidden">D</span
+          >{{ session.game?.dealNumber ?? 0 }} · {{ session.game?.target ?? 1000
+          }}<span v-if="session.game?.blitz" class="text-gold"> · BLITZ</span>
         </span>
         <!--
         Les scores en grand, dans les couleurs des équipes (or pour nous, bleu pour eux) :
@@ -344,7 +358,7 @@ const playing = computed(() => session.game?.phase !== 'bidding')
       v-if="playing && session.lastTrick"
       type="button"
       class="absolute left-2 z-20 flex cursor-pointer flex-col items-start gap-0.5 rounded-lg p-1 transition active:bg-white/10"
-      :style="{ bottom: `${visibleMain + 46}px` }"
+      :style="{ bottom: `${visibleMain + LAST_TRICK_GAP}px` }"
       aria-label="Voir le dernier pli"
       @click="lastTrickOpen = true"
     >

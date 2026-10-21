@@ -90,11 +90,11 @@ const rows = computed(() => {
           :class="teamColor(l.player)"
           >{{ l.who }}</span
         >
-        <!-- Même formalisme que le contrat : le chiffre doré en police d'affichage, le symbole sur rond ivoire -->
+        <!-- Même formalisme que le contrat : le chiffre en police d'affichage, à la couleur de l'équipe ; le symbole sur rond ivoire -->
         <span class="flex grow items-center gap-2">
           <span
             class="font-display text-2xl leading-none lg:text-xl"
-            :class="l.coinche ? 'text-[#f0a293]' : l.pass ? 'text-sage' : 'text-gold'"
+            :class="l.coinche ? 'text-[#f0a293]' : l.pass ? 'text-sage' : teamColor(l.player)"
             >{{ l.what }}</span
           >
           <SuitBadge v-if="l.suit" :suit="l.suit" :size="26" />

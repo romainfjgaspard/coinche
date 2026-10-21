@@ -385,7 +385,12 @@ const myPartner = computed(() =>
         </p>
       </template>
       <p v-else class="mt-6 text-center text-sm text-sage">
-        En attente de {{ 4 - seatedCount }} joueur{{ 4 - seatedCount > 1 ? 's' : '' }}…
+        <template v-if="session.missing.length"
+          >En attente de {{ session.missing.map(nameOf).join(', ') }}…</template
+        >
+        <template v-else
+          >En attente de {{ 4 - seatedCount }} joueur{{ 4 - seatedCount > 1 ? 's' : '' }}…</template
+        >
       </p>
 
       <p v-if="session.error" class="mt-4 text-center text-sm text-red-card">{{ session.error }}</p>

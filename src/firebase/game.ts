@@ -11,6 +11,7 @@ import {
   query,
   type Transaction,
   arrayUnion,
+  Timestamp,
   serverTimestamp,
   updateDoc,
   where,
@@ -1231,6 +1232,8 @@ export interface UnfinishedGame {
   scores: [number, number]
   seating: Seating | null
   cancelled: boolean
+  target?: number
+  blitz?: boolean
 }
 
 /**
@@ -1254,7 +1257,63 @@ export async function readUnfinishedGames(c: Client = mainClient): Promise<Unfin
         scores: g.scores,
         seating: g.seating,
         cancelled: g.phase === 'cancelled',
+        target: g.target,
+        blitz: g.blitz,
       }
     })
     .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+}
+
+/** Une partie en cours, telle que l'accueil la propose : de quoi la reconnaître. */
+export interface LiveGame {
+  code: string
+  players: PlayerId[]
+  /** 0 : encore au salon */
+  deals: number
+  scores: [number, number]
+  seating: Seating | null
+  target: number
+  blitz: boolean
+}
+
+/** Au-delà, l'accueil deviendrait une liste à faire défiler : les plus récentes suffisent. */
+const LIVE_MAX = 5
+/** Un salon jamais lancé passé ce délai est abandonné : on ne le propose plus. */
+const LOBBY_FRESH_MS = 12 * 3600_000
+/** Une partie commencée se reprend des jours après (DXZV, interrompue le 13/10, finie le 21/10). */
+const GAME_FRESH_MS = 21 * 24 * 3600_000
+
+/**
+ * Les parties en cours, pour les rejoindre depuis l'accueil sans se dicter le code. Seules
+ * les parties récentes sont lues (un seul critère, sur la date : pas d'index composé), les
+ * terminées et les annulées sont écartées ensuite.
+ */
+export async function readLiveGames(c: Client = mainClient): Promise<LiveGame[]> {
+  await signIn(c)
+  const now = Date.now()
+  const since = Timestamp.fromMillis(now - GAME_FRESH_MS)
+  const snap = await getDocs(query(collection(c.db, 'games'), where('createdAt', '>=', since)))
+  return snap.docs
+    .map((d) => ({ code: d.id, g: d.data() as GameDoc }))
+    .filter(({ g }) => {
+      if (g.phase === 'finished' || g.phase === 'cancelled') return false
+      // Une partie seul contre trois bots n'attend personne.
+      const bots = Object.values(g.seats).filter((seat) => seat?.bot).length
+      if (bots >= 3) return false
+      const created = (g.createdAt as { toMillis?: () => number } | null)?.toMillis?.() ?? 0
+      return g.dealNumber > 0 || now - created < LOBBY_FRESH_MS
+    })
+    .map(({ code, g }) => ({
+      code,
+      players: g.seating ? g.seating.filter((p) => g.seats[p]) : (Object.keys(g.seats) as PlayerId[]),
+      deals: g.dealNumber,
+      scores: g.scores,
+      seating: g.seating,
+      target: g.target ?? RULES.target,
+      blitz: Boolean(g.blitz),
+      createdAt: (g.createdAt as { toMillis?: () => number } | null)?.toMillis?.() ?? 0,
+    }))
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, LIVE_MAX)
+    .map(({ createdAt: _, ...live }) => live)
 }

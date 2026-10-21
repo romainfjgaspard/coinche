@@ -115,6 +115,13 @@ const deal = computed(() =>
   result.value ? reviewDeal(session.events, result.value.dealNumber, session.seating) : null,
 )
 const us = computed(() => session.myTeam)
+/** Les points faits du camp preneur : en vert si le contrat est tenu, en rouge s'il chute. */
+const madeClass = (team: 0 | 1): string => {
+  const c = contract.value
+  const r = result.value
+  if (!c || !r || teamOf(c.taker) !== team) return ''
+  return r.status === 'down' ? 'font-semibold text-bad' : 'font-semibold text-good'
+}
 const them = computed<0 | 1>(() => (session.myTeam === 0 ? 1 : 0))
 /** Le détail des points faits, replié par défaut. */
 const detail = ref(false)
@@ -215,8 +222,8 @@ const review = ref(false)
           <tbody>
             <tr v-if="!result.blitz" class="border-t border-white/10">
               <td class="py-1.5 text-left text-[13px] text-sage">Points faits</td>
-              <td class="py-1.5">{{ result.compared[us] }}</td>
-              <td class="py-1.5">{{ result.compared[them] }}</td>
+              <td class="py-1.5" :class="madeClass(us)">{{ result.compared[us] }}</td>
+              <td class="py-1.5" :class="madeClass(them)">{{ result.compared[them] }}</td>
               <td class="py-1.5 text-right">
                 <button
                   v-if="fullDetail"
