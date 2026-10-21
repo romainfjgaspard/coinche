@@ -5,7 +5,6 @@
  * acceptent. Pendant le vote, la parole est suspendue. Les bots acceptent d'office.
  */
 import { computed } from 'vue'
-import type { GameEvent } from '../game/events'
 import { useSession } from '../stores/session'
 import { nameOf } from '../stores/roster'
 import SuitBadge from './SuitBadge.vue'
@@ -16,16 +15,22 @@ const session = useSession()
 const target = computed(() => {
   const p = session.undoPending
   if (!p) return null
-  const e = session.events.find(
-    (x): x is Extract<GameEvent, { type: 'bid' }> => x.type === 'bid' && x.seq === p.bidSeq,
-  )
-  if (!e) return null
+  const e = session.events.find((x) => x.seq === p.bidSeq)
+  if (e?.type === 'coinche') return { text: 'Coinche', suit: null }
+  if (e?.type === 'surcoinche') return { text: 'Surcoinche', suit: null }
+  if (e?.type !== 'bid') return null
   const b = e.entry
   if (b.kind === 'pass') return { text: 'Passe', suit: null }
   if (b.kind === 'contract') return { text: String(b.value), suit: b.suit }
   if (b.kind === 'capot' || b.kind === 'generale')
     return { text: b.kind === 'capot' ? 'Capot' : 'Générale', suit: b.declaration }
   return null
+})
+/** Ma parole à reprendre est une coinche : le bouton le dit. */
+const myCoinche = computed(() => {
+  const seq = session.myUndoableBid
+  const e = seq === null ? undefined : session.events.find((x) => x.seq === seq)
+  return e?.type === 'coinche' || e?.type === 'surcoinche'
 })
 const mine = computed(() => session.undoPending?.player === session.playerId)
 const answered = computed(() =>
@@ -49,7 +54,10 @@ const yes = computed(() => [...(session.undoPending?.answers.values() ?? [])].fi
         <span class="font-semibold text-ivory">{{
           mine ? 'Tu demandes' : nameOf(session.undoPending.player)
         }}</span>
-        <span>{{ mine ? "d'annuler ton enchère" : 'veut annuler son enchère' }}</span>
+        <span v-if="target && !target.suit && target.text !== 'Passe'">{{
+          mine ? "d'annuler ta" : 'veut annuler sa'
+        }}</span>
+        <span v-else>{{ mine ? "d'annuler ton enchère" : 'veut annuler son enchère' }}</span>
         <template v-if="target">
           <span class="font-bold text-gold">{{ target.text }}</span>
           <SuitBadge v-if="target.suit" :suit="target.suit" :size="20" />
@@ -102,7 +110,7 @@ const yes = computed(() => [...(session.undoPending?.answers.values() ?? [])].fi
         :disabled="session.busy"
         @click="session.requestUndo()"
       >
-        <span aria-hidden="true">↶</span> Annuler mon enchère
+        <span aria-hidden="true">↶</span> {{ myCoinche ? 'Annuler ma coinche' : 'Annuler mon enchère' }}
       </button>
     </div>
   </div>

@@ -65,7 +65,8 @@ export function lastRefusal(events: GameEvent[]): { player: PlayerId; by: Player
 /**
  * L'enchère que ce joueur peut demander à reprendre, par son numéro — ou null. Seulement
  * la sienne, seulement si après elle il n'y a eu que des passes (ni enchère plus haute, ni
- * coinche), tant que les enchères sont ouvertes, et une seule demande par enchère.
+ * coinche), tant que les enchères sont ouvertes, et une seule demande par enchère. Sa
+ * coinche aussi, tant que le preneur n'a pas répondu.
  * Accordée, l'annulation retire l'enchère et les passes qui la suivent.
  */
 export function undoableBid(events: GameEvent[], player: PlayerId): number | null {
@@ -74,8 +75,11 @@ export function undoableBid(events: GameEvent[], player: PlayerId): number | nul
   for (let i = deal.length - 1; i >= 0; i--) {
     const e = deal[i]
     if (e.type === 'bid_undone' || e.type === 'contract_set' || e.type === 'deal_cancelled') return null
-    if (e.type === 'coinche' || e.type === 'surcoinche') return null
     if (e.type === 'undo_requested') asked.add(e.bidSeq)
+    // Une coinche par erreur se reprend aussi, tant que le preneur n'a pas répondu ; celle
+    // d'un autre ferme la porte à mon enchère d'avant.
+    if (e.type === 'coinche' || e.type === 'surcoinche')
+      return e.player === player && !asked.has(e.seq) ? e.seq : null
     if (e.type !== 'bid') continue
     if (e.player === player) return asked.has(e.seq) ? null : e.seq
     // Un autre a parlé après moi : seule une passe laisse l'annulation possible.

@@ -53,7 +53,9 @@ export function withoutUndoneBids(events: GameEvent[]): GameEvent[] {
   const ranges: [number, number][] = []
   for (const e of events) if (e.type === 'bid_undone') ranges.push([e.bidSeq, e.seq])
   if (ranges.length === 0) return events
-  return events.filter((e) => !(e.type === 'bid' && ranges.some(([from, to]) => e.seq >= from && e.seq < to)))
+  // Une coinche annulée tombe comme une enchère : elle était la parole visée par la demande.
+  const spoken = (e: GameEvent) => e.type === 'bid' || e.type === 'coinche' || e.type === 'surcoinche'
+  return events.filter((e) => !(spoken(e) && ranges.some(([from, to]) => e.seq >= from && e.seq < to)))
 }
 
 export function biddingFromEvents(events: GameEvent[], dealer: PlayerId, seating: Seating): BiddingState {
