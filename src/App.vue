@@ -6,13 +6,15 @@ import GameScreen from './components/GameScreen.vue'
 import StatsScreen from './components/StatsScreen.vue'
 import RulesScreen from './components/RulesScreen.vue'
 import { useSession } from './stores/session'
+import { readStatsAddress } from './composables/statsAddress'
 
 const session = useSession()
 
 onMounted(() => void session.resume())
 
 /** L'historique se consulte depuis l'accueil, sans rejoindre de partie. */
-const homeStats = ref(false)
+// Un lien vers une page des stats (`?stats=toutes/duos`) l'ouvre directement.
+const homeStats = ref(readStatsAddress() !== null)
 /** Les règles aussi, depuis l'accueil. */
 const homeRules = ref(false)
 
@@ -24,6 +26,11 @@ const screen = computed<Screen>(() => {
   // Une donne blanche repasse la partie en « lobby » pour redistribuer : on reste à
   // table. Le salon — et son choix d'équipes — n'existe qu'avant la première donne.
   return session.game.phase === 'lobby' && session.game.dealNumber === 0 ? 'lobby' : 'table'
+})
+
+// Le lien des stats ouvrait l'historique de l'accueil : une fois à table, il est consommé.
+watch(screen, (s) => {
+  if (s !== 'join') homeStats.value = false
 })
 
 /**

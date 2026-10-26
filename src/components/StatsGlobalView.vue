@@ -55,7 +55,8 @@ const SUB_TABS = [
   { id: 'times', label: 'Temps' },
   { id: 'games', label: 'Parties' },
 ] as const
-const view = ref<string>('duos')
+/** La page ouverte, tenue par l'écran des stats : elle suit dans l'adresse. */
+const view = defineModel<string>('view', { default: 'duos' })
 
 const thePlayers = computed(() => playersOf(archives.value))
 const colors = computed(() => colorsOf(thePlayers.value))
