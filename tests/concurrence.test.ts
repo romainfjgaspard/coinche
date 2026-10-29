@@ -20,17 +20,22 @@ import {
   createGame,
   deal,
   gameRef,
+  handRef,
   moveSeat,
   placeBid,
+  playCard,
   readEvents,
   readJournal,
   replay,
   requestUndo,
+  restoreCard,
   signIn,
   takeSeat,
 } from '../src/firebase/game'
 import { DEFAULT_SEATING, PLAYER_IDS, type PlayerId, nextPlayer, teamOfPlayer } from '../src/game/players'
-import { biddingFromEvents } from '../src/game/replay'
+import { biddingFromEvents, playFromEvents } from '../src/game/replay'
+import { currentPlayer, playableFor } from '../src/game/play'
+import type { Card } from '../src/game/cards'
 import { currentBidder } from '../src/game/bidding'
 import { addPlayer, readRoster } from '../src/firebase/players'
 import { ANALYSIS_VERSION, analysesRef, saveAnalysis } from '../src/firebase/analyses'
@@ -332,6 +337,71 @@ describe('annuler une enchère faite par erreur', () => {
     await placeBid(code, { kind: 'contract', player: 'viv', value: 90, suit: 'd' }, clients.viv)
     await placeBid(code, { kind: 'contract', player: 'roux', value: 100, suit: 's' }, clients.roux)
     await expect(requestUndo(code, 'viv', clients.viv)).rejects.toThrow()
+  }, 30_000)
+})
+
+describe('annuler une carte jouée par erreur', () => {
+  /** Viv prend à 80 ♠, les autres passent : Viv entame. */
+  async function playing() {
+    const clients = await fourClients()
+    const code = await newGame(clients)
+    for (const p of ['roux', 'viv', 'romain'] as const) await takeSeat(code, p, clients[p])
+    await deal(code, null, clients.benel)
+    await placeBid(code, { kind: 'contract', player: 'viv', value: 80, suit: 's' }, clients.viv)
+    for (const p of ['roux', 'romain', 'benel'] as const)
+      await placeBid(code, { kind: 'pass', player: p }, clients[p])
+    return { clients, code }
+  }
+  const handOf = async (code: string, p: PlayerId, c: Client) =>
+    ((await getDoc(handRef(code, p, c))).data()?.cards ?? []) as Card[]
+
+  it("les trois autres acceptent : la carte revient dans la main et c'est de nouveau à elle", async () => {
+    const { clients, code } = await playing()
+    const [first, second] = await handOf(code, 'viv', clients.viv)
+    await playCard(code, 'viv', first, false, clients.viv)
+    await requestUndo(code, 'viv', clients.viv)
+
+    // Pendant le vote, personne ne joue : Roux attend.
+    const roux = await handOf(code, 'roux', clients.roux)
+    await expect(playCard(code, 'roux', roux[0], false, clients.roux)).rejects.toThrow()
+
+    for (const p of ['roux', 'romain', 'benel'] as const) await answerUndo(code, p, true, clients[p])
+    const events = await readEvents(code, clients.benel)
+    expect(events.filter((e) => e.type === 'card_undone')).toHaveLength(1)
+    const state = playFromEvents(events, 'benel', DEFAULT_SEATING)!
+    expect(state.current).toEqual([])
+    expect(currentPlayer(state)).toBe('viv')
+
+    // Viv remet elle-même la carte dans sa main : les règles l'acceptent.
+    await restoreCard(code, 'viv', clients.viv)
+    expect(await handOf(code, 'viv', clients.viv)).toHaveLength(8)
+    await restoreCard(code, 'viv', clients.viv) // une seconde fois ne remet rien
+    expect(await handOf(code, 'viv', clients.viv)).toHaveLength(8)
+
+    // Et elle joue enfin la carte qu'elle voulait.
+    await playCard(code, 'viv', second, false, clients.viv)
+    const after = playFromEvents(await readEvents(code, clients.benel), 'benel', DEFAULT_SEATING)!
+    expect(after.current.map((x) => x.card)).toEqual([second])
+  }, 30_000)
+
+  it('trop tard une fois que le suivant a joué', async () => {
+    const { clients, code } = await playing()
+    const [first] = await handOf(code, 'viv', clients.viv)
+    await playCard(code, 'viv', first, false, clients.viv)
+    const state = playFromEvents(await readEvents(code, clients.roux), 'benel', DEFAULT_SEATING)!
+    const roux = await handOf(code, 'roux', clients.roux)
+    await playCard(code, 'roux', playableFor(state, 'roux', roux)[0], false, clients.roux)
+    await expect(requestUndo(code, 'viv', clients.viv)).rejects.toThrow()
+  }, 30_000)
+
+  it("on ne remet dans sa main qu'une carte qu'on a reçue", async () => {
+    const { clients, code } = await playing()
+    const viv = await handOf(code, 'viv', clients.viv)
+    const roux = await handOf(code, 'roux', clients.roux)
+    // Une carte de Roux, ajoutée à la main de Viv : refusé.
+    await expect(setDoc(handRef(code, 'viv', clients.viv), { cards: [...viv, roux[0]] })).rejects.toThrow()
+    // Ni dans la main d'un autre.
+    await expect(setDoc(handRef(code, 'roux', clients.viv), { cards: [...roux, viv[0]] })).rejects.toThrow()
   }, 30_000)
 })
 

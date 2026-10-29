@@ -89,8 +89,9 @@ onBeforeUnmount(() => {
         <template v-if="phase === 'bidding'">
           <BiddingPanel v-if="large" />
           <BiddingPanelPhone v-else />
-          <UndoBid />
         </template>
+        <!-- Reprendre une enchère pendant les enchères, une carte pendant le jeu -->
+        <UndoBid v-if="phase === 'bidding' || phase === 'playing'" />
         <!-- Le décompte attend que le dernier pli ait été vu sur le tapis, puis ramassé -->
         <DealResult
           v-else-if="

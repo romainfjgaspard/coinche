@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { GameEvent, NewEvent } from '../events'
 import { DEFAULT_SEATING, type PlayerId } from '../players'
-import { biddingFromEvents } from '../replay'
+import { biddingFromEvents, playFromEvents } from '../replay'
 import { currentBidder, outcome } from '../bidding'
-import { lastRefusal, pendingUndo, undoAccepted, undoableBid, withoutUndoneBids } from '../undo'
+import { lastRefusal, pendingUndo, undoAccepted, undoableBid, undoableCard, withoutUndone } from '../undo'
+import type { Card } from '../cards'
+import { currentPlayer } from '../play'
 
 // Donneur Benel → Viv parle en premier, puis Roux, Romain, Benel.
 function journal(...events: NewEvent[]): GameEvent[] {
@@ -96,7 +98,7 @@ describe('annuler sa dernière enchère', () => {
     // La coinche a disparu, l'enchère de Roux tient ; la parole va au suivant, Romain.
     expect(state.entries.map((e) => e.kind)).toEqual(['contract', 'contract'])
     expect(currentBidder(state)).toBe('romain')
-    expect(withoutUndoneBids(undone).some((e) => e.type === 'coinche')).toBe(false)
+    expect(withoutUndone(undone).some((e) => e.type === 'coinche')).toBe(false)
   })
 
   it('les trois autres acceptent : la demande est complète', () => {
@@ -149,7 +151,7 @@ describe('annuler sa dernière enchère', () => {
     expect(currentBidder(state)).toBe('roux')
     expect(pendingUndo(j)).toBeNull()
     // Retirer deux fois ne retire rien de plus : le store et le moteur le font chacun.
-    expect(withoutUndoneBids(withoutUndoneBids(j))).toEqual(withoutUndoneBids(j))
+    expect(withoutUndone(withoutUndone(j))).toEqual(withoutUndone(j))
     // Et la donne continue normalement : Roux annonce enfin à carreau.
     const next = biddingFromEvents(
       [...j, ...journal(bid('roux', 120, 'd'), pass('romain'), pass('benel'), pass('viv')).slice(1)].map(
@@ -159,5 +161,126 @@ describe('annuler sa dernière enchère', () => {
       DEFAULT_SEATING,
     )
     expect(outcome(next)).toMatchObject({ status: 'contract', taker: 'roux', trump: 'd', value: 120 })
+  })
+})
+
+describe('annuler sa dernière carte', () => {
+  // Viv prend à 80 ♠ ; Viv entame, puis Roux, Romain, Benel.
+  const contract = (): NewEvent[] => [
+    bid('viv', 80, 's'),
+    pass('roux'),
+    pass('romain'),
+    pass('benel'),
+    {
+      type: 'contract_set',
+      taker: 'viv',
+      value: 80,
+      trump: 's',
+      multiplier: 1,
+      capot: false,
+      generale: false,
+    },
+  ]
+  const card = (player: PlayerId, c: Card, trickNumber = 1, position = 0): NewEvent => ({
+    type: 'card_played',
+    player,
+    card: c,
+    trickNumber,
+    position,
+  })
+  // Seq : 1 distribution, 2-5 enchères, 6 contrat — la première carte porte le numéro 7.
+  const play = (j: GameEvent[]) => playFromEvents(j, 'benel', DEFAULT_SEATING)!
+
+  it('se demande pour sa propre carte, tant que le suivant n’a pas joué', () => {
+    const j = journal(...contract(), card('viv', '7h'))
+    expect(undoableCard(j, 'viv')).toBe(7)
+    expect(undoableCard(j, 'roux')).toBeNull()
+    expect(undoableCard(journal(...contract(), card('viv', '7h'), card('roux', '8h')), 'viv')).toBeNull()
+    // Avant toute carte, rien à reprendre.
+    expect(undoableCard(journal(...contract()), 'viv')).toBeNull()
+  })
+
+  it('accordée, la carte quitte le tapis et c’est de nouveau à son joueur', () => {
+    const j = journal(
+      ...contract(),
+      card('viv', '7h'),
+      card('roux', '8h', 1, 1),
+      { type: 'undo_requested', player: 'roux', bidSeq: 8 },
+      answer('romain', true),
+      answer('benel', true),
+      answer('viv', true),
+      { type: 'card_undone', of: 'roux', by: 'viv', cardSeq: 8, card: '8h' },
+    )
+    expect(pendingUndo(j)).toBeNull()
+    const state = play(j)
+    expect(state.current.map((p) => p.card)).toEqual(['7h'])
+    expect(currentPlayer(state)).toBe('roux')
+    // Pas de seconde chance derrière : ni Roux sur la même carte, ni Viv sur la sienne.
+    expect(undoableCard(j, 'viv')).toBeNull()
+  })
+
+  it('la quatrième carte d’un pli se reprend : le pli se rouvre', () => {
+    const j = journal(
+      ...contract(),
+      card('viv', '7h'),
+      card('roux', '8h', 1, 1),
+      card('romain', '9h', 1, 2),
+      card('benel', 'Ah', 1, 3),
+      {
+        type: 'trick_done',
+        trickNumber: 1,
+        winner: 'benel',
+        cards: ['7h', '8h', '9h', 'Ah'],
+        points: 11,
+        cut: false,
+        overcut: false,
+      },
+    )
+    expect(undoableCard(j, 'benel')).toBe(10)
+    const undone = [
+      ...j,
+      ...journal({ type: 'card_undone', of: 'benel', by: 'viv', cardSeq: 10, card: 'Ah' })
+        .slice(1)
+        .map((e) => ({ ...e, seq: 12 })),
+    ]
+    const state = play(undone)
+    expect(state.completed).toHaveLength(0)
+    expect(state.current).toHaveLength(3)
+    expect(currentPlayer(state)).toBe('benel')
+    expect(withoutUndone(undone).some((e) => e.type === 'trick_done')).toBe(false)
+  })
+
+  it('la belote annoncée avec la carte tombe avec elle', () => {
+    const j = journal(
+      ...contract(),
+      card('viv', 'Ks'),
+      { type: 'belote_declared', player: 'viv', half: 'belote' },
+      { type: 'card_undone', of: 'viv', by: 'roux', cardSeq: 7, card: 'Ks' },
+    )
+    expect(withoutUndone(j).some((e) => e.type === 'belote_declared')).toBe(false)
+  })
+
+  it('pas la dernière carte de la donne : le décompte est fait', () => {
+    const tricks = Array.from({ length: 8 }, (_, i): NewEvent => ({
+      type: 'trick_done',
+      trickNumber: i + 1,
+      winner: 'viv',
+      cards: [],
+      points: 0,
+      cut: false,
+      overcut: false,
+    }))
+    expect(undoableCard(journal(...contract(), ...tricks, card('benel', 'Ah')), 'benel')).toBeNull()
+  })
+
+  it('un refus devient caduc dès que la partie reprend', () => {
+    const j = journal(
+      ...contract(),
+      card('viv', '7h'),
+      { type: 'undo_requested', player: 'viv', bidSeq: 7 },
+      answer('roux', false),
+    )
+    expect(lastRefusal(j)).toEqual({ player: 'viv', by: 'roux' })
+    expect(lastRefusal([...j, { ...card('roux', '8h', 1, 1), seq: 10, at: 10 } as GameEvent])).toBeNull()
   })
 })
