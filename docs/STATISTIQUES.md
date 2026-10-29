@@ -24,8 +24,16 @@ Les statistiques globales se filtrent par deux interrupteurs indépendants : les
 
 | Sous-onglet | Contenu |
 |---|---|
-| Duos | meilleur et pire duo, meilleur et pire joueur (parties gagnées) ; duo par duo : parties, gagnées, donnes, prises, contrats tenus, points marqués et offerts, score moyen, pire score |
-| Joueurs | joueur par joueur : prises, réussies, coinches, belotes, **bilan par donne** ; belotes, impasses, étoiles et temps de réflexion de chacun ; « jusqu'où chacun peut monter » (contrats pris et réussis à chaque palier) ; le **panache** |
+| Duos | les trois premiers duos (parties gagnées) ; le tableau duo par duo (voir plus bas) |
+| Joueurs | les quatre premiers joueurs (parties gagnées) ; le tableau joueur par joueur, le même que celui des duos ; belotes, impasses, étoiles et temps de réflexion de chacun ; « jusqu'où chacun peut monter » (contrats pris et réussis à chaque palier) ; le **panache** |
+
+Les tableaux des duos et des joueurs ont les mêmes colonnes, triables d'un clic ; sur téléphone, ils glissent de côté, le nom restant fixé :
+
+- **Parties** : jouées, gagnées, %, score moyen, pire score ;
+- **Donnes** : jouées, gagnées (son contrat tenu, ou celui de l'adversaire chuté), %, prises, réussies, %, **bilan**, enchère moyenne (contrats chiffrés), coinches gagnées / tentées, capots et générales réussis / annoncés ;
+- **Plis** : la part des plis ramassés — par le joueur (25 % en moyenne) ou par le duo (50 %). Comptés depuis le 29/10/2026 : les parties d'avant n'entrent pas dans ce pourcentage.
+
+Pour un duo, prises, coinches, capots et plis sont ceux de ses deux joueurs réunis.
 | Enchères | les mêmes courbes que pour la partie en cours, sur toutes les parties |
 | Temps | la distribution des temps de réflexion, pour annoncer et pour jouer |
 | Parties | les **soirées** (parties enchaînées avec « Rejouer ») et les **parties non finies** |
