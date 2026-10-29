@@ -7,9 +7,11 @@ Deux onglets, sur téléphone comme sur PC (le PC montre plus de colonnes) :
 
 Tout est calculé dans le navigateur, dans `src/game/` : `stats.ts` (partie en cours), `statsGlobal.ts` (toutes les parties), `statsBidding.ts` (enchères, écarts, temps), `finesses.ts`, `strength.ts`.
 
-## Deux interrupteurs : avec bot, sans bot
+## Les interrupteurs : bot, objectif, blitz
 
-Les statistiques globales se filtrent par deux interrupteurs indépendants : les parties **sans bot**, et les parties **avec bot** (au moins un siège tenu ou aidé par un bot). Tous les bots d'un même niveau y comptent pour un seul joueur, « Bot » ou « Bot ★ ».
+Les statistiques globales se filtrent par des interrupteurs indépendants : les parties **sans bot** et les parties **avec bot** (au moins un siège tenu ou aidé par un bot) ; l'objectif de la partie (une puce par objectif joué, dès qu'il y en a deux) ; les parties **normales** et les parties **blitz** (dès qu'il y a eu un blitz). Tous les bots d'un même niveau y comptent pour un seul joueur, « Bot » ou « Bot ★ ».
+
+Par défaut, seules les parties comparables comptent : **sans bot, en 1000, normales**. Le reste s'ajoute d'un clic.
 
 ## La partie en cours
 
