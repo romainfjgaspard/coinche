@@ -28,6 +28,7 @@ import {
   replay as replayGame,
   reclaimSeat as reclaimSeatInDb,
   requestUndo as requestUndoInDb,
+  restoreCard,
   setOptions,
   setPause,
   setSeating,
@@ -74,7 +75,7 @@ import type { BotLevel } from '../game/bot'
 import { type BotHandle, type PublicFeed, startBot } from '../firebase/botRunner'
 import { mainClient } from '../firebase/app'
 import { nameOf } from './roster'
-import { lastRefusal, pendingUndo, undoableBid, withoutUndoneBids } from '../game/undo'
+import { lastRefusal, pendingUndo, undoableBid, undoableCard, withoutUndone } from '../game/undo'
 import { saveAnalysis, watchAnalyses } from '../firebase/analyses'
 import { pointTable, readTable, tableFromAddress } from '../firebase/tables'
 import type { JudgedCard } from '../game/cardAnalysis'
@@ -234,12 +235,12 @@ export const useSession = defineStore('session', () => {
         }, 5000)
       },
     )
-    // Les enchères annulées sur vote sortent du journal dès la lecture : la table, les
-    // statistiques et les bots ne les voient jamais.
+    // Les enchères et les cartes annulées sur vote sortent du journal dès la lecture : la
+    // table, les statistiques et les bots ne les voient jamais.
     stopEvents = watchEvents(gameCode, (e) => {
       // Le journal brut nourrit aussi le cache des écritures : elles n'ont rien à relire.
       primeJournal(gameCode, e)
-      events.value = withoutUndoneBids(e)
+      events.value = withoutUndone(e)
     })
     if (playerId.value) stopHand = watchHand(gameCode, playerId.value, (c) => (hand.value = c))
   }
@@ -252,18 +253,21 @@ export const useSession = defineStore('session', () => {
     game.value ? biddingFromEvents(events.value, game.value.dealer, seating.value) : null,
   )
   const biddingResult = computed(() => (bidding.value ? outcome(bidding.value) : null))
-  /** Une annulation d'enchère en cours de vote : la parole est suspendue. */
-  const undoPending = computed(() => (game.value?.phase === 'bidding' ? pendingUndo(events.value) : null))
+  /** On peut reprendre une enchère pendant les enchères, une carte pendant le jeu. */
+  const mayUndo = computed(() => game.value?.phase === 'bidding' || game.value?.phase === 'playing')
+  /** Une annulation d'enchère ou de carte en cours de vote : la parole est suspendue. */
+  const undoPending = computed(() => (mayUndo.value ? pendingUndo(events.value) : null))
   const toBid = computed(() => (bidding.value && !undoPending.value ? currentBidder(bidding.value) : null))
-  /** Ma dernière enchère, tant que je peux encore demander à la reprendre. */
-  const myUndoableBid = computed(() =>
-    game.value?.phase === 'bidding' && playerId.value && !undoPending.value
-      ? undoableBid(events.value, playerId.value)
-      : null,
-  )
+  /** Ma dernière enchère, ou ma dernière carte, tant que je peux encore demander à la reprendre. */
+  const myUndoableBid = computed(() => {
+    if (!playerId.value || undoPending.value) return null
+    if (game.value?.phase === 'bidding') return undoableBid(events.value, playerId.value)
+    if (game.value?.phase === 'playing') return undoableCard(events.value, playerId.value)
+    return null
+  })
   /** Ma demande vient d'être refusée : par qui. */
   const undoRefusedBy = computed(() => {
-    const r = game.value?.phase === 'bidding' ? lastRefusal(events.value) : null
+    const r = mayUndo.value ? lastRefusal(events.value) : null
     return r && r.player === playerId.value ? r.by : null
   })
   const myBidTurn = computed(
@@ -354,8 +358,24 @@ export const useSession = defineStore('session', () => {
   })
   const toPlay = computed(() => (play.value ? currentPlayer(play.value) : null))
   const myPlayTurn = computed(
-    () => toPlay.value !== null && toPlay.value === playerId.value && !sendingCard.value,
+    () =>
+      toPlay.value !== null && toPlay.value === playerId.value && !sendingCard.value && !undoPending.value,
   )
+  /**
+   * Une carte qu'on m'a laissé reprendre : je la remets moi-même dans ma main, seul à
+   * pouvoir y écrire. Relancé à chaque changement du journal ou de la main, jusqu'à ce
+   * qu'elle y soit — y compris en revenant à la table après une coupure.
+   */
+  watch([events, hand], () => {
+    if (!code.value || !playerId.value || game.value?.phase !== 'playing') return
+    const me = playerId.value
+    const deal = currentDeal(events.value)
+    const played = new Set(deal.flatMap((e) => (e.type === 'card_played' ? [e.card] : [])))
+    const missing = deal.some(
+      (e) => e.type === 'card_undone' && e.of === me && !played.has(e.card) && !hand.value.includes(e.card),
+    )
+    if (missing) restoreCard(code.value, me).catch((e) => console.warn('[main]', e))
+  })
   const playable = computed(() =>
     play.value && playerId.value ? playableFor(play.value, playerId.value, hand.value) : [],
   )

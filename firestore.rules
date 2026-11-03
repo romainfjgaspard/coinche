@@ -183,7 +183,8 @@ service cloud.firestore {
       }
 
       // La règle qui compte : chacun ne lit que la main du siège qu'il occupe, et ne peut
-      // qu'en retirer une carte, celle qu'il pose.
+      // qu'en retirer une carte, celle qu'il pose — ou en remettre une, la carte que les
+      // autres l'ont laissé reprendre, qui doit venir de la main qu'on lui a distribuée.
       match /hands/{playerId} {
         allow read:   if holdsSeat(code, playerId);
         allow create: if dealing();
@@ -191,7 +192,13 @@ service cloud.firestore {
                       || (holdsSeat(code, playerId)
                           && request.resource.data.keys().hasOnly(['cards'])
                           && resource.data.cards.toSet().hasAll(request.resource.data.cards.toSet())
-                          && request.resource.data.cards.size() == resource.data.cards.size() - 1);
+                          && request.resource.data.cards.size() == resource.data.cards.size() - 1)
+                      || (holdsSeat(code, playerId)
+                          && game(code).phase == 'playing'
+                          && request.resource.data.keys().hasOnly(['cards'])
+                          && request.resource.data.cards.toSet().hasAll(resource.data.cards.toSet())
+                          && request.resource.data.cards.size() == resource.data.cards.size() + 1
+                          && get(/databases/$(database)/documents/games/$(code)/deals/$(string(game(code).dealNumber))).data.hands[playerId].toSet().hasAll(request.resource.data.cards.toSet()));
       }
 
       // Donne distribuée : scellée jusqu'à la fin de la partie, puis ouverte pour l'analyse.

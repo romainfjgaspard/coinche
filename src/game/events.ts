@@ -35,7 +35,11 @@ export type GameEvent = Base &
       }
     | { type: 'deal_started'; dealNumber: number; dealer: PlayerId; cut: number }
     | { type: 'bid'; player: PlayerId; round: number; entry: BiddingEntry }
-    /** Un joueur demande à reprendre sa dernière enchère, sur fausse manipulation. */
+    /**
+     * Un joueur demande à reprendre sa dernière parole, sur fausse manipulation : son
+     * enchère ou sa coinche, ou — depuis le 29/10/2026 — sa dernière carte. `bidSeq` est
+     * le numéro de cet événement dans le journal, quel qu'il soit.
+     */
     | { type: 'undo_requested'; player: PlayerId; bidSeq: number }
     /** Chacun des trois autres accepte ou refuse ; un refus suffit à faire tomber la demande. */
     | { type: 'undo_answered'; player: PlayerId; accept: boolean }
@@ -44,6 +48,11 @@ export type GameEvent = Base &
      * à accepter — d'où l'absence de champ `player`, que les règles réservent à soi-même.
      */
     | { type: 'bid_undone'; of: PlayerId; by: PlayerId; bidSeq: number }
+    /**
+     * Pareil pour une carte : elle ne compte plus, ni le pli qu'elle avait fermé. `card`
+     * dit laquelle revient dans la main de `of`, qui seul peut l'y remettre.
+     */
+    | { type: 'card_undone'; of: PlayerId; by: PlayerId; cardSeq: number; card: Card }
     /** Fin de donne : ce joueur a vu le décompte et attend la suivante. */
     | { type: 'deal_ack'; player: PlayerId; dealNumber: number }
     | { type: 'coinche'; player: PlayerId }
