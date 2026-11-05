@@ -113,7 +113,7 @@ Déposée par le client qui pose la dernière carte, une seule fois. Elle porte 
 - `bots` : les sièges tenus ou aidés par un bot (d'où le filtre « avec bot / sans bot » des statistiques) ;
 - `evening`, `target` (seulement s'il diffère de 1000), `blitz` ;
 - `players` : par joueur, prises, réussies, chutes, points marqués et offerts, coinches, belotes annoncées et oubliées, étoiles, impasses, et le détail de chaque prise avec la force de la main (barème dans `src/game/strength.ts`) ;
-- ajoutés au fil du temps, donc absents des archives plus anciennes : `coinchesWon` et `thinkTime` (24/09), `calls`, `roles`, `gaps`, `times` (25/09).
+- ajoutés au fil du temps, donc absents des archives plus anciennes : `coinchesWon` et `thinkTime` (24/09), `calls`, `roles`, `gaps`, `times` (25/09), `tricks` par joueur et `tricksPlayed` pour la partie (29/10 : plis ramassés, plis joués).
 
 Les **parties non finies** (commencées, jamais terminées) ne sont pas archivées. Les statistiques les listent à part, en lisant seulement leur document de partie.
 

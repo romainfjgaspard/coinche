@@ -11,7 +11,7 @@ const {
   countWithBots,
   countWithoutBots,
   targets,
-  hiddenTargets,
+  shownTargets,
   toggleTarget,
   withNormal,
   withBlitz,
@@ -50,11 +50,11 @@ const chipClass = (on: boolean): string =>
         v-for="t in targets"
         :key="t.target"
         type="button"
-        :class="[CHIP, chipClass(!hiddenTargets.includes(t.target))]"
-        :aria-pressed="!hiddenTargets.includes(t.target)"
+        :class="[CHIP, chipClass(shownTargets.includes(t.target))]"
+        :aria-pressed="shownTargets.includes(t.target)"
         @click="toggleTarget(t.target)"
       >
-        <span>{{ hiddenTargets.includes(t.target) ? '○' : '✓' }}</span> en {{ t.target }} · {{ t.count }}
+        <span>{{ shownTargets.includes(t.target) ? '✓' : '○' }}</span> en {{ t.target }} · {{ t.count }}
       </button>
     </template>
     <template v-if="countBlitz > 0">
