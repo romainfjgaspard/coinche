@@ -2,15 +2,24 @@
 /**
  * Reprendre une enchère faite par erreur (« 120 ♥ » au lieu de « 120 ♦ ») : tant que
  * seules des passes ont suivi, on demande ; les trois autres votent ; l'enchère tombe si tous
- * acceptent. Pendant le vote, la parole est suspendue. Les bots acceptent d'office.
+ * acceptent. Pareil pendant le jeu pour sa dernière carte, tant que le suivant n'a pas joué.
+ * Pendant le vote, la parole est suspendue. Les bots acceptent d'office.
  */
 import { computed } from 'vue'
 import { useSession } from '../stores/session'
 import { nameOf } from '../stores/roster'
 import SuitBadge from './SuitBadge.vue'
+import CardText from './CardText.vue'
+import type { Card } from '../game/cards'
 
 const session = useSession()
 
+/** La carte visée par la demande en cours, s'il s'agit d'une carte. */
+const targetCard = computed<Card | null>(() => {
+  const p = session.undoPending
+  const e = p ? session.events.find((x) => x.seq === p.bidSeq) : undefined
+  return e?.type === 'card_played' ? e.card : null
+})
 /** L'enchère visée par la demande en cours, pour la montrer telle qu'elle a été dite. */
 const target = computed(() => {
   const p = session.undoPending
@@ -31,6 +40,11 @@ const myCoinche = computed(() => {
   const seq = session.myUndoableBid
   const e = seq === null ? undefined : session.events.find((x) => x.seq === seq)
   return e?.type === 'coinche' || e?.type === 'surcoinche'
+})
+/** Ma parole à reprendre est une carte : le bouton le dit. */
+const myCard = computed(() => {
+  const seq = session.myUndoableBid
+  return seq !== null && session.events.find((x) => x.seq === seq)?.type === 'card_played'
 })
 const mine = computed(() => session.undoPending?.player === session.playerId)
 const answered = computed(() =>
@@ -54,10 +68,14 @@ const yes = computed(() => [...(session.undoPending?.answers.values() ?? [])].fi
         <span class="font-semibold text-ivory">{{
           mine ? 'Tu demandes' : nameOf(session.undoPending.player)
         }}</span>
-        <span v-if="target && !target.suit && target.text !== 'Passe'">{{
+        <template v-if="targetCard">
+          <span>{{ mine ? 'de reprendre ta carte' : 'veut reprendre sa carte' }}</span>
+          <CardText :card="targetCard" />
+        </template>
+        <span v-else-if="target && !target.suit && target.text !== 'Passe'">{{
           mine ? "d'annuler ta" : 'veut annuler sa'
         }}</span>
-        <span v-else>{{ mine ? "d'annuler ton enchère" : 'veut annuler son enchère' }}</span>
+        <span v-else-if="target">{{ mine ? "d'annuler ton enchère" : 'veut annuler son enchère' }}</span>
         <template v-if="target">
           <span class="font-bold text-gold">{{ target.text }}</span>
           <SuitBadge v-if="target.suit" :suit="target.suit" :size="20" />
@@ -110,7 +128,8 @@ const yes = computed(() => [...(session.undoPending?.answers.values() ?? [])].fi
         :disabled="session.busy"
         @click="session.requestUndo()"
       >
-        <span aria-hidden="true">↶</span> {{ myCoinche ? 'Annuler ma coinche' : 'Annuler mon enchère' }}
+        <span aria-hidden="true">↶</span>
+        {{ myCard ? 'Annuler ma carte' : myCoinche ? 'Annuler ma coinche' : 'Annuler mon enchère' }}
       </button>
     </div>
   </div>

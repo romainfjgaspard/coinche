@@ -23,7 +23,7 @@ Sans serveur pour rejouer chaque coup, certaines choses restent possibles à que
 - **un joueur assis peut fausser la partie en cours** : poser une carte qui n'était pas permise, écrire un faux décompte, ou gonfler les scores pour finir la partie et desceller la donne en cours. Les règles bornent ce qu'il peut faire (scores qui montent d'au plus une donne, fin sur objectif dépassé), pas plus ;
 - **l'hôte des bots peut lire leurs mains** : les bots tournent dans son onglet, avec sa session. Les bots eux-mêmes ne trichent pas (voir `docs/BOTS.md`) ;
 - **le donneur connaît la donne** au moment où il distribue : c'est son navigateur qui mélange et écrit les quatre mains ;
-- **annuler une enchère** suppose le vote des trois autres, mais rien n'empêche un joueur de la console d'écrire lui-même l'événement `bid_undone` ; de même, une analyse gardée pourrait être falsifiée par celui qui l'écrit ;
+- **annuler une enchère ou une carte** suppose le vote des trois autres, mais rien n'empêche un joueur de la console d'écrire lui-même l'événement `bid_undone` ou `card_undone`, ni de remettre dans sa main une carte qu'il a reçue et déjà jouée ; de même, une analyse gardée pourrait être falsifiée par celui qui l'écrit ;
 - **reprendre sa place depuis un autre appareil** suppose seulement de connaître le code : quelqu'un qui l'a pourrait prendre le siège d'un autre (et voir sa main) une fois la partie commencée. C'est le prix d'une reprise sans compte ;
 - **remplacer un absent** donne au joueur qui le fait (et qui héberge alors le bot) l'accès à la main du remplacé.
 

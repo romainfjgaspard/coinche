@@ -169,6 +169,9 @@ export async function startBot(code: string, player: PlayerId, options: BotOptio
         : null
     }
     if (g.phase === 'playing') {
+      // Pareil pour une carte : le bot accepte, et ne joue pas pendant le vote.
+      const undo = pendingUndo(events)
+      if (undo) return undo.player !== player && !undo.answers.has(player) ? { what: 'vote', key } : null
       const state = playFromEvents(events, g.dealer, tableOf(g))
       return state && currentPlayer(state) === player ? { what: 'play', key } : null
     }
@@ -211,7 +214,10 @@ export async function startBot(code: string, player: PlayerId, options: BotOptio
       let acted: boolean
       if (what === 'vote') {
         await answerUndo(code, player, true, c)
-        acted = true
+        // Un vote ne compte pas comme un coup : refusée par un autre, la demande tombe sans
+        // que le compteur de coups bouge, et le bot doit pouvoir jouer dans ce même état.
+        // Sa réponse, déjà au journal, l'empêche de voter deux fois.
+        acted = false
       } else if (what === 'deal') {
         const number = game.dealNumber
         await deal(code, null, c)

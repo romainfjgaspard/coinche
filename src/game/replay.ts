@@ -44,23 +44,34 @@ export function seatingOf(events: GameEvent[], fallback: Seating): Seating {
 }
 
 /**
- * Le journal sans les enchères annulées : chaque `bid_undone` retire l'enchère qu'il
- * désigne par son numéro, et les passes qui l'ont suivie jusqu'à l'annulation. C'est ce
- * journal que lisent le moteur et les statistiques. Le repasser une seconde fois ne change
- * rien : on peut l'appliquer à chaque lecture.
+ * Le journal sans les paroles annulées : chaque `bid_undone` retire l'enchère qu'il
+ * désigne par son numéro, et les passes qui l'ont suivie jusqu'à l'annulation ; chaque
+ * `card_undone` retire la carte, le pli qu'elle a pu fermer et la belote annoncée avec
+ * elle. C'est ce journal que lisent le moteur et les statistiques. Le repasser une seconde
+ * fois ne change rien : on peut l'appliquer à chaque lecture.
  */
-export function withoutUndoneBids(events: GameEvent[]): GameEvent[] {
-  const ranges: [number, number][] = []
-  for (const e of events) if (e.type === 'bid_undone') ranges.push([e.bidSeq, e.seq])
-  if (ranges.length === 0) return events
+export function withoutUndone(events: GameEvent[]): GameEvent[] {
+  const bids: [number, number][] = []
+  const cards: [number, number, PlayerId][] = []
+  for (const e of events) {
+    if (e.type === 'bid_undone') bids.push([e.bidSeq, e.seq])
+    else if (e.type === 'card_undone') cards.push([e.cardSeq, e.seq, e.of])
+  }
+  if (bids.length === 0 && cards.length === 0) return events
   // Une coinche annulée tombe comme une enchère : elle était la parole visée par la demande.
   const spoken = (e: GameEvent) => e.type === 'bid' || e.type === 'coinche' || e.type === 'surcoinche'
-  return events.filter((e) => !(spoken(e) && ranges.some(([from, to]) => e.seq >= from && e.seq < to)))
+  const played = (e: GameEvent, of: PlayerId) =>
+    e.type === 'card_played' || e.type === 'trick_done' || (e.type === 'belote_declared' && e.player === of)
+  return events.filter(
+    (e) =>
+      !(spoken(e) && bids.some(([from, to]) => e.seq >= from && e.seq < to)) &&
+      !cards.some(([from, to, of]) => e.seq >= from && e.seq < to && played(e, of)),
+  )
 }
 
 export function biddingFromEvents(events: GameEvent[], dealer: PlayerId, seating: Seating): BiddingState {
   const entries: BiddingEntry[] = []
-  for (const e of withoutUndoneBids(currentDeal(events))) {
+  for (const e of withoutUndone(currentDeal(events))) {
     if (e.type === 'bid') entries.push(e.entry)
     else if (e.type === 'coinche') entries.push({ kind: 'coinche', player: e.player })
     else if (e.type === 'surcoinche') entries.push({ kind: 'surcoinche', player: e.player })
@@ -87,7 +98,7 @@ export function playFromEvents(events: GameEvent[], dealer: PlayerId, seating: S
   const first = result.generale ? result.taker : nextPlayer(dealerOf(events, dealer), spots)
   // Tout-atout : l'ordre de l'atout dans chaque couleur ; `trump` seul ne le distingue pas du sans-atout.
   let state = newPlay(result.declaration === 'ta' ? 'ta' : result.trump, first, spots)
-  for (const e of currentDeal(events)) {
+  for (const e of withoutUndone(currentDeal(events))) {
     if (e.type !== 'card_played') continue
     try {
       state = applyPlayed(state, e.player, e.card)
@@ -109,7 +120,7 @@ export function playFromEvents(events: GameEvent[], dealer: PlayerId, seating: S
  */
 export function declaredBelote(events: GameEvent[]): PlayerId | null {
   const counts = new Map<PlayerId, number>()
-  for (const e of currentDeal(events)) {
+  for (const e of withoutUndone(currentDeal(events))) {
     if (e.type !== 'belote_declared') continue
     counts.set(e.player, (counts.get(e.player) ?? 0) + 1)
   }
@@ -120,7 +131,7 @@ export function declaredBelote(events: GameEvent[]): PlayerId | null {
 /** Combien de fois chacun a annoncé (belote, puis rebelote) dans la donne en cours. */
 export function beloteDeclarations(events: GameEvent[]): Map<PlayerId, number> {
   const counts = new Map<PlayerId, number>()
-  for (const e of currentDeal(events)) {
+  for (const e of withoutUndone(currentDeal(events))) {
     if (e.type === 'belote_declared') counts.set(e.player, (counts.get(e.player) ?? 0) + 1)
   }
   return counts

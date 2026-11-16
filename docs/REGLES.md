@@ -120,5 +120,6 @@ Ce ne sont pas des règles du jeu, mais l'app les applique :
 
 - **Pause** : n'importe quel joueur peut mettre la partie en pause pendant les enchères ou le jeu ; l'attente ne compte dans le temps de réflexion de personne.
 - **Annuler la partie** : n'importe quel joueur peut l'arrêter pour tous ; elle n'est alors pas archivée.
+- **Reprendre une fausse manipulation** : un joueur peut demander à annuler sa dernière enchère (ou sa coinche) tant que seules des passes l'ont suivie, et sa dernière carte tant que le joueur suivant n'a pas joué — même la quatrième carte d'un pli, qui se rouvre, mais pas la dernière carte de la donne. Les trois autres votent : un seul refus suffit à garder le coup. Pendant le vote, personne ne joue. Les bots acceptent toujours.
 - **Joueur absent** : au bout d'une minute sans réponse, les autres peuvent le remplacer par un bot ; il peut reprendre sa place ensuite. La partie compte alors « avec bot ».
 - **Rejouer** : mêmes équipes, même objectif, même blitz ; le donneur suivant distribue. Les parties enchaînées forment une soirée.

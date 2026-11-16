@@ -40,7 +40,7 @@ import { nextPlayer, playerAtSeat, seatOf, teamOfPlayer } from '../game/players'
 import { beloteHeld, canDeclareBelote, isDealOver, play, trickFlags, tricksForScoring } from '../game/play'
 import { type Contract, type DealStatus, scoreDeal, unannouncedCapot } from '../game/scoring'
 import { type Archive, buildArchive } from '../game/archive'
-import { pendingUndo, undoAccepted, undoableBid, withoutUndoneBids } from '../game/undo'
+import { pendingUndo, undoAccepted, undoableBid, undoableCard, withoutUndone } from '../game/undo'
 import { isGameOver, RULES } from '../game/rules'
 
 export type Phase = 'lobby' | 'bidding' | 'playing' | 'scoring' | 'finished' | 'cancelled'
@@ -151,7 +151,15 @@ export class GamePaused extends Error {}
  */
 // Demander l'annulation d'une enchère, et l'annuler, changent qui doit parler : ce sont
 // des décisions, qu'une enchère concurrente ne doit pas croiser. Les votes n'en sont pas.
-const DECISIONS = new Set(['bid', 'coinche', 'surcoinche', 'card_played', 'undo_requested', 'bid_undone'])
+const DECISIONS = new Set([
+  'bid',
+  'coinche',
+  'surcoinche',
+  'card_played',
+  'undo_requested',
+  'bid_undone',
+  'card_undone',
+])
 
 export const isDecision = (type: string): boolean => DECISIONS.has(type)
 
@@ -510,7 +518,7 @@ export async function deal(
  * sont alors inconnues de celui qui distribue, et on rebat.
  */
 async function previousDealTricks(code: string, c: Client): Promise<Card[][] | null> {
-  const tricks = currentDeal(await readJournal(code, c)).flatMap((e) =>
+  const tricks = withoutUndone(currentDeal(await readJournal(code, c))).flatMap((e) =>
     e.type === 'trick_done' ? [e.cards] : [],
   )
   return tricks.length === 8 ? tricks : null
@@ -743,12 +751,14 @@ export async function ackDeal(
 /**
  * Demande à reprendre sa dernière enchère, sur fausse manipulation. Possible tant que les
  * enchères suivantes ne sont que des passes ; les trois autres votent (`answerUndo`).
+ * Pendant le jeu, c'est sa dernière carte qu'on reprend, tant que le suivant n'a pas joué.
  */
 export async function requestUndo(code: string, player: PlayerId, c: Client = mainClient): Promise<void> {
   const game = (await getDoc(gameRef(code, c))).data() as GameDoc | undefined
-  if (game?.phase !== 'bidding') throw new Error('Les enchères sont closes')
+  if (game?.phase !== 'bidding' && game?.phase !== 'playing') throw new Error('Trop tard')
   const events = await readJournal(code, c)
-  const bidSeq = undoableBid(events, player)
+  if (pendingUndo(events)) throw new Error('Une annulation est déjà en cours de vote')
+  const bidSeq = game.phase === 'bidding' ? undoableBid(events, player) : undoableCard(events, player)
   if (bidSeq === null) throw new Error('Trop tard : la parole a déjà tourné')
   await appendWith(c, code, { type: 'undo_requested', player, bidSeq }, moveCount(events))
 }
@@ -772,17 +782,39 @@ export async function answerUndo(
   const after = await readJournal(code, c)
   const now = pendingUndo(after)
   if (!now || !undoAccepted(now)) return
+  // Une carte : elle repart dans la main de son joueur, qui la remet lui-même (`restoreCard`).
+  const target = after.find((e) => e.seq === now.bidSeq)
   try {
     await appendWith(
       c,
       code,
-      { type: 'bid_undone', of: now.player, by: player, bidSeq: now.bidSeq },
+      target?.type === 'card_played'
+        ? { type: 'card_undone', of: now.player, by: player, cardSeq: now.bidSeq, card: target.card }
+        : { type: 'bid_undone', of: now.player, by: player, bidSeq: now.bidSeq },
       moveCount(after),
     )
   } catch (e) {
     // Deux derniers « oui » simultanés : l'autre a déjà retiré l'enchère.
     if (!(e instanceof ConcurrentWrite)) throw e
   }
+}
+
+/**
+ * Remet dans ma main la carte que les trois autres m'ont laissé reprendre. Seul le joueur
+ * écrit dans sa main : c'est donc lui qui la remet, dès qu'il voit l'annulation — et
+ * seulement si elle n'y est pas déjà et n'est pas (re)posée sur le tapis.
+ */
+export async function restoreCard(code: string, player: PlayerId, c: Client = mainClient): Promise<void> {
+  const deal = withoutUndone(currentDeal(await readJournal(code, c)))
+  const played = new Set(deal.flatMap((e) => (e.type === 'card_played' ? [e.card] : [])))
+  const back = deal.flatMap((e) => (e.type === 'card_undone' && e.of === player ? [e.card] : []))
+  await runTransaction(c.db, async (tx) => {
+    const snap = await tx.get(handRef(code, player, c))
+    const hand = ((snap.data()?.cards ?? []) as Card[]).slice()
+    const missing = back.filter((card) => !played.has(card) && !hand.includes(card))
+    // Une à la fois : les règles n'acceptent qu'une carte de plus par écriture.
+    if (missing.length) tx.set(handRef(code, player, c), { cards: [...hand, missing[0]] })
+  })
 }
 
 /**
@@ -863,6 +895,8 @@ export async function playCard(
   const before = playFromEvents(events, game.dealer, tableOf(game))
   const contract = contractFrom(events, tableOf(game))
   if (!before || !contract) throw new Error('Aucun contrat en cours')
+  // Pendant le vote d'une annulation, tout le monde attend : la carte peut revenir en main.
+  if (pendingUndo(events)) throw new Error('Une annulation de carte est en cours de vote')
 
   const after = play(before, player, card, hand) // lève IllegalPlay si le coup est interdit
   // BEL-2 — vérifiée avant toute écriture : refusée après coup, elle laissait la carte au
@@ -1200,7 +1234,7 @@ export async function archiveGame(code: string, seating: Seating, c: Client = ma
     ? (Object.keys(game.seats) as PlayerId[]).filter((p) => game.seats[p]?.bot || game.seats[p]?.botAssisted)
     : []
   const archive: Archive = {
-    ...buildArchive(code, withoutUndoneBids(events), seating, hands, bots),
+    ...buildArchive(code, withoutUndone(events), seating, hands, bots),
     // Une partie en 500 ou en blitz ne se compare pas tout à fait aux autres : on le garde.
     ...(game?.target && game.target !== RULES.target ? { target: game.target } : {}),
     ...(game?.blitz ? { blitz: true } : {}),

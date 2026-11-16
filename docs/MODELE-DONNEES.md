@@ -78,9 +78,10 @@ Chaque événement porte `seq` (ordre), `at` (horodatage) et, pour une décision
 | `bid` | `player`, `round`, `entry` : `{ kind: 'pass' \| 'contract' \| 'capot' \| 'generale', player, value?, suit?, declaration? }` |
 | `deal_ack` | `player`, `dealNumber` : le joueur a vu le décompte ; la donne suivante part quand tous les humains l'ont dit (ou quand le donneur passe outre, après 30 s) |
 | `coinche`, `surcoinche` | `player` |
-| `undo_requested` | `player`, `bidSeq` : demande à reprendre sa dernière enchère, tant que seules des passes l'ont suivie |
+| `undo_requested` | `player`, `bidSeq` : demande à reprendre sa dernière enchère, tant que seules des passes l'ont suivie — ou, pendant le jeu (depuis le 29/10/2026), sa dernière carte, tant que le suivant n'a pas joué. `bidSeq` est le numéro de l'événement visé, enchère ou carte |
 | `undo_answered` | `player`, `accept` : le vote de chacun des trois autres ; un refus fait tomber la demande, et le demandeur la retire en répondant non |
-| `bid_undone` | `of`, `by`, `bidSeq` : l'enchère `bidSeq` ne compte plus (écrit par le dernier à accepter). Le moteur, les statistiques et l'archive la retirent à la lecture (`withoutUndoneBids`) |
+| `bid_undone` | `of`, `by`, `bidSeq` : l'enchère `bidSeq` ne compte plus (écrit par le dernier à accepter). Le moteur, les statistiques et l'archive la retirent à la lecture (`withoutUndone`) |
+| `card_undone` | `of`, `by`, `cardSeq`, `card` : la carte `cardSeq` ne compte plus, ni le pli qu'elle a pu fermer, ni la belote annoncée avec elle (`withoutUndone`). Seul `of` peut écrire dans sa main : c'est son client qui y remet `card`, et les règles n'acceptent qu'une carte de la main qu'on lui a distribuée |
 | `contract_set` | `taker`, `value`, `trump`, `declaration` (absent avant le 24/09), `multiplier` (1, 2, 4), `capot`, `generale` |
 | `deal_cancelled` | `dealNumber`, `reason: 'four_passes'` |
 | `card_played` | `player`, `card`, `trickNumber`, `position` |
