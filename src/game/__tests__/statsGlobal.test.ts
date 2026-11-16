@@ -34,6 +34,7 @@ function game(opts: {
   seating: Seating
   scores: [number, number]
   deals?: number
+  target?: number
   players?: Partial<Record<string, Partial<PlayerArchive>>>
 }): Archive {
   const players: Archive['players'] = Object.fromEntries(opts.seating.map((p) => [p, empty()]))
@@ -49,6 +50,7 @@ function game(opts: {
     deals: opts.deals ?? 10,
     bots: [],
     players,
+    ...(opts.target ? { target: opts.target } : {}),
   }
 }
 
@@ -135,6 +137,19 @@ describe('statistiques par duo', () => {
   it('retient le pire score, pas le meilleur', () => {
     const br = duos.find((d) => pairKey(d.pair) === pairKey(['benel', 'roux']))!
     expect(br.worstScore).toBe(600)
+  })
+
+  it("compte une victoire pour l'objectif + 10, quel que soit le score final", () => {
+    const big = game({ code: 'CCCC', seating: A, scores: [1160, 300], players: {} })
+    const rv = duoStats([big]).find((d) => pairKey(d.pair) === pairKey(['romain', 'viv']))!
+    expect(rv.averageScore).toBe(1010)
+    const in500 = game({ code: 'DDDD', seating: A, scores: [580, 300], players: {}, target: 500 })
+    const rv500 = duoStats([in500]).find((d) => pairKey(d.pair) === pairKey(['romain', 'viv']))!
+    expect(rv500.averageScore).toBe(510)
+    // La défaite garde son score réel
+    expect(duoStats([big]).find((d) => pairKey(d.pair) === pairKey(['benel', 'roux']))!.averageScore).toBe(
+      300,
+    )
   })
 })
 

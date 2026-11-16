@@ -113,7 +113,13 @@ Déposée par le client qui pose la dernière carte, une seule fois. Elle porte 
 - `bots` : les sièges tenus ou aidés par un bot (d'où le filtre « avec bot / sans bot » des statistiques) ;
 - `evening`, `target` (seulement s'il diffère de 1000), `blitz` ;
 - `players` : par joueur, prises, réussies, chutes, points marqués et offerts, coinches, belotes annoncées et oubliées, étoiles, impasses, et le détail de chaque prise avec la force de la main (barème dans `src/game/strength.ts`) ;
-- ajoutés au fil du temps, donc absents des archives plus anciennes : `coinchesWon` et `thinkTime` (24/09), `calls`, `roles`, `gaps`, `times` (25/09), `tricks` par joueur et `tricksPlayed` pour la partie (29/10 : plis ramassés, plis joués).
+- ajoutés au fil du temps, donc absents des archives plus anciennes : `coinchesWon` et `thinkTime` (24/09), `calls`, `roles`, `gaps`, `times` (25/09), `tricks` par joueur et `tricksPlayed` pour la partie (29/10 : plis ramassés, plis joués), `startedAt` et `endedAt` (première donne, fin de partie), `dealLog` (chaque donne jouée : heure, donneur, toutes les paroles, contrat, résultat, coinche de désespoir) et `desperateCoinches` par joueur (16/11).
+
+Une **coinche de désespoir** est posée quand le preneur gagnait la partie en faisant son contrat (score avant la donne + contrat > objectif) : elle ne coûtait rien. Elle est comptée dans `desperateCoinches`, plus dans `coinches` ni `coinchesWon`.
+
+### Recalculer les archives
+
+L'archive n'est qu'un condensé du journal, qui garde tout. Quand elle apprend à compter quelque chose de nouveau, `npm run archives:recalcul` (`scripts/archives.rebuild.ts`, avec `firebase-admin`) la reconstruit pour toutes les parties avec le code de l'app, en gardant ce que le journal ne contient pas (placement, bots, objectif, blitz, soirée, date de fin). Par défaut il n'écrit rien et affiche les changements ; une archive dont le journal ne redonne pas le score, le vainqueur et le nombre de donnes est laissée de côté. `ECRIRE=coinche-e708b` écrit, après une copie de toutes les archives dans `archives-sauvegarde-<date>.json` (ignoré par git). Il se lance depuis Google Cloud Shell, connecté au compte du projet : pas de clé à gérer.
 
 Les **parties non finies** (commencées, jamais terminées) ne sont pas archivées. Les statistiques les listent à part, en lisant seulement leur document de partie.
 

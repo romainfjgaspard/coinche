@@ -1234,7 +1234,7 @@ export async function archiveGame(code: string, seating: Seating, c: Client = ma
     ? (Object.keys(game.seats) as PlayerId[]).filter((p) => game.seats[p]?.bot || game.seats[p]?.botAssisted)
     : []
   const archive: Archive = {
-    ...buildArchive(code, withoutUndone(events), seating, hands, bots),
+    ...buildArchive(code, withoutUndone(events), seating, hands, bots, game?.target ?? RULES.target),
     // Une partie en 500 ou en blitz ne se compare pas tout à fait aux autres : on le garde.
     ...(game?.target && game.target !== RULES.target ? { target: game.target } : {}),
     ...(game?.blitz ? { blitz: true } : {}),

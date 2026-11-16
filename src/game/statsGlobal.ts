@@ -5,6 +5,7 @@
  * condensé, et c'est lui qu'on additionne.
  */
 import type { Archive, PlayerArchive, TakeDetail } from './archive'
+import { RULES } from './rules'
 import { type TakeStrength, panacheOf } from './strength'
 import { PLAYER_IDS, type PlayerId, type Seating, isBotId, levelOfBotId, teamOfPlayer } from './players'
 import { type Timing, addTiming, average } from './stats'
@@ -102,7 +103,9 @@ function addGame(
   line.games += 1
   if (a.winner === team) line.won += 1
   line.deals += a.deals
-  scores.push(a.scores[team])
+  // Une partie gagnée compte pour l'objectif + 10 (1010 en 1000) : le surplus de la
+  // dernière donne n'est que le hasard du contrat qui a fini la partie.
+  scores.push(a.winner === team ? (a.target ?? RULES.target) + 10 : a.scores[team])
   // Deux bots du même niveau, partenaires, ne font qu'un joueur une fois regroupés
   // (`groupBots`), et leur condensé contient déjà les deux : on ne l'ajoute qu'une fois.
   const own = [...new Set(side)].map((j) => a.players[j]).filter(Boolean)

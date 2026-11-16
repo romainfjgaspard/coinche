@@ -31,8 +31,8 @@ Par défaut, seules les parties comparables comptent : **sans bot, en 1000, norm
 
 Les tableaux des duos et des joueurs ont les mêmes colonnes, triables d'un clic ; sur téléphone, ils glissent de côté, le nom restant fixé :
 
-- **Parties** : jouées, gagnées, %, score moyen, pire score ;
-- **Donnes** : jouées, gagnées (son contrat tenu, ou celui de l'adversaire chuté), %, prises, réussies, %, **bilan**, enchère moyenne (contrats chiffrés), coinches gagnées / tentées, capots et générales réussis / annoncés ;
+- **Parties** : jouées, gagnées, %, score moyen (une partie gagnée compte pour l'objectif + 10, soit 1010 en 1000 : le surplus de la dernière donne n'est que le hasard du contrat qui a fini la partie), pire score ;
+- **Donnes** : jouées, gagnées (son contrat tenu, ou celui de l'adversaire chuté), %, prises, réussies, %, **bilan**, enchère moyenne (contrats chiffrés), coinches gagnées / tentées (hors coinches de désespoir, voir plus bas), capots et générales réussis / annoncés ;
 - **Plis** : la part des plis ramassés — par le joueur (25 % en moyenne) ou par le duo (50 %). Comptés depuis le 29/10/2026 : les parties d'avant n'entrent pas dans ce pourcentage.
 
 Pour un duo, prises, coinches, capots et plis sont ceux de ses deux joueurs réunis.
@@ -48,6 +48,7 @@ Pour un duo, prises, coinches, capots et plis sont ceux de ses deux joueurs réu
 - **Écart à l'annonce** : pour le preneur, les points faits (cartes, dix de der, belote) moins la valeur annoncée, séparément pour les contrats réussis et chutés. Capots et générales à part : ils se jouent aux plis.
 - **Temps de réflexion** : mesuré sur l'écran de chacun, de l'instant où c'est à lui jusqu'à sa décision ; une pause n'y compte pas, la dernière carte (jouée d'office) non plus.
 - **Impasse** : garder l'as de la couleur entamée alors que personne n'a coupé. Réussie si l'as ramasse ensuite un dix, ratée s'il se fait couper (détail dans `docs/MODELE-DONNEES.md`).
+- **Coinche de désespoir** : posée quand le preneur gagnait la partie en faisant son contrat (son score avant la donne plus le contrat dépasse l'objectif). Elle ne coûtait rien : elle n'entre pas dans les coinches tentées ni gagnées.
 - **Étoile de la honte** : un capot fait sans l'avoir annoncé (DEC-8) ; trois dans une partie, c'est la honte complète.
 - **Force de main** (`strength.ts`) : un barème simple sur la main du preneur au moment de l'enchère, à l'atout choisi — 1 par atout, +3 pour le valet, +2 pour le neuf, +2 par as extérieur, +1 par atout au-delà du quatrième, +2 par coupe franche.
 - **Panache** : l'écart moyen entre ce qu'un joueur annonce et ce que **les autres** annoncent avec une main de force comparable (même bande de 3 points de force ; on prend la médiane des autres). Positif : plus audacieux que le groupe ; négatif : plus prudent.
