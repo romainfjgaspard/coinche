@@ -7,6 +7,8 @@ import StatsBidding from './StatsBidding.vue'
 import StatsGaps from './StatsGaps.vue'
 import StatsTimes from './StatsTimes.vue'
 import StatsGames from './StatsGames.vue'
+import StatsLines from './StatsLines.vue'
+import StatsPodium from './StatsPodium.vue'
 /**
  * Statistiques de toutes les parties, sur grand écran — la maquette validée
  * « Stats — toutes les parties — ordinateur ». Dessinée pour 1920 px ; le parent la
@@ -49,7 +51,6 @@ const GOOD = '#52a884'
 const BAD = '#cc6b4a'
 const LIGHT = '#cfe0d8'
 const SLATE = '#5d7a70'
-const SEP = '1px solid rgba(255,255,255,.14)'
 
 const name = (p: PlayerId): string => nameOf(p)
 const pairName = (p: readonly PlayerId[]): string => p.map(name).join(' & ')
@@ -61,201 +62,13 @@ const signed = (v: number): string =>
 const duos = computed(() => duoStats(props.archives))
 const players = computed(() => playerStats(props.archives))
 
-// --- Cellules des tableaux : valeur, couleur, fond dégradé, séparateur de groupe
-interface Cell {
-  v: string
-  c: string
-  w: string
-  background: string
-  sep: string
-}
-const cell = (v: string | number, opt: Partial<Cell> = {}): Cell => ({
-  v: String(v),
-  c: opt.c ?? LIGHT,
-  w: opt.w ?? '400',
-  background: opt.background ?? 'transparent',
-  sep: opt.sep ?? 'none',
-})
-/** Dégradé séquentiel : plus le taux est élevé, plus le fond est soutenu. */
-const rateCell = (v: number, sep?: string): Cell => {
-  const a = Math.max(0, Math.min(1, (v - 35) / 40))
-  return cell(`${v} %`, {
-    c: '#faf9f5',
-    w: '600',
-    background: `rgba(82,168,132,${(0.08 + a * 0.42).toFixed(2)})`,
-    sep,
-  })
-}
-const signedCell = (v: number, sep?: string): Cell =>
-  cell(signed(v), { c: v >= 0 ? GOOD : BAD, w: '700', sep })
-
-const columns = (names: string[], left: number, separators: number[]) =>
-  names.map((t, i) => ({
-    t,
-    align: i < left ? 'left' : 'right',
-    sep: separators.includes(i) ? SEP : 'none',
-  }))
-
-// --- Repères : le meilleur et le pire, en duo et en individuel
-const highlights = computed(() => {
-  if (!duos.value.length || !players.value.length) return []
-  const byRate = <T extends { won: number; games: number }>(l: T[]) =>
-    [...l].sort((a, b) => rate(b.won, b.games) - rate(a.won, a.games))
-  const d = byRate(duos.value)
-  const j = byRate(players.value)
-  const d0 = d[0]
-  const dn = d[d.length - 1]
-  const j0 = j[0]
-  const jn = j[j.length - 1]
-  const perDeal = (x: { scoredPoints: number; conceded: number; deals: number }) =>
-    x.deals ? (x.scoredPoints - x.conceded) / x.deals : 0
-  const victories = (g: number, p: number) => `${g} victoire${g > 1 ? 's' : ''} sur ${p}`
-  const goodStyle = { background: 'rgba(82,168,132,.14)', edge: GOOD, color: GOOD }
-  const badStyle = { background: 'rgba(204,107,74,.12)', edge: 'rgba(204,107,74,.5)', color: BAD }
-  return [
-    {
-      tag: 'MEILLEUR DUO',
-      who: pairName(d0.pair),
-      value: `${rate(d0.won, d0.games)} %`,
-      detail: `${victories(d0.won, d0.games)} · ${signed(perDeal(d0))} point par donne`,
-      ...goodStyle,
-    },
-    {
-      tag: 'PIRE DUO',
-      who: pairName(dn.pair),
-      value: `${rate(dn.won, dn.games)} %`,
-      detail: `${victories(dn.won, dn.games)} · ${signed(perDeal(dn))} point par donne`,
-      ...badStyle,
-    },
-    {
-      tag: 'MEILLEUR JOUEUR',
-      who: name(j0.player),
-      value: `${rate(j0.won, j0.games)} %`,
-      detail: `${j0.won} partie${j0.won > 1 ? 's' : ''} gagnée${j0.won > 1 ? 's' : ''} sur ${j0.games} · ${rate(j0.made, j0.takes)} % de contrats tenus`,
-      ...goodStyle,
-    },
-    {
-      tag: 'PIRE JOUEUR',
-      who: name(jn.player),
-      value: `${rate(jn.won, jn.games)} %`,
-      detail: `${jn.won} partie${jn.won > 1 ? 's' : ''} gagnée${jn.won > 1 ? 's' : ''} sur ${jn.games} · ${jn.shameStars} étoile${jn.shameStars > 1 ? 's' : ''} de la honte`,
-      ...badStyle,
-    },
-  ]
-})
-
-// --- Duo par duo
-const pairCols = columns(
-  [
-    'DUO',
-    'CONTRE',
-    'JOUÉES',
-    'GAGNÉES',
-    '%',
-    'SCORE MOY',
-    'PIRE SCORE',
-    'JOUÉES',
-    'GAGNÉES',
-    '%',
-    'PRISES',
-    'RÉUSSIES',
-    '%',
-    'BILAN',
-  ],
-  2,
-  [2, 7],
+// --- Duos et joueurs : le classement et le tableau, les mêmes colonnes pour les deux
+const duoRows = computed(() =>
+  duos.value.map((d) => ({ key: pairKey(d.pair), name: pairName(d.pair), line: d })),
 )
-const pairRows = computed(() =>
-  duos.value.map((d) => ({
-    key: pairKey(d.pair),
-    pair: pairName(d.pair),
-    against: d.against.map(pairName).join(' · '),
-    cells: [
-      cell(d.games, { sep: SEP }),
-      cell(d.won),
-      rateCell(rate(d.won, d.games)),
-      cell(d.averageScore),
-      cell(d.worstScore ?? '—'),
-      cell(d.deals, { sep: SEP }),
-      cell(d.dealsWon),
-      rateCell(rate(d.dealsWon, d.deals)),
-      cell(d.takes),
-      cell(d.made),
-      rateCell(rate(d.made, d.takes)),
-      signedCell(d.deals ? (d.scoredPoints - d.conceded) / d.deals : 0),
-    ],
-  })),
+const playerRows = computed(() =>
+  players.value.map((j) => ({ key: j.player, name: name(j.player), line: j })),
 )
-
-// --- Joueur par joueur, triable d'un clic
-const playerCols = columns(
-  [
-    'JOUEUR',
-    'JOUÉES',
-    'GAGNÉES',
-    '%',
-    'SCORE MOY',
-    'PIRE SCORE',
-    'JOUÉES',
-    'PRISES',
-    'RÉUSSIES',
-    '%',
-    'ENCH. MOY',
-    'CHUTES',
-    'COINCHES',
-    'BILAN',
-  ],
-  1,
-  [1, 6],
-)
-/** Valeur de tri de chaque colonne, dans l'ordre des en-têtes (hors nom). */
-const sort = ref<{ col: number; desc: boolean }>({ col: 3, desc: true })
-const playerRows = computed(() => {
-  const rows = players.value.map((j) => {
-    const dealBalance = j.deals ? (j.scoredPoints - j.conceded) / j.deals : 0
-    const values = [
-      j.games,
-      j.won,
-      rate(j.won, j.games),
-      j.averageScore,
-      j.worstScore ?? 0,
-      j.deals,
-      j.takes,
-      j.made,
-      rate(j.made, j.takes),
-      j.averageBid ?? 0,
-      j.downs,
-      j.coinches,
-      dealBalance,
-    ]
-    return {
-      id: j.player,
-      name: name(j.player),
-      values,
-      cells: [
-        cell(j.games, { sep: SEP }),
-        cell(j.won),
-        rateCell(rate(j.won, j.games)),
-        cell(j.averageScore),
-        cell(j.worstScore ?? '—'),
-        cell(j.deals, { sep: SEP }),
-        cell(j.takes),
-        cell(j.made),
-        rateCell(rate(j.made, j.takes)),
-        cell(j.averageBid ?? '—'),
-        cell(j.downs),
-        cell(`${j.coinches} / ${j.coinchesWon}`),
-        signedCell(dealBalance),
-      ],
-    }
-  })
-  const { col, desc } = sort.value
-  return rows.sort((a, b) => (desc ? -1 : 1) * (a.values[col - 1] - b.values[col - 1]))
-})
-function sortBy(col: number): void {
-  if (col === 0) return
-  sort.value = { col, desc: sort.value.col === col ? !sort.value.desc : true }
-}
 
 // --- Belotes, impasses et étoiles
 const details = computed(() =>
@@ -475,76 +288,22 @@ const clouds = computed(() => {
 <template>
   <div>
     <template v-if="view === 'duos'">
-      <!-- Quatre repères : le meilleur et le pire, en duo et en individuel -->
-      <div class="mt-4 grid grid-cols-4 gap-3.5">
-        <div
-          v-for="r in highlights"
-          :key="r.tag"
-          class="rounded-xl px-[18px] py-3.5"
-          :style="{ background: r.background, border: `1px solid ${r.edge}` }"
-        >
-          <p class="text-[10px] tracking-[.1em]" :style="{ color: r.color }">{{ r.tag }}</p>
-          <div class="mt-1 flex items-baseline gap-2.5">
-            <span class="grow font-display text-2xl leading-none">{{ r.who }}</span>
-            <span class="font-display text-[28px] leading-none" :style="{ color: r.color }">{{
-              r.value
-            }}</span>
-          </div>
-          <p class="mt-2 text-xs leading-snug text-mist">{{ r.detail }}</p>
-        </div>
-      </div>
+      <StatsPodium :rows="duoRows" kind="duo" />
 
       <h2 class="mt-[26px] mb-[3px] font-display text-xl font-normal">Duo par duo</h2>
       <p class="mb-2.5 text-xs text-sage">
         {{
           playersOf(archives).length <= 4
             ? "Les six paires possibles. Chaque paire n'a qu'un adversaire possible : les deux autres joueurs."
-            : "Les paires qui ont joué ensemble, et les paires qu'elles ont affrontées."
+            : 'Les paires qui ont joué ensemble.'
         }}
+        Les colonnes se trient d'un clic.
       </p>
-      <table class="w-full border-collapse text-[13px]">
-        <thead>
-          <tr class="text-[10px] tracking-[.1em] text-dusk">
-            <th colspan="2" class="pb-[5px]"></th>
-            <th colspan="5" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">
-              PARTIES
-            </th>
-            <th colspan="7" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">
-              DONNES
-            </th>
-          </tr>
-          <tr class="text-[10px] tracking-[.05em] text-sage">
-            <th
-              v-for="(c, i) in pairCols"
-              :key="i"
-              class="pt-[7px] pr-4 pb-2 font-semibold"
-              :style="{ textAlign: c.align as 'left' | 'right', borderLeft: c.sep }"
-            >
-              {{ c.t }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="d in pairRows" :key="d.key" class="border-t border-white/7">
-            <td class="py-2.5 pr-4 font-semibold whitespace-nowrap">{{ d.pair }}</td>
-            <td class="py-2.5 pr-4 whitespace-nowrap text-sage">{{ d.against }}</td>
-            <td
-              v-for="(v, i) in d.cells"
-              :key="i"
-              class="py-2.5 pr-4 text-right"
-              :style="{ borderLeft: v.sep }"
-            >
-              <span
-                class="inline-block rounded-[5px] px-[7px] py-0.5 tabular-nums"
-                :style="{ background: v.background, color: v.c, fontWeight: v.w }"
-                >{{ v.v }}</span
-              >
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <StatsLines :rows="duoRows" kind="duo" />
     </template>
     <template v-else-if="view === 'players'">
+      <StatsPodium :rows="playerRows" kind="player" />
+
       <h2 class="mt-7 mb-[3px] font-display text-xl font-normal">Joueur par joueur</h2>
       <p class="mb-2.5 text-xs text-sage">
         {{
@@ -554,49 +313,7 @@ const clouds = computed(() => {
         }}
         Les colonnes se trient d'un clic.
       </p>
-      <table class="w-full border-collapse text-[13px]">
-        <thead>
-          <tr class="text-[10px] tracking-[.1em] text-dusk">
-            <th class="pb-[5px]"></th>
-            <th colspan="5" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">
-              PARTIES
-            </th>
-            <th colspan="8" class="border-b border-l border-white/14 pb-[5px] text-center font-semibold">
-              DONNES
-            </th>
-          </tr>
-          <tr class="text-[10px] tracking-[.05em] text-sage">
-            <th
-              v-for="(c, i) in playerCols"
-              :key="i"
-              class="pt-[7px] pr-4 pb-2 font-semibold"
-              :class="i > 0 ? 'cursor-pointer select-none hover:text-ivory' : ''"
-              :style="{ textAlign: c.align as 'left' | 'right', borderLeft: c.sep }"
-              :aria-sort="sort.col === i ? (sort.desc ? 'descending' : 'ascending') : undefined"
-              @click="sortBy(i)"
-            >
-              {{ c.t }}<span v-if="sort.col === i" class="text-gold">{{ sort.desc ? ' ▾' : ' ▴' }}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="j in playerRows" :key="j.id" class="border-t border-white/7">
-            <td class="py-2.5 pr-4 font-semibold whitespace-nowrap">{{ j.name }}</td>
-            <td
-              v-for="(v, i) in j.cells"
-              :key="i"
-              class="py-2.5 pr-4 text-right"
-              :style="{ borderLeft: v.sep }"
-            >
-              <span
-                class="inline-block rounded-[5px] px-[7px] py-0.5 tabular-nums"
-                :style="{ background: v.background, color: v.c, fontWeight: v.w }"
-                >{{ v.v }}</span
-              >
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <StatsLines :rows="playerRows" kind="player" />
 
       <h2 class="mt-7 mb-2.5 font-display text-xl font-normal">Belotes, impasses, étoiles et réflexion</h2>
       <div class="grid grid-cols-4 gap-4">

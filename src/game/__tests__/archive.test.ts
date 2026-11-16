@@ -75,4 +75,18 @@ describe('archive de fin de partie', () => {
     expect(a.players.viv.belotesDeclared).toBe(1)
     expect(a.players.benel).toMatchObject({ takes: 0, scoredPoints: 0, detail: [] })
   })
+
+  it('compte les plis ramassés par chacun, et les plis joués', () => {
+    const trick = (winner: string) => ev('trick_done', { winner, cards: [], points: 0 })
+    const withTricks = buildArchive(
+      'KDVA',
+      [...EVENTS.slice(0, -1), trick('viv'), trick('viv'), trick('roux'), EVENTS.at(-1)!],
+      DEFAULT_SEATING,
+      HANDS,
+    )
+    expect(withTricks.tricksPlayed).toBe(3)
+    expect(withTricks.players.viv.tricks).toBe(2)
+    expect(withTricks.players.roux.tricks).toBe(1)
+    expect(withTricks.players.benel.tricks).toBe(0)
+  })
 })

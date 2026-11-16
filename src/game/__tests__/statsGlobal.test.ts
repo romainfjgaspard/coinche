@@ -163,6 +163,73 @@ describe('statistiques par joueur', () => {
   })
 })
 
+describe('les mêmes colonnes pour un duo et pour un joueur', () => {
+  // Partie AAAA : Romain+Viv contre Benel+Roux. Viv tient 3 contrats (dont un capot), Roux en chute 2.
+  const duos = duoStats(ARCHIVES)
+  const players = playerStats(ARCHIVES)
+  const rv = duos.find((d) => pairKey(d.pair) === pairKey(['romain', 'viv']))!
+  const viv = players.find((j) => j.player === 'viv')!
+
+  it("compte une donne gagnée pour son contrat tenu ou celui de l'adversaire chuté", () => {
+    expect(rv.dealsWon).toBe(3 + 2)
+    // Viv gagne aussi ces cinq donnes-là ; en BBBB (avec Benel), le contrat tenu de Benel
+    expect(viv.dealsWon).toBe(5 + 1)
+  })
+
+  it("donne l'enchère moyenne sans les capots, pour le duo comme pour le joueur", () => {
+    expect(rv.averageBid).toBe(100)
+    expect(viv.averageBid).toBe(100)
+  })
+
+  it('compte capots et générales ensemble, la générale sans drapeau capot', () => {
+    expect(rv).toMatchObject({ bigTakes: 1, bigMade: 1 })
+    const withGenerale = game({
+      code: 'GGGG',
+      seating: A,
+      scores: [1010, 0],
+      players: {
+        romain: {
+          takes: 1,
+          made: 0,
+          downs: 1,
+          detail: [{ deal: 1, value: 250, strength: 20, isMade: false, capot: false }],
+        },
+      },
+    })
+    const romain = playerStats([withGenerale]).find((j) => j.player === 'romain')!
+    expect(romain).toMatchObject({ bigTakes: 1, bigMade: 0, averageBid: null })
+  })
+
+  it('additionne les coinches de la paire, gagnées et tentées', () => {
+    const coinched = game({
+      code: 'CCCC',
+      seating: A,
+      scores: [1010, 0],
+      players: { romain: { coinches: 2, coinchesWon: 1 }, viv: { coinches: 1, coinchesWon: 1 } },
+    })
+    const d = duoStats([coinched]).find((x) => pairKey(x.pair) === pairKey(['romain', 'viv']))!
+    expect(d).toMatchObject({ coinches: 3, coinchesWon: 2 })
+  })
+
+  it('compte les plis du joueur, ceux du camp pour un duo, et ignore les archives sans plis', () => {
+    const counted = {
+      ...game({
+        code: 'PPPP',
+        seating: A,
+        scores: [1010, 0],
+        players: { romain: { tricks: 10 }, viv: { tricks: 14 }, benel: { tricks: 8 }, roux: { tricks: 8 } },
+      }),
+      tricksPlayed: 40,
+    }
+    const all = [...ARCHIVES, counted]
+    expect(playerStats(all).find((j) => j.player === 'viv')).toMatchObject({ tricks: 14, tricksPlayed: 40 })
+    const d = duoStats(all).find((x) => pairKey(x.pair) === pairKey(['romain', 'viv']))!
+    expect(d).toMatchObject({ tricks: 24, tricksPlayed: 40 })
+    // Sans aucune archive qui les compte : rien à afficher
+    expect(rv).toMatchObject({ tricks: 0, tricksPlayed: 0 })
+  })
+})
+
 describe('répartition par palier', () => {
   it('range chaque prise à son palier, capot compris', () => {
     const rows = byTier(ARCHIVES)

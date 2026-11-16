@@ -63,6 +63,8 @@ export interface PlayerArchive {
   gaps?: Gaps
   /** Chaque temps de réflexion, en secondes */
   times?: Times
+  /** Plis ramassés. Absent des archives déposées avant le 29/10/2026. */
+  tricks?: number
 }
 
 export interface Archive {
@@ -80,6 +82,8 @@ export interface Archive {
   /** Points à dépasser, et partie en blitz. Absents : 1000 et partie normale. */
   target?: number
   blitz?: boolean
+  /** Plis joués dans la partie, les donnes blitz n'en ont pas. Absent avant le 29/10/2026. */
+  tricksPlayed?: number
 }
 
 const empty = (): PlayerArchive => ({
@@ -157,6 +161,10 @@ export function buildArchive(
   for (const [p, r] of bidGaps(events, seating)) if (players[p]) players[p].gaps = r
   for (const [p, r] of timesByPlayer(events)) if (players[p]) players[p].times = r
 
+  const tricks = events.filter((e) => e.type === 'trick_done')
+  for (const p of Object.values(players)) p.tricks = 0
+  for (const e of tricks) if (players[e.winner]) players[e.winner].tricks! += 1
+
   for (const [p, t] of finesseTallies(finessesOfGame(events, seating[1], seating))) {
     players[p].finesses = t.tried
     players[p].finessesWon = t.made
@@ -175,6 +183,7 @@ export function buildArchive(
     scores,
     winner: scores[0] > scores[1] ? 0 : 1,
     deals: list.length,
+    tricksPlayed: tricks.length,
     bots,
     players,
   }

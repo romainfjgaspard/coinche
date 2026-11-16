@@ -1,7 +1,8 @@
 /**
  * Les parties retenues par les statistiques globales, selon des interrupteurs
  * indépendants : les parties avec bot, les parties sans bot (par défaut, sans bot
- * seulement) ; l'objectif de la partie (500, 1000…) ; normale ou blitz (tout par défaut).
+ * seulement) ; l'objectif de la partie (500, 1000…, 1000 seul par défaut) ; normale ou
+ * blitz (normale seule par défaut). Par défaut, on compare donc des parties comparables.
  *
  * L'état est partagé (niveau module) : téléphone et PC, onglet et sous-onglets
  * voient le même choix. Les bots d'un même niveau y sont regroupés.
@@ -15,10 +16,10 @@ import { useSession } from '../stores/session'
 const withBots = ref(false)
 const withoutBots = ref(true)
 const rawUnfinished = ref<UnfinishedGame[] | null>(null)
-/** Les objectifs écartés : vide, toutes les parties comptent. */
-const hiddenTargets = ref<number[]>([])
+/** Les objectifs retenus : la partie classique en 1000 par défaut. */
+const shownTargets = ref<number[]>([1000])
 const withNormal = ref(true)
-const withBlitz = ref(true)
+const withBlitz = ref(false)
 
 interface Filtered {
   bots?: string[]
@@ -32,7 +33,8 @@ export function useArchiveFilter() {
   const session = useSession()
   const kept = (a: Filtered): boolean =>
     (hasBot(a) ? withBots.value : withoutBots.value) &&
-    !hiddenTargets.value.includes(targetOf(a)) &&
+    // Un seul objectif joué : pas de puce pour le choisir, donc pas de filtre.
+    (targets.value.length <= 1 || shownTargets.value.includes(targetOf(a))) &&
     (a.blitz ? withBlitz.value : withNormal.value)
   /** Les objectifs joués, et combien de parties pour chacun : une puce par objectif. */
   const targets = computed(() => {
@@ -43,9 +45,9 @@ export function useArchiveFilter() {
   const countBlitz = computed(() => session.archives.filter((a) => a.blitz).length)
   const countNormal = computed(() => session.archives.length - countBlitz.value)
   function toggleTarget(target: number): void {
-    hiddenTargets.value = hiddenTargets.value.includes(target)
-      ? hiddenTargets.value.filter((t) => t !== target)
-      : [...hiddenTargets.value, target]
+    shownTargets.value = shownTargets.value.includes(target)
+      ? shownTargets.value.filter((t) => t !== target)
+      : [...shownTargets.value, target]
   }
   const archives = computed<Archive[]>(() => groupBots(session.archives.filter(kept)))
   const countWithBots = computed(() => session.archives.filter(hasBot).length)
@@ -69,7 +71,7 @@ export function useArchiveFilter() {
     unfinished,
     loadUnfinished,
     targets,
-    hiddenTargets,
+    shownTargets,
     toggleTarget,
     withNormal,
     withBlitz,
