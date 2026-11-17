@@ -40,6 +40,27 @@ function connect(): Firestore {
   return db
 }
 
+/**
+ * Une lecture qui ne répond pas en une minute est abandonnée et relancée, jusqu'à 4 fois :
+ * dans Cloud Shell, une requête peut rester pendue sans jamais échouer.
+ */
+async function patiently<T>(label: string, read: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} : pas de réponse en 60 s`)), 60_000)
+    })
+    try {
+      return await Promise.race([read(), timeout])
+    } catch (e) {
+      if (attempt === 4) throw e
+      console.log(`   ${e instanceof Error ? e.message : String(e)}, nouvel essai (${attempt + 1}/4)…`)
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+}
+
 /** Le journal d'une partie, par paquets : une grosse lecture d'un coup peut expirer. */
 async function readEvents(db: Firestore, code: string): Promise<GameEvent[]> {
   const ref = db.collection('games').doc(code).collection('events')
@@ -48,7 +69,10 @@ async function readEvents(db: Firestore, code: string): Promise<GameEvent[]> {
   for (;;) {
     let q = ref.orderBy('seq').limit(300)
     if (last !== null) q = q.startAfter(last)
-    const page = (await q.get()).docs.map((d) => d.data() as GameEvent)
+    const query = q
+    const page = (await patiently(`${code}, journal après ${events.length}`, () => query.get())).docs.map(
+      (d) => d.data() as GameEvent,
+    )
     events.push(...page)
     if (page.length < 300) return events
     last = page[page.length - 1].seq
@@ -56,7 +80,8 @@ async function readEvents(db: Firestore, code: string): Promise<GameEvent[]> {
 }
 
 async function readHands(db: Firestore, code: string): Promise<Record<number, Record<string, Card[]>>> {
-  const snap = await db.collection('games').doc(code).collection('deals').get()
+  const ref = db.collection('games').doc(code).collection('deals')
+  const snap = await patiently(`${code}, mains`, () => ref.get())
   return Object.fromEntries(
     snap.docs.map((d) => [Number(d.id), (d.data().hands ?? {}) as Record<string, Card[]>]),
   )
@@ -113,10 +138,14 @@ describe('recalcul des archives', () => {
       console.log(
         `Projet ${PROJECT}${EMULATOR ? ' (émulateur)' : ''} — ${WRITE ? 'ÉCRITURE' : 'SIMULATION, rien ne sera écrit'}\n`,
       )
-      const archives = (await db.collection('archives').get()).docs.map((d) => d.data() as Archive)
+      const archivesRef = db.collection('archives')
+      const archives = (await patiently('archives', () => archivesRef.get())).docs.map(
+        (d) => d.data() as Archive,
+      )
       const next: Archive[] = []
       let skipped = 0
       for (const old of archives) {
+        console.log(`${old.code} : lecture du journal…`)
         const events = await readEvents(db, old.code)
         const doc = rebuild(old, events, await readHands(db, old.code))
         // Garde-fou : le journal doit redonner le même résultat que l'archive.
@@ -149,7 +178,9 @@ describe('recalcul des archives', () => {
       const backup = `archives-sauvegarde-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
       writeFileSync(backup, JSON.stringify(archives, null, 1))
       console.log(`Copie des archives d'avant : ${backup}`)
-      for (const doc of next) await db.collection('archives').doc(doc.code).set(doc)
+      // Réécrire la même archive deux fois ne change rien : relancer une écriture est sans risque.
+      for (const doc of next)
+        await patiently(`${doc.code}, écriture`, () => archivesRef.doc(doc.code).set(doc))
       console.log(`${next.length} archive(s) réécrite(s).`)
     },
     30 * 60 * 1000,
