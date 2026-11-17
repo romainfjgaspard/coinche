@@ -13,6 +13,9 @@ service-account.json
 firebase-export-*/
 .firebase/
 
+# Copies des archives prises par le recalcul (npm run archives:recalcul) : données réelles
+archives-sauvegarde-*.json
+
 # Captures des scripts Playwright
 captures/
 

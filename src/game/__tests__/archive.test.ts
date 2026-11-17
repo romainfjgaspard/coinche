@@ -90,3 +90,52 @@ describe('archive de fin de partie', () => {
     expect(withTricks.players.benel.tricks).toBe(0)
   })
 })
+
+describe('le résumé des donnes et les coinches de désespoir', () => {
+  // Objectif 100 pour aller vite. Viv (équipe 0) prend deux fois, Roux (équipe 1) coinche
+  // les deux fois : la seconde, Viv gagnait la partie en faisant son contrat.
+  const coinched = (n: number, at: number, value: number, scores: [number, number]): GameEvent[] => [
+    ev('deal_started', { dealNumber: n, dealer: 'benel', at }),
+    ev('bid', { player: 'viv', round: 1, entry: { kind: 'contract', player: 'viv', value, suit: 's' } }),
+    ev('coinche', { player: 'roux' }),
+    ev('contract_set', { taker: 'viv', value, trump: 's', multiplier: 2, capot: false, generale: false }),
+    ev('deal_done', {
+      dealNumber: n,
+      status: 'made',
+      cardPoints: [100, 62],
+      compared: [100, 62],
+      scores,
+      beloteDeclaredBy: null,
+      beloteForgottenBy: null,
+      shameStar: null,
+    }),
+  ]
+  const events: GameEvent[] = [
+    ev('game_created', { seating: DEFAULT_SEATING }),
+    ...coinched(1, 1000, 90, [180, 0]),
+    ...coinched(2, 5000, 80, [160, 0]),
+    ev('game_over', { scores: [340, 0], winner: 0, deals: 2, at: 9000 }),
+  ]
+  const a = buildArchive('DSPR', events, DEFAULT_SEATING, {}, [], 100)
+
+  it('garde chaque donne : paroles, contrat, résultat, heure', () => {
+    expect(a.dealLog).toHaveLength(2)
+    expect(a.dealLog![0]).toMatchObject({ dealNumber: 1, at: 1000, taker: 'viv', value: 90, multiplier: 2 })
+    expect(a.dealLog![0].bids).toEqual([
+      { kind: 'contract', player: 'viv', value: 90, suit: 's' },
+      { kind: 'coinche', player: 'roux' },
+    ])
+    expect(a.dealLog![1]).toMatchObject({ status: 'made', scores: [160, 0] })
+  })
+
+  it('date le début et la fin de la partie', () => {
+    expect(a.startedAt).toBe(1000)
+    expect(a.endedAt).toBe(9000)
+  })
+
+  it('met à part la coinche qui ne coûtait rien', () => {
+    // Donne 1 : 0 + 90 ne dépasse pas 100, la coinche compte. Donne 2 : 180 + 80, si.
+    expect(a.dealLog!.map((d) => d.desperate)).toEqual([false, true])
+    expect(a.players.roux).toMatchObject({ coinches: 1, coinchesWon: 0, desperateCoinches: 1 })
+  })
+})
